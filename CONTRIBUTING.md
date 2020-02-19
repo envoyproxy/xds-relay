@@ -6,13 +6,13 @@ maximize the chances of your PR being merged.
 * Before starting work on a major feature, please reach out to us via GitHub, Slack,
   email, etc. We will make sure no one else is already working on it and ask you to open a GitHub
   issue.
-* A "major feature" is defined as any change that is > 100 LOC altered (not including tests), or
-  changes any user-facing behavior. We will use the GitHub issue to discuss the feature and come to
-  agreement. This is to prevent your time being wasted, as well as ours. The GitHub review process
-  for major features is also important so that [organizations with commit access](OWNERS.md) can
-  come to agreement on design. If it is appropriate to write a design document, the document must be
-  hosted either in the GitHub tracking issue, or linked to from the issue and hosted in a
-  world-readable location.
+* A "major feature" is defined as any change that is > 100 lines of code altered (not including
+  tests), or changes any user-facing behavior. We will use the GitHub issue to discuss the feature
+  and come to agreement. This is to prevent your time being wasted, as well as ours. The GitHub
+  review process for major features is also important so that [organizations with commit
+  access](OWNERS.md) can come to agreement on design. If it is appropriate to write a design
+  document, the document must be hosted either in the GitHub tracking issue, or linked to from the
+  issue and hosted in a world-readable location.
 * Small patches and bug fixes don't need prior communication.
 
 # Coding style
