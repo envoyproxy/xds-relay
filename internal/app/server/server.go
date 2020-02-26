@@ -46,9 +46,7 @@ func Run() {
 	api.RegisterListenerDiscoveryServiceServer(server, gcpServer)
 
 	logger.Info("Initializing server at", listener.Addr().String())
-	go func() {
-		if err := server.Serve(listener); err != nil {
-			logger.Fatalw("failed to initialize server", "err", err)
-		}
-	}()
+	if err := server.Serve(listener); err != nil {
+		logger.Fatalw("failed to initialize server", "err", err)
+	}
 }
