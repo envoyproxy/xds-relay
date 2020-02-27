@@ -1,6 +1,6 @@
 module github.com/envoyproxy/xds-relay
 
-go 1.12
+go 1.14
 
 require (
 	github.com/envoyproxy/go-control-plane v0.9.4
