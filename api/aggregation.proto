@@ -1,0 +1,181 @@
+syntax = "proto3";
+
+package aggregation;
+
+import "validate/validate.proto";
+
+// [#next-free-field: 3]
+message KeyerConfiguration {
+
+  // [#next-free-field: 2]
+  message Fragment {
+
+    // A rule defining how to match a Envoy request and what resulting
+    // fragment to generate.
+    // [#next-free-field: 3]
+    message Rule {
+
+      // Defines how to match an Envoy Request.
+      MatchPredicate match = 1 [(validate.rules).message.required = true];
+
+      // Defines how to generate the resulting fragment if matched.
+      ResultPredicate result = 2 [(validate.rules).message.required = true];
+    }
+
+    // The first rule that matches will be applied in sequential order.
+    repeated Rule rules = 1 [(validate.rules).repeated .min_items = 1];
+  }
+
+  // Separator for each key fragment. Default if not specified is "_".
+  string fragments_separator = 1;
+
+  // Fragments are the pieces that form a cache key.
+  repeated Fragment fragments = 2 [(validate.rules).repeated .min_items = 1];
+}
+
+enum NodeFieldType {
+  NODE_ID = 0;
+  NODE_CLUSTER = 1;
+  NODE_LOCALITY_REGION = 2;
+  NODE_LOCALITY_ZONE = 3;
+  NODE_LOCALITY_SUBZONE = 4;
+}
+
+// This is a recursive structure which allows complex nested match
+// configurations to be built using various logical operators.
+// [#next-free-field: 7]
+message MatchPredicate {
+
+  // Rules for matching on a Envoy request type.
+  // [#next-free-field: 2]
+  message RequestTypeMatch {
+    // One or more Envoy request types to match on.
+    // Ex: "type.googleapis.com/envoy.api.v2.Listener"
+    repeated string types = 1 [(validate.rules).repeated .min_items = 1];
+  }
+
+  // Match on a Field in Envoy's request node.
+  // [#next-free-field: 4]
+  message RequestNodeMatch {
+
+    // Specifies the Envoy Request field that should be matched on.
+    NodeFieldType field = 1 [(validate.rules).enum = {defined_only: true}, (validate.rules).message.required = true];
+
+    oneof type {
+      option (validate.required) = true;
+
+      // Match on the extract string value.
+      string exact_match = 2;
+
+      // Match on a regex pattern.
+      // TODO potentially use "safe regex"
+      // https://github.com/envoyproxy/envoy/blob/10f756efa17e56c8d4d1033be7b4286410db4e01/api/envoy/type/matcher/v3/regex.proto
+      string regex_match = 3;
+    }
+  }
+
+  // A set of match configurations used for logical operations.
+  // [#next-free-field: 2]
+  message MatchSet {
+    // The list of rules that make up the set.
+    repeated MatchPredicate rules = 1 [(validate.rules).repeated = {min_items: 2}];
+  }
+
+  oneof type {
+    option (validate.required) = true;
+
+    // A set that describes a logical AND. If any member of the set
+    // matches, the match configuration matches.
+    MatchSet and_match = 1;
+
+    // A set that describes a logical OR. If all members of the set
+    // match, the match configuration matches.
+    MatchSet or_match = 2;
+
+    // A negation match. The match configuration will match if the
+    // negated match condition matches.
+    MatchPredicate not_match = 3;
+
+    // The match configuration will always match.
+    bool any_match = 4 [(validate.rules).bool = {const: true}];
+
+    // Match on an Envoy request type.
+    // Ex: "type.googleapis.com/envoy.api.v2.Listener"
+    RequestTypeMatch request_type_match = 5;
+
+    // Match on a Field in Envoy's request node.
+    RequestNodeMatch request_node_match = 6;
+  }
+}
+
+// Rules for how to generate the resulting fragment of the xDS Aggregator cache
+// key.
+// [#next-free-field: 5]
+message ResultPredicate {
+
+  message ResultAction {
+
+    // TODO potentially use "safe regex"
+    // https://github.com/envoyproxy/envoy/blob/10f756efa17e56c8d4d1033be7b4286410db4e01/api/envoy/type/matcher/v3/regex.proto
+    // [#next-free-field: 3]
+    message RegexAction {
+
+      string pattern = 1 [(validate.rules).message.required = true];
+
+      string replace = 2 [(validate.rules).message.required = true];
+    }
+
+    oneof action {
+      option (validate.required) = true;
+
+      // Uses the exact string value of the field.
+      bool exact = 1 [(validate.rules).bool = {const: true}];
+
+      // Operates a regex find and replace on the field.
+      RegexAction regex_action = 2;
+    }
+  }
+
+  // Rules for generating the resulting fragment from a Envoy request node.
+  // [#next-free-field: 3]
+  message RequestNodeFragment {
+
+    NodeFieldType field = 1 [(validate.rules).message.required = true];
+
+    ResultAction action = 2 [(validate.rules).message.required = true];
+  }
+
+  // Rules for generating the resulting fragment from Envoy request names.
+  // [#next-free-field: 4]
+  message ResourceNamesFragment {
+
+    NodeFieldType field = 1 [(validate.rules).message.required = true];
+
+    // The index of the resource name to operate on.
+    // TODO support operation on multiple elements once we move past the MVP.
+    int32 element = 2 [(validate.rules).message.required = true];
+
+    ResultAction action = 3 [(validate.rules).message.required = true];
+  }
+
+  oneof type {
+    option (validate.required) = true;
+
+    // A set that describes a logical AND. The result is a non-separated
+    // append operation between two or more fragments.
+    RepeatedResultPredicate result_predicate = 1 ;
+
+    // A fragment generated from an Envoy request node.
+    RequestNodeFragment request_node_fragment = 2;
+
+    // A fragment generated from Envoy resource names.
+    ResourceNamesFragment resource_names_fragment = 3;
+
+    // A simple string fragment
+    string string_fragment = 4;
+  }
+
+  message RepeatedResultPredicate {
+    repeated ResultPredicate and_result = 1 [(validate.rules).repeated = {min_items: 2}];
+  }
+}
