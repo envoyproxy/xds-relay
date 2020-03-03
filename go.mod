@@ -5,8 +5,9 @@ go 1.14
 require (
 	github.com/census-instrumentation/opencensus-proto v0.2.1 // indirect
 	github.com/envoyproxy/go-control-plane v0.7.1
-	github.com/envoyproxy/protoc-gen-validate v0.1.0 // indirect
+	github.com/envoyproxy/protoc-gen-validate v0.1.0
 	github.com/gogo/googleapis v1.3.2 // indirect
+	github.com/golang/protobuf v1.3.2
 	github.com/iancoleman/strcase v0.0.0-20191112232945-16388991a334 // indirect
 	github.com/lyft/protoc-gen-star v0.4.14 // indirect
 	github.com/onsi/ginkgo v1.12.0

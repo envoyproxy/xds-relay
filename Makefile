@@ -31,10 +31,11 @@ endif
 
 .PHONY: compile-protos
 compile-protos:
-	mkdir -p ./generated && \
+	mkdir -p pkg/api && \
 	protoc \
-		-I ./api/ \
+		-I api/ \
 		-I ${GOPATH}/src/github.com/envoyproxy/protoc-gen-validate \
-		--go_out=":./generated" \
-		--validate_out="lang=go:./generated" \
-		./api/aggregation.proto
+		--go_out=":pkg/api" \
+		--validate_out="lang=go:pkg/api" \
+		api/proto/**/*.proto
+
