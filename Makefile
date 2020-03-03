@@ -37,5 +37,5 @@ compile-protos:
 		-I ${GOPATH}/src/github.com/envoyproxy/protoc-gen-validate \
 		--go_out=":pkg/api" \
 		--validate_out="lang=go:pkg/api" \
-		api/proto/**/*.proto
+		api/xdsrelay/aggregation/v1/*.proto
 
