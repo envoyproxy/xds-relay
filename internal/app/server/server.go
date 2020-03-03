@@ -39,7 +39,7 @@ func Run() {
 	snapshotCache := cache.NewSnapshotCache(false, cache.IDHash{}, nil)
 	gcpServer := gcp.NewServer(ctx, snapshotCache, nil)
 	server := grpc.NewServer()
-	listener, err := net.Listen("tcp", ":8080")
+	listener, err := net.Listen("tcp", ":8080") // #nosec
 	if err != nil {
 		logger.Fatalw("failed to bind server to listener", "err", err)
 	}
