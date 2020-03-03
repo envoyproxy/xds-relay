@@ -16,3 +16,8 @@ install:
 .PHONY: unit
 unit:
 	go test -v -cover ./...
+
+# Run golangci-lint
+.PHONY: lint
+lint:
+	golangci-lint run

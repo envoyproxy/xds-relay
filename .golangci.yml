@@ -1,0 +1,35 @@
+# Please read the golangci-lint documentation:
+#     https://github.com/golangci/golangci-lint
+linters:
+  disable-all: true
+  enable:
+    - deadcode
+    - depguard
+    - errcheck
+    - goconst
+    - gocyclo
+    - gofmt
+    - goimports
+    - golint
+    - gosec
+    - gosimple
+    - govet
+    - ineffassign
+    - lll
+    - megacheck
+    - misspell
+    - nakedret
+    - staticcheck
+    - structcheck
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - varcheck
+issues:
+  # Maximum issues count per one linter. Set to 0 to disable. Default is 50.
+  max-per-linter: 0
+  # Maximum count of issues with the same text. Set to 0 to disable. Default is 3.
+  max-same-issues: 0
+run:
+  deadline: 5m
