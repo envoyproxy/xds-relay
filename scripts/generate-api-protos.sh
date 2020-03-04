@@ -44,6 +44,7 @@ protoc_lint() {
 main() {
   # Install required plugins for generation. These deps are pinned in go.mod.
   go install \
+    github.com/envoyproxy/protoc-gen-validate \
     github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway \
     github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger \
     github.com/golang/protobuf/protoc-gen-go \
