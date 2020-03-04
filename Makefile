@@ -31,11 +31,5 @@ endif
 
 .PHONY: compile-protos
 compile-protos:
-	mkdir -p pkg/api && \
-	protoc \
-		-I api/ \
-		-I ${GOPATH}/src/github.com/envoyproxy/protoc-gen-validate \
-		--go_out=":pkg/api" \
-		--validate_out="lang=go:pkg/api" \
-		api/xdsrelay/aggregation/v1/*.proto
+	./scripts/generate-api-protos.sh
 
