@@ -28,7 +28,6 @@ protoc_command() {
   echo "${1}"
   "${PROTOC_BIN}" "${IPATHS[@]}" \
     --go_out=paths=source_relative:./pkg \
-    --validate_out="lang=go:pkg/" \
     --plugin=protoc-gen-go="${GOBIN}/protoc-gen-go" \
     "${1}"
 }
