@@ -29,6 +29,7 @@ else
     && rm /tmp/protoc.zip
 endif
 
+# Compile proto files
 .PHONY: compile-protos
 compile-protos:
 	./scripts/generate-api-protos.sh
