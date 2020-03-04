@@ -9,7 +9,6 @@ PROTO_ZIP_RELEASE_MD5_OSX=58c8716eabdbc1259d14880ace6e719a
 # Infer paths.
 readonly REPO_ROOT="$(realpath "$(dirname "${BASH_SOURCE[0]}")/..")"
 readonly API_ROOT="${REPO_ROOT}/api"
-readonly PKG_ROOT="${REPO_ROOT}/pkg"
 
 # Isolate `go install` commands to the repository. We'll also use this path for other binaries.
 export GOBIN="${REPO_ROOT}/bin"
@@ -28,8 +27,7 @@ modpath() {
 protoc_command() {
   echo "${1}"
   "${PROTOC_BIN}" "${IPATHS[@]}" \
-    --go_opt=source_relative \
-    --go_out="${MFLAGS}"plugins=grpc:"${API_ROOT}" \
+    --go_out=""plugins=grpc:"${API_ROOT}" \
     --plugin=protoc-gen-go="${GOBIN}/protoc-gen-go" \
     "${1}"
 }
@@ -81,7 +79,6 @@ main() {
     "$(modpath github.com/grpc-ecosystem/grpc-gateway)/third_party/googleapis"
     "$(modpath github.com/envoyproxy/protoc-gen-validate)"
   )
-  echo "wow: "$IPATHS
 
   for i in "${!IPATHS[@]}"; do
     include_folder="${IPATHS[$i]}"
