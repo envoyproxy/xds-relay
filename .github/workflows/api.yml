@@ -28,7 +28,7 @@ jobs:
           go-version: '^1.13.1'
       - name: Compile protobufs
         working-directory: ${{ env.PACKAGEPATH }}
-        run: ./scripts/generate-api-protos.sh
+        run: make compile-protos
       - name: Ensure no diff when comparing generated and committed files
         working-directory: ${{ env.PACKAGEPATH }}
         run: ./scripts/api-ensure-no-diff.sh
