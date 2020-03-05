@@ -21,7 +21,6 @@ jobs:
         go-version: [1.14.x]
         platform: [ubuntu-latest, macos-latest]
     name: protobuf compile check
-    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
         with:
