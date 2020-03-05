@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package aggregation;
-option go_package = "xdsrelay/aggregation/v1;aggregationv1";
+option go_package = "aggregation/v1;aggregationv1";
 
 import "validate/validate.proto";
 

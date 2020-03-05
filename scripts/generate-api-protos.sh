@@ -8,7 +8,7 @@ PROTO_ZIP_RELEASE_MD5_OSX=58c8716eabdbc1259d14880ace6e719a
 
 # Infer paths.
 readonly REPO_ROOT="$(realpath "$(dirname "${BASH_SOURCE[0]}")/..")"
-readonly API_ROOT="${REPO_ROOT}/api"
+readonly API_ROOT="${REPO_ROOT}/api/protos"
 
 # Isolate `go install` commands to the repository. We'll also use this path for other binaries.
 export GOBIN="${REPO_ROOT}/bin"
@@ -27,9 +27,9 @@ modpath() {
 protoc_command() {
   echo "${1}"
   "${PROTOC_BIN}" "${IPATHS[@]}" \
-    --go_out=paths=source_relative:./pkg \
+    --go_out=paths=source_relative:./pkg/api \
     --plugin=protoc-gen-validate="${GOBIN}/protoc-gen-validate" \
-    --validate_out="lang=go:pkg/" \
+    --validate_out="lang=go:pkg/api" \
     --plugin=protoc-gen-go="${GOBIN}/protoc-gen-go" \
     "${1}"
 }
