@@ -44,8 +44,6 @@ func (m *KeyerConfiguration) Validate() error {
 		return nil
 	}
 
-	// no validation rules for FragmentsSeparator
-
 	if len(m.GetFragments()) < 1 {
 		return KeyerConfigurationValidationError{
 			field:  "Fragments",
