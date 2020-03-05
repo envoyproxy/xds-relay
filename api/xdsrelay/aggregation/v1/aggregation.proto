@@ -6,7 +6,7 @@ option go_package = "xdsrelay/aggregation/v1;aggregationv1";
 import "validate/validate.proto";
 
 
-// [#next-free-field: 3]
+// [#next-free-field: 2]
 message KeyerConfiguration {
 
   // [#next-free-field: 2]
@@ -28,11 +28,8 @@ message KeyerConfiguration {
     repeated Rule rules = 1 [(validate.rules).repeated .min_items = 1];
   }
 
-  // Separator for each key fragment. Default if not specified is "_".
-  string fragments_separator = 1;
-
   // Fragments are the pieces that form a cache key.
-  repeated Fragment fragments = 2 [(validate.rules).repeated .min_items = 1];
+  repeated Fragment fragments = 1 [(validate.rules).repeated .min_items = 1];
 }
 
 enum NodeFieldType {
