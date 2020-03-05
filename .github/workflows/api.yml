@@ -25,7 +25,7 @@ jobs:
           path: ${{ env.PACKAGEPATH }}
       - uses: actions/setup-go@v2-beta
         with:
-          go-version: '^1.13.1'
+          go-version: ^1.14.x
       - name: Compile protobufs
         working-directory: ${{ env.PACKAGEPATH }}
         run: make compile-protos
