@@ -29,6 +29,9 @@ jobs:
       - uses: actions/setup-go@v2-beta
         with:
           go-version: ${{ matrix.go-version }}
+      - uses: mstksg/get-package@v1
+        with:
+          brew: coreutils
       - name: Compile protobufs
         working-directory: ${{ env.PACKAGEPATH }}
         run: make compile-protos
