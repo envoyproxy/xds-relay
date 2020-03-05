@@ -34,29 +34,16 @@ protoc_command() {
     "${1}"
 }
 
-protoc_lint() {
-  "${PROTOC_BIN}" "${IPATHS[@]}" \
-    --buf-check-lint_out=. \
-    "--buf-check-lint_opt={\"input_config\": ${BUF_LINT_CONFIG}}" \
-    --plugin=protoc-gen-buf-check-lint="${GOBIN}/protoc-gen-buf-check-lint" \
-    "${1}" 2>&1
-}
-
 main() {
   # Install required plugins for generation. These deps are pinned in go.mod.
   go install \
     github.com/envoyproxy/protoc-gen-validate \
-    github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway \
-    github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger \
-    github.com/golang/protobuf/protoc-gen-go \
-    github.com/go-swagger/go-swagger/cmd/swagger \
-    github.com/bufbuild/buf/cmd/protoc-gen-buf-check-lint
+    github.com/golang/protobuf/protoc-gen-go
 
   # Include .proto deps from go modules.
   IPATHS=(
     "${PROTOC_INCLUDE}"
     "${API_ROOT}"
-    "$(modpath github.com/grpc-ecosystem/grpc-gateway)/third_party/googleapis"
     "$(modpath github.com/envoyproxy/protoc-gen-validate)"
   )
 
@@ -75,46 +62,6 @@ main() {
   while IFS= read -r -d '' proto; do
     PROTOS+=("${proto}")
   done <  <(find "${API_ROOT}" -name '*.proto' -print0)
-
-  # Lint and exit if the lint argument is provided.
-  if [[ "${1-}" == "lint"* ]]; then
-    BUF_LINT_CONFIG=$(cat "${REPO_ROOT}/buf.json")
-
-    if [[ ! -f "${CLANG_FORMAT_BIN}" ]]; then
-      echo "error: clang-format not available, please run \`yarn install\`."
-      exit 1
-    fi
-
-    set +e  # Count the failures ourselves instead of early exit so user can see all lint failures.
-    lint_ok=true
-
-    # buf lint. errors are not auto-fixable, so we output the issues with them regardless.
-    for proto in "${PROTOS[@]}"; do
-      if ! output=$(protoc_lint "${proto}"); then
-        echo "--- ${proto}"
-        echo "${output}" | sed 's/--buf-check-lint_out: //' | cut -d":" -f2-
-        lint_ok=false
-      fi
-    done
-
-    # clang-format for whitespace.
-    if [[ "${1-}" == "lint:fix" ]]; then
-      # Fix whitespace in protos.
-      for proto in "${PROTOS[@]}"; do
-        "${CLANG_FORMAT_BIN}" -i "${proto}"
-      done
-    else
-      # Check for diffs in formatted and existing proto.
-      for proto in "${PROTOS[@]}"; do
-        if ! output=$("${CLANG_FORMAT_BIN}" "${proto}" | diff -u "${proto}" -); then
-          echo "${output}"
-          lint_ok=false
-        fi
-      done
-    fi
-
-    ${lint_ok} && exit 0 || exit 1
-  fi
 
   echo "Compiling protos using $("${PROTOC_BIN}" --version) for protoc..."
   for proto in "${PROTOS[@]}"; do
@@ -137,35 +84,9 @@ md5check() {
 ### Set up dependencies.
 mkdir -p "${GOBIN}"
 
-# Install clang-format.
-CLANG_FORMAT_BIN="${GOBIN}/clang-format"
-if [[ ! -f "${CLANG_FORMAT_BIN}" ]]; then
-  echo "info: Downloading clang-format to build environment"
-
-  case "${OSTYPE}" in
-    "darwin"*) clang_format_os="darwin"; clang_format_md5="c3ebe742599dcc38b9dc6544cacd69bb" ;;
-    "linux"*) clang_format_os="linux"; clang_format_md5="fee8c52e196e28ae5928d6ff8757f58c" ;;
-    *) echo "error: Unsupported OS '${OSTYPE}' for clang-format install, please install manually" && exit 1 ;;
-  esac
-
-  curl -sSL -o "/tmp/clang-format" \
-    "https://github.com/angular/clang-format/raw/v1.4.0/bin/${clang_format_os}_x64/clang-format"
-  md5check "${clang_format_md5}" "/tmp/clang-format"
-  chmod a+x "/tmp/clang-format"
-  mv "/tmp/clang-format" "${CLANG_FORMAT_BIN}"
-
-fi
-
 # Install or update protobuf.
-if [[ -f /etc/alpine-release ]]; then
-  # Alpine must use it's built-in version of protoc since the published version uses glibc and does not support musl.
-  # Once we dump alpine in Docker we can delete.
-  PROTOC_BIN=$(command -v protoc)
-  PROTOC_INCLUDE=/usr/local/include
-else
-  PROTOC_BIN="${GOBIN}/protoc-v${PROTOC_RELEASE}"
-  PROTOC_INCLUDE="${GOBIN}/protoc-v${PROTOC_RELEASE}-include"
-fi
+PROTOC_BIN="${GOBIN}/protoc-v${PROTOC_RELEASE}"
+PROTOC_INCLUDE="${GOBIN}/protoc-v${PROTOC_RELEASE}-include"
 
 if [[ ! -f "${PROTOC_BIN}" || ! -d "${PROTOC_INCLUDE}" ]]; then
   echo "info: Downloading protoc-v${PROTOC_RELEASE} to build environment"
