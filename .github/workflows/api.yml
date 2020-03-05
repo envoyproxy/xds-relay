@@ -13,7 +13,6 @@ on:
       - 'api/**'
       - .github/workflows/api.yml
 env:
-  GOPATH: ${{ github.workspace }}/go
   PACKAGEPATH: ${{ github.workspace }}/go/src/github.com/${{ github.repository }}
 jobs:
   protobuf-generate:
