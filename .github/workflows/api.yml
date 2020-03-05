@@ -29,3 +29,6 @@ jobs:
       - name: Compile protobufs
         working-directory: ${{ env.PACKAGEPATH }}
         run: ./scripts/generate-api-protos.sh
+      - name: Ensure no diff when comparing generated and committed files
+        working-directory: ${{ env.PACKAGEPATH }}
+        run: ./scripts/api-ensure-no-diff.sh
