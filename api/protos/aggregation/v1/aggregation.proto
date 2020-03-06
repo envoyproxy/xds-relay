@@ -25,11 +25,11 @@ message KeyerConfiguration {
     }
 
     // The first rule that matches will be applied in sequential order.
-    repeated Rule rules = 1 [(validate.rules).repeated .min_items = 1];
+    repeated Rule rules = 1 [(validate.rules).repeated.min_items = 1];
   }
 
   // Fragments are the pieces that form a cache key.
-  repeated Fragment fragments = 1 [(validate.rules).repeated .min_items = 1];
+  repeated Fragment fragments = 1 [(validate.rules).repeated.min_items = 1];
 }
 
 enum NodeFieldType {
@@ -50,7 +50,7 @@ message MatchPredicate {
   message RequestTypeMatch {
     // One or more Envoy request types to match on.
     // Ex: "type.googleapis.com/envoy.api.v2.Listener"
-    repeated string types = 1 [(validate.rules).repeated .min_items = 1];
+    repeated string types = 1 [(validate.rules).repeated.min_items = 1];
   }
 
   // Match on a Field in Envoy's request node.
@@ -77,7 +77,7 @@ message MatchPredicate {
   // [#next-free-field: 2]
   message MatchSet {
     // The list of rules that make up the set.
-    repeated MatchPredicate rules = 1 [(validate.rules).repeated = {min_items: 2}];
+    repeated MatchPredicate rules = 1 [(validate.rules).repeated.min_items = 2];
   }
 
   oneof type {
@@ -96,7 +96,7 @@ message MatchPredicate {
     MatchPredicate not_match = 3;
 
     // The match configuration will always match.
-    bool any_match = 4 [(validate.rules).bool = {const: true}];
+    bool any_match = 4 [(validate.rules).bool.const = true];
 
     // Match on an Envoy request type.
     // Ex: "type.googleapis.com/envoy.api.v2.Listener"
@@ -127,7 +127,7 @@ message ResultPredicate {
       option (validate.required) = true;
 
       // Uses the exact string value of the field.
-      bool exact = 1 [(validate.rules).bool = {const: true}];
+      bool exact = 1 [(validate.rules).bool.const = true];
 
       // Operates a regex find and replace on the field.
       RegexAction regex_action = 2;
@@ -174,6 +174,6 @@ message ResultPredicate {
   }
 
   message RepeatedResultPredicate {
-    repeated ResultPredicate and_result = 1 [(validate.rules).repeated = {min_items: 2}];
+    repeated ResultPredicate and_result = 1 [(validate.rules).repeated.min_items = 2];
   }
 }
