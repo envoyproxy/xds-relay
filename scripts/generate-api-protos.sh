@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# This script handles the compilation of proto files under api/protos. It takes care of installing
+# the requirements for each of the two supported operating systems, including the tooling
+# necessary to generate pb.go files.
+
 # https://github.com/protocolbuffers/protobuf/releases
 readonly PROTOC_RELEASE=3.11.4
 PROTO_ZIP_RELEASE_MD5_LINUX=7c0babfc7d2ae4eff6ce3e47c2de90c2
