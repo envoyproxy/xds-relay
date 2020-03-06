@@ -17,6 +17,11 @@ install:
 unit:
 	go test -v -cover ./...
 
+# Compile proto files
+.PHONY: compile-protos
+compile-protos:
+	./scripts/generate-api-protos.sh
+
 # Run golangci-lint
 .PHONY: lint
 lint:

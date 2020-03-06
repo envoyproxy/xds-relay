@@ -1,0 +1,40 @@
+name: api
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'api/**'
+      - .github/workflows/api.yml
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'api/**'
+      - .github/workflows/api.yml
+env:
+  PACKAGEPATH: ${{ github.workspace }}/go/src/github.com/${{ github.repository }}
+jobs:
+  protobuf-generate:
+    strategy:
+      matrix:
+        go-version: [1.14.x]
+        platform: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.platform }}
+    name: protobuf compile check
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          path: ${{ env.PACKAGEPATH }}
+      - uses: actions/setup-go@v2-beta
+        with:
+          go-version: ${{ matrix.go-version }}
+      - uses: mstksg/get-package@v1
+        with:
+          brew: coreutils
+      - name: Compile protobufs
+        working-directory: ${{ env.PACKAGEPATH }}
+        run: make compile-protos
+      - name: Ensure no diff when comparing generated and committed files
+        working-directory: ${{ env.PACKAGEPATH }}
+        run: ./scripts/ensure-protos-compiled.sh
