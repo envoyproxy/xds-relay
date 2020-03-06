@@ -37,4 +37,4 @@ jobs:
         run: make compile-protos
       - name: Ensure no diff when comparing generated and committed files
         working-directory: ${{ env.PACKAGEPATH }}
-        run: ./scripts/api-ensure-no-diff.sh
+        run: ./scripts/ensure-protos-compiled.sh
