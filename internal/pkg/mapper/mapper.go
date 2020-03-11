@@ -1,6 +1,7 @@
 package mapper
 
 import (
+	"fmt"
 	"regexp"
 
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
@@ -10,7 +11,7 @@ import (
 type Rule = aggregationv1.KeyerConfiguration_Fragment_Rule
 
 type Mapper interface {
-	GetKeys(node core.Node, typeUrl string) (string, error)
+	GetKeys(node core.Node, typeURL string) (string, error)
 }
 
 type mapper struct {
@@ -23,94 +24,57 @@ func NewMapper(config aggregationv1.KeyerConfiguration) Mapper {
 	}
 }
 
-func (mapper *mapper) GetKeys(node core.Node, typeUrl string) (string, error) {
+func (mapper *mapper) GetKeys(node core.Node, typeURL string) (string, error) {
 	for _, fragment := range mapper.config.GetFragments() {
 		fragmentrules := fragment.GetRules()
 		for _, fragmentrule := range fragmentrules {
 			matchpredicate := fragmentrule.GetMatch()
-			if matchpredicate.GetAnyMatch() {
-				if isAnyMatch(matchpredicate, node, typeUrl) {
-					return getResult(fragmentrule, node)
-				}
-			}
-
-			andMatch := matchpredicate.GetAndMatch()
-			if andMatch != nil {
-				if isAndMatch(matchpredicate, node, typeUrl) {
-					return getResult(fragmentrule, node)
-				}
-			}
-
-			orMatch := matchpredicate.GetOrMatch()
-			if orMatch != nil {
-				if isOrMatch(matchpredicate, node, typeUrl) {
-					return getResult(fragmentrule, node)
-				}
-			}
-
-			notMatch := matchpredicate.GetNotMatch()
-			if notMatch != nil {
-				if isNotMatch(matchpredicate, node, typeUrl) {
-					return getResult(fragmentrule, node)
-				}
-			}
-
-			requestNodeMatch := matchpredicate.GetRequestNodeMatch()
-			if requestNodeMatch != nil {
-				if isNodeTypeMatch(matchpredicate, node, typeUrl) {
-					return getResult(fragmentrule, node)
-				}
-			}
-
-			requestTypeMatch := matchpredicate.GetRequestTypeMatch()
-			if requestTypeMatch != nil {
-				if isRequestTypeMatch(matchpredicate, node, typeUrl) {
-					return getResult(fragmentrule, node)
-				}
+			if isMatchPredicate(matchpredicate, node, typeURL) {
+				return getResult(fragmentrule, node)
 			}
 		}
 	}
-	return "", nil
+	return "", fmt.Errorf("Cannot map the input to a key")
 }
 
-func isAnyMatch(matchPredicate *aggregationv1.MatchPredicate, node core.Node, typeUrl string) bool {
+func isAnyMatch(matchPredicate *aggregationv1.MatchPredicate, node core.Node, typeURL string) bool {
 	return matchPredicate.GetAnyMatch()
 }
 
-func isAndMatch(matchPredicate *aggregationv1.MatchPredicate, node core.Node, typeUrl string) bool {
+func isAndMatch(matchPredicate *aggregationv1.MatchPredicate, node core.Node, typeURL string) bool {
 	matchset := matchPredicate.GetAndMatch()
 	for _, rule := range matchset.GetRules() {
-		if !isMatchPredicate(rule, node, typeUrl) {
+		if !isMatchPredicate(rule, node, typeURL) {
 			return false
 		}
 	}
 	return true
 }
 
-func isOrMatch(matchPredicate *aggregationv1.MatchPredicate, node core.Node, typeUrl string) bool {
+func isOrMatch(matchPredicate *aggregationv1.MatchPredicate, node core.Node, typeURL string) bool {
 	matchset := matchPredicate.GetOrMatch()
 	for _, rule := range matchset.GetRules() {
-		if !isMatchPredicate(rule, node, typeUrl) {
+		if isMatchPredicate(rule, node, typeURL) {
 			return true
 		}
 	}
 	return false
 }
 
-func isNotMatch(matchPredicate *aggregationv1.MatchPredicate, node core.Node, typeUrl string) bool {
+func isNotMatch(matchPredicate *aggregationv1.MatchPredicate, node core.Node, typeURL string) bool {
 	predicate := matchPredicate.GetNotMatch()
-	if isMatchPredicate(predicate, node, typeUrl) {
+	if isMatchPredicate(predicate, node, typeURL) {
 		return false
 	}
 	return true
 }
 
-func isRequestTypeMatch(matchPredicate *aggregationv1.MatchPredicate, node core.Node, typeUrl string) bool {
+func isRequestTypeMatch(matchPredicate *aggregationv1.MatchPredicate, node core.Node, typeURL string) bool {
 	predicate := matchPredicate.GetRequestTypeMatch()
 	types := predicate.GetTypes()
 	if types != nil {
 		for _, t := range types {
-			if t == typeUrl {
+			if t == typeURL {
 				return true
 			}
 		}
@@ -118,7 +82,7 @@ func isRequestTypeMatch(matchPredicate *aggregationv1.MatchPredicate, node core.
 	return false
 }
 
-func isNodeTypeMatch(matchPredicate *aggregationv1.MatchPredicate, node core.Node, typeUrl string) bool {
+func isNodeTypeMatch(matchPredicate *aggregationv1.MatchPredicate, node core.Node, typeURL string) bool {
 	predicate := matchPredicate.GetRequestNodeMatch()
 	nodeField := predicate.GetField()
 	var nodeValue = ""
@@ -152,25 +116,29 @@ func compare(requestNodeMatch *aggregationv1.MatchPredicate_RequestNodeMatch, no
 	return false
 }
 
-func isMatchPredicate(matchPredicate *aggregationv1.MatchPredicate, node core.Node, typeUrl string) bool {
+func isMatchPredicate(matchPredicate *aggregationv1.MatchPredicate, node core.Node, typeURL string) bool {
 	if matchPredicate.GetAnyMatch() {
-		return isAnyMatch(matchPredicate, node, typeUrl)
+		return isAnyMatch(matchPredicate, node, typeURL)
 	}
 
 	if matchPredicate.GetAndMatch() != nil {
-		return isAndMatch(matchPredicate, node, typeUrl)
+		return isAndMatch(matchPredicate, node, typeURL)
 	}
 
 	if matchPredicate.GetOrMatch() != nil {
-		return isOrMatch(matchPredicate, node, typeUrl)
+		return isOrMatch(matchPredicate, node, typeURL)
 	}
 
 	if matchPredicate.GetNotMatch() != nil {
-		return isNotMatch(matchPredicate, node, typeUrl)
+		return isNotMatch(matchPredicate, node, typeURL)
 	}
 
 	if matchPredicate.GetRequestTypeMatch() != nil {
-		return isRequestTypeMatch(matchPredicate, node, typeUrl)
+		return isRequestTypeMatch(matchPredicate, node, typeURL)
+	}
+
+	if matchPredicate.GetRequestNodeMatch() != nil {
+		return isNodeTypeMatch(matchPredicate, node, typeURL)
 	}
 
 	return false
