@@ -37,7 +37,7 @@ func (mapper *mapper) GetKeys(node core.Node, typeURL string) (string, error) {
 	return "", fmt.Errorf("Cannot map the input to a key")
 }
 
-func isAnyMatch(matchPredicate *aggregationv1.MatchPredicate, node core.Node, typeURL string) bool {
+func isAnyMatch(matchPredicate *aggregationv1.MatchPredicate) bool {
 	return matchPredicate.GetAnyMatch()
 }
 
@@ -63,26 +63,20 @@ func isOrMatch(matchPredicate *aggregationv1.MatchPredicate, node core.Node, typ
 
 func isNotMatch(matchPredicate *aggregationv1.MatchPredicate, node core.Node, typeURL string) bool {
 	predicate := matchPredicate.GetNotMatch()
-	if isMatchPredicate(predicate, node, typeURL) {
-		return false
-	}
-	return true
+	return !isMatchPredicate(predicate, node, typeURL)
 }
 
-func isRequestTypeMatch(matchPredicate *aggregationv1.MatchPredicate, node core.Node, typeURL string) bool {
+func isRequestTypeMatch(matchPredicate *aggregationv1.MatchPredicate, typeURL string) bool {
 	predicate := matchPredicate.GetRequestTypeMatch()
-	types := predicate.GetTypes()
-	if types != nil {
-		for _, t := range types {
-			if t == typeURL {
-				return true
-			}
+	for _, t := range predicate.GetTypes() {
+		if t == typeURL {
+			return true
 		}
 	}
 	return false
 }
 
-func isNodeTypeMatch(matchPredicate *aggregationv1.MatchPredicate, node core.Node, typeURL string) bool {
+func isNodeTypeMatch(matchPredicate *aggregationv1.MatchPredicate, node core.Node) bool {
 	predicate := matchPredicate.GetRequestNodeMatch()
 	nodeField := predicate.GetField()
 	var nodeValue = ""
@@ -118,7 +112,7 @@ func compare(requestNodeMatch *aggregationv1.MatchPredicate_RequestNodeMatch, no
 
 func isMatchPredicate(matchPredicate *aggregationv1.MatchPredicate, node core.Node, typeURL string) bool {
 	if matchPredicate.GetAnyMatch() {
-		return isAnyMatch(matchPredicate, node, typeURL)
+		return isAnyMatch(matchPredicate)
 	}
 
 	if matchPredicate.GetAndMatch() != nil {
@@ -134,11 +128,11 @@ func isMatchPredicate(matchPredicate *aggregationv1.MatchPredicate, node core.No
 	}
 
 	if matchPredicate.GetRequestTypeMatch() != nil {
-		return isRequestTypeMatch(matchPredicate, node, typeURL)
+		return isRequestTypeMatch(matchPredicate, typeURL)
 	}
 
 	if matchPredicate.GetRequestNodeMatch() != nil {
-		return isNodeTypeMatch(matchPredicate, node, typeURL)
+		return isNodeTypeMatch(matchPredicate, node)
 	}
 
 	return false
@@ -183,10 +177,6 @@ func getResult(fragmentRule *aggregationv1.KeyerConfiguration_Fragment_Rule, nod
 		return getResultPredicate(fragmentRule.GetResult().GetResultPredicate(), node), nil
 	}
 	return "", nil
-}
-
-func getStringResult(predicate *aggregationv1.ResultPredicate) string {
-	return predicate.GetStringFragment()
 }
 
 func getRequestNodeFragment(predicate *aggregationv1.ResultPredicate, node core.Node) string {
