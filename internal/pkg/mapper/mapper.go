@@ -9,6 +9,7 @@ import (
 
 // Mapper defines the interface that Maps an incoming request to an aggregation key
 type Mapper interface {
+	// GetKey converts a request into an aggregated key
 	GetKey(request v2.DiscoveryRequest, typeURL string) (string, error)
 }
 

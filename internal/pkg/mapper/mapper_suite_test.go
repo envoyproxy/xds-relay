@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestLog(t *testing.T) {
+func TestMapper(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Map Suite")
 }
