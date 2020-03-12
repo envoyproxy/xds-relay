@@ -42,7 +42,7 @@ main() {
   # Install required plugins for generation. These deps are pinned in go.mod.
   go install \
     github.com/envoyproxy/protoc-gen-validate \
-    github.com/golang/protobuf/protoc-gen-go
+    google.golang.org/protobuf/cmd/protoc-gen-go
 
   # Include .proto deps from go modules.
   IPATHS=(
