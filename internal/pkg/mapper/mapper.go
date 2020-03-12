@@ -1,13 +1,11 @@
 package mapper
 
 import (
-	"errors"
 	"fmt"
 
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
 )
-
 
 // Mapper defines the interface that Maps an incoming request to an aggregation key
 type Mapper interface {
