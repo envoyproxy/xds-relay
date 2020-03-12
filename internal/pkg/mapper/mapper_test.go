@@ -2,7 +2,6 @@ package mapper
 
 import (
 	"fmt"
-	"regexp/syntax"
 
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
@@ -131,15 +130,6 @@ var postivetests = []TableEntry{
 			getResultStringFragment(),
 			clusterTypeURL,
 			stringfragment,
-		},
-	},
-	{
-		Description: "RequestTypeMatch does not match with unmatched typeurl",
-		Parameters: []interface{}{
-			getRequestTypeMatch([]string{""}),
-			getResultStringFragment(),
-			clusterTypeURL,
-			"",
 		},
 	},
 	{
@@ -314,6 +304,39 @@ var postivetests = []TableEntry{
 	},
 }
 
+var multiFragmentPositiveTests = []TableEntry{
+	{
+		Description: "both fragments match",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getAnyMatch(true),
+			getResultStringFragment(),
+			getResultStringFragment(),
+			stringfragment + "_" + stringfragment,
+		},
+	},
+	{
+		Description: "first fragment match",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getAnyMatch(false),
+			getResultStringFragment(),
+			getResultStringFragment(),
+			stringfragment,
+		},
+	},
+	{
+		Description: "second fragment match",
+		Parameters: []interface{}{
+			getAnyMatch(false),
+			getAnyMatch(true),
+			getResultStringFragment(),
+			getResultStringFragment(),
+			stringfragment,
+		},
+	},
+}
+
 var negativeTests = []TableEntry{
 	{
 		Description: "AnyMatch returns empty String",
@@ -461,6 +484,13 @@ var negativeTests = []TableEntry{
 			getResultStringFragment(),
 		},
 	},
+	{
+		Description: "RequestTypeMatch does not match with unmatched typeurl",
+		Parameters: []interface{}{
+			getRequestTypeMatch([]string{""}),
+			getResultStringFragment(),
+		},
+	},
 }
 
 var regexpErrorCases = []TableEntry{
@@ -496,8 +526,9 @@ var _ = Describe("GetKey", func() {
 				},
 			}
 			mapper := NewMapper(protoConfig)
-			key, _ := mapper.GetKey(getNode(), typeurl)
+			key, err := mapper.GetKey(getNode(), typeurl)
 			Expect(key).To(Equal(assert))
+			Expect(err).Should(BeNil())
 		}, postivetests...)
 
 	DescribeTable("should be able to return error for non matching predicate",
@@ -537,9 +568,73 @@ var _ = Describe("GetKey", func() {
 			mapper := NewMapper(protoConfig)
 			key, err := mapper.GetKey(getNode(), clusterTypeURL)
 			Expect(key).To(Equal(""))
-			Expect(err.(*syntax.Error).Error()).Should(Equal("error parsing regexp: invalid UTF-8: `\xbd\xb2`"))
+			Expect(err.Error()).Should(Equal("error parsing regexp: invalid UTF-8: `\xbd\xb2`"))
 		},
 		regexpErrorCases...)
+
+	DescribeTable("should be able to join multiple fragments",
+		func(match1 *MatchPredicate,
+			match2 *MatchPredicate,
+			result1 *ResultPredicate,
+			result2 *ResultPredicate,
+			expectedKey string) {
+			protoConfig := KeyerConfiguration{
+				Fragments: []*Fragment{
+					{
+						Rules: []*FragmentRule{
+							{
+								Match:  match1,
+								Result: result1,
+							},
+						},
+					},
+					{
+						Rules: []*FragmentRule{
+							{
+								Match:  match2,
+								Result: result2,
+							},
+						},
+					},
+				},
+			}
+			mapper := NewMapper(protoConfig)
+			key, err := mapper.GetKey(getNode(), clusterTypeURL)
+			Expect(expectedKey).To(Equal(key))
+			Expect(err).Should(BeNil())
+		},
+		multiFragmentPositiveTests...)
+
+	DescribeTable("should be return error for non matching multiple fragments",
+		func(match1 *MatchPredicate, match2 *MatchPredicate, result1 *ResultPredicate, result2 *ResultPredicate) {
+			protoConfig := KeyerConfiguration{
+				Fragments: []*Fragment{
+					{
+						Rules: []*FragmentRule{
+							{
+								Match:  match1,
+								Result: result1,
+							},
+						},
+					},
+					{
+						Rules: []*FragmentRule{
+							{
+								Match:  match2,
+								Result: result2,
+							},
+						},
+					},
+				},
+			}
+			mapper := NewMapper(protoConfig)
+			key, err := mapper.GetKey(getNode(), clusterTypeURL)
+			Expect(key).To(Equal(""))
+			Expect(err).Should(Equal(fmt.Errorf("Cannot map the input to a key")))
+		},
+		Entry("no fragments match",
+			getAnyMatch(false), getAnyMatch(false),
+			getResultStringFragment(), getResultStringFragment()))
 })
 
 func getAnyMatch(any bool) *MatchPredicate {

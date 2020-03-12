@@ -3,6 +3,7 @@ package mapper
 import (
 	"fmt"
 	"regexp"
+	"strings"
 
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
@@ -30,6 +31,7 @@ func NewMapper(config aggregationv1.KeyerConfiguration) Mapper {
 
 // GetKey converts a request into an aggregated key
 func (mapper *mapper) GetKey(node core.Node, typeURL string) (string, error) {
+	var resultFragments []string
 	for _, fragment := range mapper.config.GetFragments() {
 		fragmentrules := fragment.GetRules()
 		for _, fragmentrule := range fragmentrules {
@@ -39,10 +41,19 @@ func (mapper *mapper) GetKey(node core.Node, typeURL string) (string, error) {
 				return "", err
 			}
 			if isMatch {
-				return getResult(fragmentrule, node)
+				result, err := getResult(fragmentrule, node)
+				if err != nil {
+					return "", err
+				}
+				resultFragments = append(resultFragments, result)
 			}
 		}
 	}
+
+	if len(resultFragments) != 0 {
+		return strings.Join(resultFragments, "_"), nil
+	}
+
 	return "", fmt.Errorf("Cannot map the input to a key")
 }
 
