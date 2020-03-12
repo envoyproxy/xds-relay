@@ -3,13 +3,13 @@ package mapper
 import (
 	"fmt"
 
-	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
 )
 
 // Mapper defines the interface that Maps an incoming request to an aggregation key
 type Mapper interface {
-	GetKey(node core.Node, typeURL string) (string, error)
+	GetKey(request v2.DiscoveryRequest, typeURL string) (string, error)
 }
 
 type mapper struct {
@@ -24,6 +24,6 @@ func NewMapper(config aggregationv1.KeyerConfiguration) Mapper {
 }
 
 // GetKey converts a request into an aggregated key
-func (mapper *mapper) GetKey(node core.Node, typeURL string) (string, error) {
+func (mapper *mapper) GetKey(request v2.DiscoveryRequest, typeURL string) (string, error) {
 	return "", fmt.Errorf("Cannot map the input to a key")
 }
