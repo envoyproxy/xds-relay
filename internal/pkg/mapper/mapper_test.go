@@ -510,6 +510,45 @@ var regexpErrorCases = []TableEntry{
 	},
 }
 
+var regexpErrorCasesMultipleFragments = []TableEntry{
+	{
+		Description: "Regex parse failure in first response predicate",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getAnyMatch(true),
+			getResultRequestNodeFragment(nodeIDField, getCustomRegexAction("\xbd\xb2", "")),
+			getResultStringFragment(),
+		},
+	},
+	{
+		Description: "Regex parse failure in first request predicate",
+		Parameters: []interface{}{
+			getRequestNodeRegexMatch(nodeSubZoneField, "\xbd\xb2"),
+			getAnyMatch(true),
+			getResultStringFragment(),
+			getResultStringFragment(),
+		},
+	},
+	{
+		Description: "Regex parse failure in second response predicate",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getAnyMatch(true),
+			getResultStringFragment(),
+			getResultRequestNodeFragment(nodeIDField, getCustomRegexAction("\xbd\xb2", "")),
+		},
+	},
+	{
+		Description: "Regex parse failure in second request predicate",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getRequestNodeRegexMatch(nodeSubZoneField, "\xbd\xb2"),
+			getResultStringFragment(),
+			getResultStringFragment(),
+		},
+	},
+}
+
 var _ = Describe("GetKey", func() {
 	DescribeTable("should be able to return fragment for",
 		func(match *MatchPredicate, result *ResultPredicate, typeurl string, assert string) {
@@ -633,8 +672,39 @@ var _ = Describe("GetKey", func() {
 			Expect(err).Should(Equal(fmt.Errorf("Cannot map the input to a key")))
 		},
 		Entry("no fragments match",
-			getAnyMatch(false), getAnyMatch(false),
-			getResultStringFragment(), getResultStringFragment()))
+			getAnyMatch(false),
+			getAnyMatch(false),
+			getResultStringFragment(),
+			getResultStringFragment()))
+
+	DescribeTable("should return error for multiple fragments regex failure",
+		func(match1 *MatchPredicate, match2 *MatchPredicate, result1 *ResultPredicate, result2 *ResultPredicate) {
+			protoConfig := KeyerConfiguration{
+				Fragments: []*Fragment{
+					{
+						Rules: []*FragmentRule{
+							{
+								Match:  match1,
+								Result: result1,
+							},
+						},
+					},
+					{
+						Rules: []*FragmentRule{
+							{
+								Match:  match2,
+								Result: result2,
+							},
+						},
+					},
+				},
+			}
+			mapper := NewMapper(protoConfig)
+			key, err := mapper.GetKey(getNode(), clusterTypeURL)
+			Expect(key).To(Equal(""))
+			Expect(err.Error()).Should(Equal("error parsing regexp: invalid UTF-8: `\xbd\xb2`"))
+		},
+		regexpErrorCasesMultipleFragments...)
 })
 
 func getAnyMatch(any bool) *MatchPredicate {
