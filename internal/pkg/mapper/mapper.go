@@ -28,7 +28,7 @@ func NewMapper(config aggregationv1.KeyerConfiguration) Mapper {
 
 // GetKey converts a request into an aggregated key
 func (mapper *mapper) GetKey(request v2.DiscoveryRequest, typeURL string) (string, error) {
-	if typeURL == ""{
+	if typeURL == "" {
 		return "", fmt.Errorf("Typeurl is empty")
 	}
 	return "", fmt.Errorf("Cannot map the input to a key")
