@@ -116,7 +116,7 @@ var _ = Describe("GetKey", func() {
 		}, postivetests...)
 
 	DescribeTable("should be able to return error",
-		func(match *MatchPredicate, result *ResultPredicate, typeurl string, assert string) {
+		func(match *MatchPredicate, result *ResultPredicate) {
 			protoConfig := KeyerConfiguration{
 				Fragments: []*Fragment{
 					{
@@ -130,8 +130,8 @@ var _ = Describe("GetKey", func() {
 				},
 			}
 			mapper := NewMapper(protoConfig)
-			key, err := mapper.GetKey(getDiscoveryRequest(), typeurl)
-			Expect(key).To(Equal(assert))
+			key, err := mapper.GetKey(getDiscoveryRequest(), clusterTypeURL)
+			Expect(key).To(Equal(""))
 			Expect(err).Should(Equal(fmt.Errorf("Cannot map the input to a key")))
 		},
 		negativeTests...)
