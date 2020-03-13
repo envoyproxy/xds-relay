@@ -5,3 +5,5 @@ vendor/
 
 # ginkgo test coverage files
 *.coverprofile
+# vscode settings
+.vscode
