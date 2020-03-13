@@ -53,7 +53,7 @@ var _ = Describe("GetKey", func() {
 		mapper := NewMapper(KeyerConfiguration{})
 		key, err := mapper.GetKey(getDiscoveryRequest(), "")
 		Expect(key).To(Equal(""))
-		Expect(err).Should(Equal(fmt.Errorf("Typeurl is empty")))
+		Expect(err).Should(Equal(fmt.Errorf("typeURL is empty")))
 	})
 })
 
