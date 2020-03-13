@@ -12,6 +12,9 @@ type Mapper interface {
 	// GetKey converts a request into an aggregated key
 	// Returns error if the regex parsing in the config fails to compile or match
 	// Returns error if the typeURL is empty. An empty typeURL signifies an ADS request.
+	// ref: envoyproxy/envoy/blob/d1a36f1ea24b38fc414d06ea29c5664f419066ef/api/envoy/api/v2/discovery.proto#L43-L46
+	// ref: envoyproxy/go-control-plane/blob/1152177914f2ec0037411f65c56d9beae526870a/pkg/server/server.go#L305-L310
+	// The go-control-plane will always traslate typeUrl implicitly to one of the resource typeUrls.
 	GetKey(request v2.DiscoveryRequest, typeURL string) (string, error)
 }
 
