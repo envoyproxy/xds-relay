@@ -48,6 +48,13 @@ var _ = Describe("GetKey", func() {
 			Expect(err).Should(Equal(fmt.Errorf("Cannot map the input to a key")))
 		},
 		Entry("for all requests", getAnyMatch(false), getResultStringFragment(), clusterTypeURL, ""))
+
+	It("TypeUrl should not be empty", func() {
+		mapper := NewMapper(KeyerConfiguration{})
+		key, err := mapper.GetKey(getDiscoveryRequest(), "")
+		Expect(key).To(Equal(""))
+		Expect(err).Should(Equal(fmt.Errorf("Typeurl is empty")))
+	})
 })
 
 func getAnyMatch(any bool) *MatchPredicate {
