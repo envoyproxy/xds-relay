@@ -14,12 +14,6 @@ type Cache interface {
 	// SetResponse sets the cache response and returns the list of open watches.
 	SetResponse(key string, resp envoy_api_v2.DiscoveryResponse) ([]*envoy_api_v2.DiscoveryRequest, error)
 
-	// ClearWatches discards the existing watches.
-	ClearWatches(key string) error
-
 	// AddWatch adds the watch to the cache and returns whether a stream is open.
 	AddWatch(key string, req envoy_api_v2.DiscoveryRequest) (bool, error)
-
-	// IsWatchPresent returns whether the given request is watching for the resource corresponding to the given key.
-	IsWatchPresent(key string, req envoy_api_v2.DiscoveryRequest) (bool, error)
 }
