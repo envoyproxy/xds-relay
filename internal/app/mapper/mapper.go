@@ -2,10 +2,14 @@ package mapper
 
 import (
 	"fmt"
+	"strings"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
 )
+
+type matchPredicate = aggregationv1.MatchPredicate
+type rule = aggregationv1.KeyerConfiguration_Fragment_Rule
 
 // Mapper defines the interface that Maps an incoming request to an aggregation key
 type Mapper interface {
@@ -14,7 +18,7 @@ type Mapper interface {
 	// Returns error if the typeURL is empty. An empty typeURL signifies an ADS request.
 	// ref: envoyproxy/envoy/blob/d1a36f1ea24b38fc414d06ea29c5664f419066ef/api/envoy/api/v2/discovery.proto#L43-L46
 	// ref: envoyproxy/go-control-plane/blob/1152177914f2ec0037411f65c56d9beae526870a/pkg/server/server.go#L305-L310
-	// The go-control-plane will always translate typeURL implicitly to one of the resource typeURL.
+	// The go-control-plane will always translate DiscoveryRequest typeURL to one of the resource typeURL.
 	GetKey(request v2.DiscoveryRequest, typeURL string) (string, error)
 }
 
@@ -34,5 +38,44 @@ func (mapper *mapper) GetKey(request v2.DiscoveryRequest, typeURL string) (strin
 	if typeURL == "" {
 		return "", fmt.Errorf("typeURL is empty")
 	}
+
+	var resultFragments []string
+	for _, fragment := range mapper.config.GetFragments() {
+		fragmentrules := fragment.GetRules()
+		for _, fragmentrule := range fragmentrules {
+			matchpredicate := fragmentrule.GetMatch()
+			isMatch := isMatchPredicate(matchpredicate)
+			if isMatch {
+				result := getResult(fragmentrule)
+				resultFragments = append(resultFragments, result)
+			}
+		}
+	}
+
+	if len(resultFragments) != 0 {
+		return strings.Join(resultFragments, "_"), nil
+	}
+
 	return "", fmt.Errorf("Cannot map the input to a key")
+}
+
+func isMatchPredicate(matchPredicate *matchPredicate) bool {
+	if matchPredicate.GetAnyMatch() {
+		return isAnyMatch(matchPredicate)
+	}
+
+	return false
+}
+
+func isAnyMatch(matchPredicate *matchPredicate) bool {
+	return matchPredicate.GetAnyMatch()
+}
+
+func getResult(fragmentRule *rule) string {
+	stringFragment := fragmentRule.GetResult().GetStringFragment()
+	if stringFragment != "" {
+		return stringFragment
+	}
+
+	return ""
 }
