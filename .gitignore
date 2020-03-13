@@ -4,5 +4,6 @@ bin/
 vendor/
 # ginkgo test coverage files
 *.coverprofile
-# IntelliJ settings
+# IDE settings
 .idea/
+.vscode
