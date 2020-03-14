@@ -26,6 +26,10 @@ type mapper struct {
 	config aggregationv1.KeyerConfiguration
 }
 
+const (
+	separator = "_"
+)
+
 // NewMapper constructs a concrete implementation for the Mapper interface
 func NewMapper(config aggregationv1.KeyerConfiguration) Mapper {
 	return &mapper{
@@ -41,30 +45,26 @@ func (mapper *mapper) GetKey(request v2.DiscoveryRequest, typeURL string) (strin
 
 	var resultFragments []string
 	for _, fragment := range mapper.config.GetFragments() {
-		fragmentrules := fragment.GetRules()
-		for _, fragmentrule := range fragmentrules {
-			matchpredicate := fragmentrule.GetMatch()
-			isMatch := isMatchPredicate(matchpredicate)
+		fragmentRules := fragment.GetRules()
+		for _, fragmentRule := range fragmentRules {
+			matchPredicate := fragmentRule.GetMatch()
+			isMatch := isMatch(matchPredicate)
 			if isMatch {
-				result := getResult(fragmentrule)
+				result := getResult(fragmentRule)
 				resultFragments = append(resultFragments, result)
 			}
 		}
 	}
 
-	if len(resultFragments) != 0 {
-		return strings.Join(resultFragments, "_"), nil
+	if len(resultFragments) == 0 {
+		return "", fmt.Errorf("Cannot map the input to a key")
 	}
 
-	return "", fmt.Errorf("Cannot map the input to a key")
+	return strings.Join(resultFragments, separator), nil
 }
 
-func isMatchPredicate(matchPredicate *matchPredicate) bool {
-	if matchPredicate.GetAnyMatch() {
-		return isAnyMatch(matchPredicate)
-	}
-
-	return false
+func isMatch(matchPredicate *matchPredicate) bool {
+	return isAnyMatch(matchPredicate)
 }
 
 func isAnyMatch(matchPredicate *matchPredicate) bool {
@@ -73,9 +73,5 @@ func isAnyMatch(matchPredicate *matchPredicate) bool {
 
 func getResult(fragmentRule *rule) string {
 	stringFragment := fragmentRule.GetResult().GetStringFragment()
-	if stringFragment != "" {
-		return stringFragment
-	}
-
-	return ""
+	return stringFragment
 }

@@ -169,7 +169,7 @@ var _ = Describe("GetKey", func() {
 		},
 		multiFragmentPositiveTests...)
 
-	DescribeTable("should be return error for non matching multiple fragments",
+	DescribeTable("should be able to return error for non matching multiple fragments",
 		func(match1 *MatchPredicate, match2 *MatchPredicate, result1 *ResultPredicate, result2 *ResultPredicate) {
 			protoConfig := KeyerConfiguration{
 				Fragments: []*Fragment{
