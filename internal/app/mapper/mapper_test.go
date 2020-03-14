@@ -25,7 +25,7 @@ const (
 	noderegion      = "region"
 	nodezone        = "zone"
 	nodesubzone     = "subzone"
-	stringfragment  = "stringfragment"
+	stringFragment  = "stringfragment"
 )
 
 var postivetests = []TableEntry{
@@ -35,7 +35,7 @@ var postivetests = []TableEntry{
 			getAnyMatch(true),
 			getResultStringFragment(),
 			clusterTypeURL,
-			stringfragment,
+			stringFragment,
 		},
 	},
 	{
@@ -44,7 +44,7 @@ var postivetests = []TableEntry{
 			getRequestTypeMatch([]string{clusterTypeURL}),
 			getResultStringFragment(),
 			clusterTypeURL,
-			stringfragment,
+			stringFragment,
 		},
 	},
 	{
@@ -53,7 +53,7 @@ var postivetests = []TableEntry{
 			getRequestTypeMatch([]string{clusterTypeURL, listenerTypeURL}),
 			getResultStringFragment(),
 			clusterTypeURL,
-			stringfragment,
+			stringFragment,
 		},
 	},
 }
@@ -66,7 +66,7 @@ var multiFragmentPositiveTests = []TableEntry{
 			getAnyMatch(true),
 			getResultStringFragment(),
 			getResultStringFragment(),
-			stringfragment + "_" + stringfragment,
+			stringFragment + "_" + stringFragment,
 		},
 	},
 	{
@@ -76,7 +76,7 @@ var multiFragmentPositiveTests = []TableEntry{
 			getAnyMatch(false),
 			getResultStringFragment(),
 			getResultStringFragment(),
-			stringfragment,
+			stringFragment,
 		},
 	},
 	{
@@ -86,7 +86,7 @@ var multiFragmentPositiveTests = []TableEntry{
 			getAnyMatch(true),
 			getResultStringFragment(),
 			getResultStringFragment(),
-			stringfragment,
+			stringFragment,
 		},
 	},
 }
@@ -253,7 +253,7 @@ func getRequestTypeMatch(typeurls []string) *MatchPredicate {
 func getResultStringFragment() *ResultPredicate {
 	return &ResultPredicate{
 		Type: &aggregationv1.ResultPredicate_StringFragment{
-			StringFragment: stringfragment,
+			StringFragment: stringFragment,
 		},
 	}
 }
