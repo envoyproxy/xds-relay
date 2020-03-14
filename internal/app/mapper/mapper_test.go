@@ -27,8 +27,75 @@ const (
 	stringfragment = "stringfragment"
 )
 
+var postivetests = []TableEntry{
+	{
+		Description: "AnyMatch returns StringFragment",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResultStringFragment(),
+			clusterTypeURL,
+			stringfragment,
+		},
+	},
+}
+
+var multiFragmentPositiveTests = []TableEntry{
+	{
+		Description: "both fragments match",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getAnyMatch(true),
+			getResultStringFragment(),
+			getResultStringFragment(),
+			stringfragment + "_" + stringfragment,
+		},
+	},
+	{
+		Description: "first fragment match",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getAnyMatch(false),
+			getResultStringFragment(),
+			getResultStringFragment(),
+			stringfragment,
+		},
+	},
+	{
+		Description: "second fragment match",
+		Parameters: []interface{}{
+			getAnyMatch(false),
+			getAnyMatch(true),
+			getResultStringFragment(),
+			getResultStringFragment(),
+			stringfragment,
+		},
+	},
+}
+
+var negativeTests = []TableEntry{
+	{
+		Description: "AnyMatch returns empty String",
+		Parameters: []interface{}{
+			getAnyMatch(false),
+			getResultStringFragment(),
+		},
+	},
+}
+
+var multiFragmentNegativeTests = []TableEntry{
+	{
+		Description: "no fragments match",
+		Parameters: []interface{}{
+			getAnyMatch(false),
+			getAnyMatch(false),
+			getResultStringFragment(),
+			getResultStringFragment(),
+		},
+	},
+}
+
 var _ = Describe("GetKey", func() {
-	DescribeTable("should be able to return error",
+	DescribeTable("should be able to return fragment for",
 		func(match *MatchPredicate, result *ResultPredicate, typeurl string, assert string) {
 			protoConfig := KeyerConfiguration{
 				Fragments: []*Fragment{
@@ -45,9 +112,91 @@ var _ = Describe("GetKey", func() {
 			mapper := NewMapper(protoConfig)
 			key, err := mapper.GetKey(getDiscoveryRequest(), typeurl)
 			Expect(key).To(Equal(assert))
+			Expect(err).Should(BeNil())
+		}, postivetests...)
+
+	DescribeTable("should be able to return error",
+		func(match *MatchPredicate, result *ResultPredicate) {
+			protoConfig := KeyerConfiguration{
+				Fragments: []*Fragment{
+					{
+						Rules: []*FragmentRule{
+							{
+								Match:  match,
+								Result: result,
+							},
+						},
+					},
+				},
+			}
+			mapper := NewMapper(protoConfig)
+			key, err := mapper.GetKey(getDiscoveryRequest(), clusterTypeURL)
+			Expect(key).To(Equal(""))
 			Expect(err).Should(Equal(fmt.Errorf("Cannot map the input to a key")))
 		},
-		Entry("for all requests", getAnyMatch(false), getResultStringFragment(), clusterTypeURL, ""))
+		negativeTests...)
+
+	DescribeTable("should be able to join multiple fragments",
+		func(match1 *MatchPredicate,
+			match2 *MatchPredicate,
+			result1 *ResultPredicate,
+			result2 *ResultPredicate,
+			expectedKey string) {
+			protoConfig := KeyerConfiguration{
+				Fragments: []*Fragment{
+					{
+						Rules: []*FragmentRule{
+							{
+								Match:  match1,
+								Result: result1,
+							},
+						},
+					},
+					{
+						Rules: []*FragmentRule{
+							{
+								Match:  match2,
+								Result: result2,
+							},
+						},
+					},
+				},
+			}
+			mapper := NewMapper(protoConfig)
+			key, err := mapper.GetKey(getDiscoveryRequest(), clusterTypeURL)
+			Expect(expectedKey).To(Equal(key))
+			Expect(err).Should(BeNil())
+		},
+		multiFragmentPositiveTests...)
+
+	DescribeTable("should be able to return error for non matching multiple fragments",
+		func(match1 *MatchPredicate, match2 *MatchPredicate, result1 *ResultPredicate, result2 *ResultPredicate) {
+			protoConfig := KeyerConfiguration{
+				Fragments: []*Fragment{
+					{
+						Rules: []*FragmentRule{
+							{
+								Match:  match1,
+								Result: result1,
+							},
+						},
+					},
+					{
+						Rules: []*FragmentRule{
+							{
+								Match:  match2,
+								Result: result2,
+							},
+						},
+					},
+				},
+			}
+			mapper := NewMapper(protoConfig)
+			key, err := mapper.GetKey(getDiscoveryRequest(), clusterTypeURL)
+			Expect(key).To(Equal(""))
+			Expect(err).Should(Equal(fmt.Errorf("Cannot map the input to a key")))
+		},
+		multiFragmentNegativeTests...)
 
 	It("TypeUrl should not be empty", func() {
 		mapper := NewMapper(KeyerConfiguration{})
