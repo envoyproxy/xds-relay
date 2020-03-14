@@ -18,13 +18,14 @@ type MatchPredicate = aggregationv1.MatchPredicate
 type ResultPredicate = aggregationv1.ResultPredicate
 
 const (
-	clusterTypeURL = "type.googleapis.com/envoy.api.v2.Cluster"
-	nodeid         = "nodeid"
-	nodecluster    = "cluster"
-	noderegion     = "region"
-	nodezone       = "zone"
-	nodesubzone    = "subzone"
-	stringfragment = "stringfragment"
+	clusterTypeURL  = "type.googleapis.com/envoy.api.v2.Cluster"
+	listenerTypeURL = "type.googleapis.com/envoy.api.v2.Listener"
+	nodeid          = "nodeid"
+	nodecluster     = "cluster"
+	noderegion      = "region"
+	nodezone        = "zone"
+	nodesubzone     = "subzone"
+	stringfragment  = "stringfragment"
 )
 
 var postivetests = []TableEntry{
@@ -32,6 +33,24 @@ var postivetests = []TableEntry{
 		Description: "AnyMatch returns StringFragment",
 		Parameters: []interface{}{
 			getAnyMatch(true),
+			getResultStringFragment(),
+			clusterTypeURL,
+			stringfragment,
+		},
+	},
+	{
+		Description: "RequestTypeMatch Matches with a single typeurl",
+		Parameters: []interface{}{
+			getRequestTypeMatch([]string{clusterTypeURL}),
+			getResultStringFragment(),
+			clusterTypeURL,
+			stringfragment,
+		},
+	},
+	{
+		Description: "RequestTypeMatch Matches with multiple typeurl",
+		Parameters: []interface{}{
+			getRequestTypeMatch([]string{clusterTypeURL, listenerTypeURL}),
 			getResultStringFragment(),
 			clusterTypeURL,
 			stringfragment,
@@ -77,6 +96,13 @@ var negativeTests = []TableEntry{
 		Description: "AnyMatch returns empty String",
 		Parameters: []interface{}{
 			getAnyMatch(false),
+			getResultStringFragment(),
+		},
+	},
+	{
+		Description: "RequestTypeMatch does not match with unmatched typeurl",
+		Parameters: []interface{}{
+			getRequestTypeMatch([]string{""}),
 			getResultStringFragment(),
 		},
 	},
@@ -210,6 +236,16 @@ func getAnyMatch(any bool) *MatchPredicate {
 	return &MatchPredicate{
 		Type: &aggregationv1.MatchPredicate_AnyMatch{
 			AnyMatch: any,
+		},
+	}
+}
+
+func getRequestTypeMatch(typeurls []string) *MatchPredicate {
+	return &MatchPredicate{
+		Type: &aggregationv1.MatchPredicate_RequestTypeMatch_{
+			RequestTypeMatch: &aggregationv1.MatchPredicate_RequestTypeMatch{
+				Types: typeurls,
+			},
 		},
 	}
 }
