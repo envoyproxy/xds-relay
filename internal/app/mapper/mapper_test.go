@@ -27,7 +27,7 @@ const (
 	stringfragment = "stringfragment"
 )
 
-var postivetests = []TableEntry{
+var positiveTests = []TableEntry{
 	{
 		Description: "AnyMatch returns StringFragment",
 		Parameters: []interface{}{
@@ -113,7 +113,7 @@ var _ = Describe("GetKey", func() {
 			key, err := mapper.GetKey(getDiscoveryRequest(), typeurl)
 			Expect(key).To(Equal(assert))
 			Expect(err).Should(BeNil())
-		}, postivetests...)
+		}, positiveTests...)
 
 	DescribeTable("should be able to return error",
 		func(match *MatchPredicate, result *ResultPredicate) {
