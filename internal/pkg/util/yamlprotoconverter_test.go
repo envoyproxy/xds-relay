@@ -1,10 +1,8 @@
-package t
+package yamlprotoconverter
 
 import (
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
-	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/encoding/protojson"
 	"testing"
 )
 
@@ -17,16 +15,11 @@ type MatchPredicate = aggregationv1.MatchPredicate
 type RequestTypeMatch = aggregationv1.MatchPredicate_RequestTypeMatch
 
 func TestUnmarshaling(t *testing.T) {
-	source := `
+	yml := `
 string_fragment: abc
 `
-	j2, err := yaml.YAMLToJSON([]byte(source))
-	if err != nil {
-		t.Error(err)
-	}
-
 	var rp ResultPredicate
-	err = protojson.Unmarshal(j2, &rp)
+	err := FromYAMLToProto(yml, &rp)
 	if err != nil {
 		t.Error(err)
 	}
@@ -39,7 +32,7 @@ string_fragment: abc
 }
 
 func TestKeyerConfigurationUnmarshaling(t *testing.T) {
-	source := `
+	yml := `
 fragments:
 - rules:
   - match:
@@ -50,13 +43,12 @@ fragments:
     result:
       string_fragment: "abc"
 `
-	yaml_contents, err := yaml.YAMLToJSON([]byte(source))
+
+	kc := KeyerConfiguration{}
+	err := FromYAMLToProto(yml, &kc)
 	if err != nil {
 		t.Error(err)
 	}
-
-	kc := KeyerConfiguration{}
-	err = protojson.Unmarshal(yaml_contents, &kc)
 	expected_kc := KeyerConfiguration{
 		Fragments: []*Fragment{
 			{
