@@ -134,6 +134,10 @@ message ResultPredicate {
     }
   }
 
+  message RepeatedResultPredicate {
+    repeated ResultPredicate and_result = 1 [(validate.rules).repeated.min_items = 2];
+  }
+
   // Rules for generating the resulting fragment from a Envoy request node.
   // [#next-free-field: 3]
   message RequestNodeFragment {
@@ -171,9 +175,5 @@ message ResultPredicate {
 
     // A simple string fragment
     string string_fragment = 4;
-  }
-
-  message RepeatedResultPredicate {
-    repeated ResultPredicate and_result = 1 [(validate.rules).repeated.min_items = 2];
   }
 }
