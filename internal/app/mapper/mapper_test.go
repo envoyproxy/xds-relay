@@ -18,13 +18,14 @@ type MatchPredicate = aggregationv1.MatchPredicate
 type ResultPredicate = aggregationv1.ResultPredicate
 
 const (
-	clusterTypeURL = "type.googleapis.com/envoy.api.v2.Cluster"
-	nodeid         = "nodeid"
-	nodecluster    = "cluster"
-	noderegion     = "region"
-	nodezone       = "zone"
-	nodesubzone    = "subzone"
-	stringfragment = "stringfragment"
+	clusterTypeURL  = "type.googleapis.com/envoy.api.v2.Cluster"
+	listenerTypeURL = "type.googleapis.com/envoy.api.v2.Listener"
+	nodeid          = "nodeid"
+	nodecluster     = "cluster"
+	noderegion      = "region"
+	nodezone        = "zone"
+	nodesubzone     = "subzone"
+	stringFragment  = "stringfragment"
 )
 
 var postivetests = []TableEntry{
@@ -34,7 +35,34 @@ var postivetests = []TableEntry{
 			getAnyMatch(true),
 			getResultStringFragment(),
 			clusterTypeURL,
-			stringfragment,
+			stringFragment,
+		},
+	},
+	{
+		Description: "RequestTypeMatch Matches with a single typeurl",
+		Parameters: []interface{}{
+			getRequestTypeMatch([]string{clusterTypeURL}),
+			getResultStringFragment(),
+			clusterTypeURL,
+			stringFragment,
+		},
+	},
+	{
+		Description: "RequestTypeMatch Matches with first among multiple typeurl",
+		Parameters: []interface{}{
+			getRequestTypeMatch([]string{clusterTypeURL, listenerTypeURL}),
+			getResultStringFragment(),
+			clusterTypeURL,
+			stringFragment,
+		},
+	},
+	{
+		Description: "RequestTypeMatch Matches with second among multiple typeurl",
+		Parameters: []interface{}{
+			getRequestTypeMatch([]string{listenerTypeURL, clusterTypeURL}),
+			getResultStringFragment(),
+			clusterTypeURL,
+			stringFragment,
 		},
 	},
 }
@@ -47,7 +75,7 @@ var multiFragmentPositiveTests = []TableEntry{
 			getAnyMatch(true),
 			getResultStringFragment(),
 			getResultStringFragment(),
-			stringfragment + "_" + stringfragment,
+			stringFragment + "_" + stringFragment,
 		},
 	},
 	{
@@ -57,7 +85,7 @@ var multiFragmentPositiveTests = []TableEntry{
 			getAnyMatch(false),
 			getResultStringFragment(),
 			getResultStringFragment(),
-			stringfragment,
+			stringFragment,
 		},
 	},
 	{
@@ -67,7 +95,7 @@ var multiFragmentPositiveTests = []TableEntry{
 			getAnyMatch(true),
 			getResultStringFragment(),
 			getResultStringFragment(),
-			stringfragment,
+			stringFragment,
 		},
 	},
 }
@@ -77,6 +105,13 @@ var negativeTests = []TableEntry{
 		Description: "AnyMatch returns empty String",
 		Parameters: []interface{}{
 			getAnyMatch(false),
+			getResultStringFragment(),
+		},
+	},
+	{
+		Description: "RequestTypeMatch does not match with unmatched typeurl",
+		Parameters: []interface{}{
+			getRequestTypeMatch([]string{""}),
 			getResultStringFragment(),
 		},
 	},
@@ -214,10 +249,20 @@ func getAnyMatch(any bool) *MatchPredicate {
 	}
 }
 
+func getRequestTypeMatch(typeurls []string) *MatchPredicate {
+	return &MatchPredicate{
+		Type: &aggregationv1.MatchPredicate_RequestTypeMatch_{
+			RequestTypeMatch: &aggregationv1.MatchPredicate_RequestTypeMatch{
+				Types: typeurls,
+			},
+		},
+	}
+}
+
 func getResultStringFragment() *ResultPredicate {
 	return &ResultPredicate{
 		Type: &aggregationv1.ResultPredicate_StringFragment{
-			StringFragment: stringfragment,
+			StringFragment: stringFragment,
 		},
 	}
 }

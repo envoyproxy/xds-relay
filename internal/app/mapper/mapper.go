@@ -48,7 +48,7 @@ func (mapper *mapper) GetKey(request v2.DiscoveryRequest, typeURL string) (strin
 		fragmentRules := fragment.GetRules()
 		for _, fragmentRule := range fragmentRules {
 			matchPredicate := fragmentRule.GetMatch()
-			isMatch := isMatch(matchPredicate)
+			isMatch := isMatch(matchPredicate, typeURL)
 			if isMatch {
 				result := getResult(fragmentRule)
 				resultFragments = append(resultFragments, result)
@@ -63,8 +63,22 @@ func (mapper *mapper) GetKey(request v2.DiscoveryRequest, typeURL string) (strin
 	return strings.Join(resultFragments, separator), nil
 }
 
-func isMatch(matchPredicate *matchPredicate) bool {
-	return isAnyMatch(matchPredicate)
+func isMatch(matchPredicate *matchPredicate, typeURL string) bool {
+	return isRequestTypeMatch(matchPredicate, typeURL) || isAnyMatch(matchPredicate)
+}
+
+func isRequestTypeMatch(matchPredicate *matchPredicate, typeURL string) bool {
+	predicate := matchPredicate.GetRequestTypeMatch()
+	if predicate == nil {
+		return false
+	}
+
+	for _, t := range predicate.GetTypes() {
+		if t == typeURL {
+			return true
+		}
+	}
+	return false
 }
 
 func isAnyMatch(matchPredicate *matchPredicate) bool {
