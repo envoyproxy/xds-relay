@@ -2,9 +2,11 @@ package mapper
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
 )
 
@@ -48,7 +50,10 @@ func (mapper *mapper) GetKey(request v2.DiscoveryRequest, typeURL string) (strin
 		fragmentRules := fragment.GetRules()
 		for _, fragmentRule := range fragmentRules {
 			matchPredicate := fragmentRule.GetMatch()
-			isMatch := isMatch(matchPredicate, typeURL)
+			isMatch, err := isMatch(matchPredicate, typeURL, request.GetNode())
+			if err != nil {
+				return "", err
+			}
 			if isMatch {
 				result := getResult(fragmentRule)
 				resultFragments = append(resultFragments, result)
@@ -63,29 +68,92 @@ func (mapper *mapper) GetKey(request v2.DiscoveryRequest, typeURL string) (strin
 	return strings.Join(resultFragments, separator), nil
 }
 
-func isMatch(matchPredicate *matchPredicate, typeURL string) bool {
-	return isRequestTypeMatch(matchPredicate, typeURL) || isAnyMatch(matchPredicate)
+func isMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (bool, error) {
+	result, err := isRequestTypeMatch(matchPredicate, typeURL)
+	if err != nil {
+		return false, err
+	}
+	if result {
+		return result, nil
+	}
+
+	result, err = isNodeMatch(matchPredicate, node)
+	if err != nil {
+		return false, err
+	}
+	if result {
+		return result, nil
+	}
+
+	result, err = isAnyMatch(matchPredicate)
+	if err != nil {
+		return false, err
+	}
+	if result {
+		return result, nil
+	}
+
+	return false, nil
 }
 
-func isRequestTypeMatch(matchPredicate *matchPredicate, typeURL string) bool {
+func isNodeMatch(matchPredicate *matchPredicate, node *core.Node) (bool, error) {
+	predicate := matchPredicate.GetRequestNodeMatch()
+	if predicate == nil {
+		return false, nil
+	}
+	switch predicate.GetField() {
+	case aggregationv1.NodeFieldType_NODE_CLUSTER:
+		return compare(predicate, node.GetCluster())
+	case aggregationv1.NodeFieldType_NODE_ID:
+		return compare(predicate, node.GetId())
+	case aggregationv1.NodeFieldType_NODE_LOCALITY_REGION:
+		return compare(predicate, node.GetLocality().GetRegion())
+	case aggregationv1.NodeFieldType_NODE_LOCALITY_ZONE:
+		return compare(predicate, node.GetLocality().GetZone())
+	case aggregationv1.NodeFieldType_NODE_LOCALITY_SUBZONE:
+		return compare(predicate, node.GetLocality().GetSubZone())
+	default:
+		return false, nil
+	}
+}
+
+func isRequestTypeMatch(matchPredicate *matchPredicate, typeURL string) (bool, error) {
 	predicate := matchPredicate.GetRequestTypeMatch()
 	if predicate == nil {
-		return false
+		return false, nil
 	}
 
 	for _, t := range predicate.GetTypes() {
 		if t == typeURL {
-			return true
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
-func isAnyMatch(matchPredicate *matchPredicate) bool {
-	return matchPredicate.GetAnyMatch()
+func isAnyMatch(matchPredicate *matchPredicate) (bool, error) {
+	return matchPredicate.GetAnyMatch(), nil
 }
 
 func getResult(fragmentRule *rule) string {
 	stringFragment := fragmentRule.GetResult().GetStringFragment()
 	return stringFragment
+}
+
+func compare(requestNodeMatch *aggregationv1.MatchPredicate_RequestNodeMatch, nodeValue string) (bool, error) {
+	exactMatch := requestNodeMatch.GetExactMatch()
+	if exactMatch != "" {
+		return nodeValue == exactMatch, nil
+	}
+
+	regexMatch := requestNodeMatch.GetRegexMatch()
+	if regexMatch != "" {
+		match, err := regexp.MatchString(regexMatch, nodeValue)
+		if err != nil {
+			return false, err
+		}
+		return match, nil
+	}
+
+	return false, nil
 }
