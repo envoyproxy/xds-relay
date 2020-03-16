@@ -48,9 +48,18 @@ var postivetests = []TableEntry{
 		},
 	},
 	{
-		Description: "RequestTypeMatch Matches with multiple typeurl",
+		Description: "RequestTypeMatch Matches with first among multiple typeurl",
 		Parameters: []interface{}{
 			getRequestTypeMatch([]string{clusterTypeURL, listenerTypeURL}),
+			getResultStringFragment(),
+			clusterTypeURL,
+			stringFragment,
+		},
+	},
+	{
+		Description: "RequestTypeMatch Matches with second among multiple typeurl",
+		Parameters: []interface{}{
+			getRequestTypeMatch([]string{listenerTypeURL, clusterTypeURL}),
 			getResultStringFragment(),
 			clusterTypeURL,
 			stringFragment,

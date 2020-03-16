@@ -64,14 +64,15 @@ func (mapper *mapper) GetKey(request v2.DiscoveryRequest, typeURL string) (strin
 }
 
 func isMatch(matchPredicate *matchPredicate, typeURL string) bool {
-	if matchPredicate.GetRequestTypeMatch() != nil {
-		return isRequestTypeMatch(matchPredicate, typeURL)
-	}
-	return isAnyMatch(matchPredicate)
+	return isRequestTypeMatch(matchPredicate, typeURL) || isAnyMatch(matchPredicate)
 }
 
 func isRequestTypeMatch(matchPredicate *matchPredicate, typeURL string) bool {
 	predicate := matchPredicate.GetRequestTypeMatch()
+	if predicate == nil {
+		return false
+	}
+
 	for _, t := range predicate.GetTypes() {
 		if t == typeURL {
 			return true
