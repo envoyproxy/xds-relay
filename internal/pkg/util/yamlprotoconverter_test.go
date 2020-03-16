@@ -52,7 +52,7 @@ resource_names_fragment:
 			&ResultPredicate{},
 			&ResultPredicate{
 				Type: &aggregationv1.ResultPredicate_ResourceNamesFragment_{
-					&ResourceNamesFragment{
+					ResourceNamesFragment: &ResourceNamesFragment{
 						Field:   1,
 						Element: 0,
 						Action: &ResultAction{
@@ -82,7 +82,7 @@ request_node_fragment:
 			&ResultPredicate{},
 			&ResultPredicate{
 				Type: &aggregationv1.ResultPredicate_RequestNodeFragment_{
-					&RequestNodeFragment{
+					RequestNodeFragment: &RequestNodeFragment{
 						Field: 2,
 						Action: &ResultAction{
 							Action: &aggregationv1.ResultPredicate_ResultAction_RegexAction_{
@@ -120,11 +120,11 @@ and_result:
 			&ResultPredicate{},
 			&ResultPredicate{
 				Type: &aggregationv1.ResultPredicate_AndResult_{
-					&AndResult{
+					AndResult: &AndResult{
 						ResultPredicates: []*ResultPredicate{
 							{
 								Type: &aggregationv1.ResultPredicate_ResourceNamesFragment_{
-									&ResourceNamesFragment{
+									ResourceNamesFragment: &ResourceNamesFragment{
 										Field:   1,
 										Element: 0,
 										Action: &ResultAction{
@@ -140,7 +140,7 @@ and_result:
 							},
 							{
 								Type: &aggregationv1.ResultPredicate_RequestNodeFragment_{
-									&RequestNodeFragment{
+									RequestNodeFragment: &RequestNodeFragment{
 										Field: 2,
 										Action: &ResultAction{
 											Action: &aggregationv1.ResultPredicate_ResultAction_RegexAction_{
