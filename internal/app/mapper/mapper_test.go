@@ -450,39 +450,6 @@ var _ = Describe("GetKey", func() {
 		},
 		regexpErrorCases...)
 
-	DescribeTable("should be able to join multiple fragments",
-		func(match1 *MatchPredicate,
-			match2 *MatchPredicate,
-			result1 *ResultPredicate,
-			result2 *ResultPredicate,
-			expectedKey string) {
-			protoConfig := KeyerConfiguration{
-				Fragments: []*Fragment{
-					{
-						Rules: []*FragmentRule{
-							{
-								Match:  match1,
-								Result: result1,
-							},
-						},
-					},
-					{
-						Rules: []*FragmentRule{
-							{
-								Match:  match2,
-								Result: result2,
-							},
-						},
-					},
-				},
-			}
-			mapper := NewMapper(protoConfig)
-			key, err := mapper.GetKey(getDiscoveryRequest(), clusterTypeURL)
-			Expect(expectedKey).To(Equal(key))
-			Expect(err).Should(BeNil())
-		},
-		multiFragmentPositiveTests...)
-
 	DescribeTable("should return error for multiple fragments regex failure",
 		func(match1 *MatchPredicate, match2 *MatchPredicate, result1 *ResultPredicate, result2 *ResultPredicate) {
 			protoConfig := KeyerConfiguration{
