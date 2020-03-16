@@ -15,9 +15,9 @@ type rule = aggregationv1.KeyerConfiguration_Fragment_Rule
 type Mapper interface {
 	// GetKey converts a request into an aggregated key
 	// Returns error if the regex parsing in the config fails to compile or match
-	// An DiscoveryRequest will always contain typeUrl
+	// A DiscoveryRequest will always contain typeUrl
 	// ADS will contain typeUrl https://github.com/envoyproxy/envoy/blob/master/api/envoy/api/v2/discovery.proto#L46
-	// Implicit xds requests will have typeUrl set because go-control-plane mutates the DiscoveeryRequest
+	// Implicit xds requests will have typeUrl set because go-control-plane mutates the DiscoveryRequest
 	// ref: https://github.com/envoyproxy/go-control-plane/blob/master/pkg/server/server.go#L310
 	GetKey(request v2.DiscoveryRequest) (string, error)
 }
