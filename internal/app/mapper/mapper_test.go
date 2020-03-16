@@ -294,6 +294,37 @@ var multiFragmentNegativeTests = []TableEntry{
 	},
 }
 
+var regexpErrorCases = []TableEntry{
+	{
+		Description: "Regex compilation failure in Nodefragment should return error",
+		Parameters: []interface{}{
+			getRequestNodeRegexMatch(nodeSubZoneField, "\xbd\xb2"),
+			getResultStringFragment(),
+		},
+	},
+}
+
+var regexpErrorCasesMultipleFragments = []TableEntry{
+	{
+		Description: "Regex parse failure in first request predicate",
+		Parameters: []interface{}{
+			getRequestNodeRegexMatch(nodeSubZoneField, "\xbd\xb2"),
+			getAnyMatch(true),
+			getResultStringFragment(),
+			getResultStringFragment(),
+		},
+	},
+	{
+		Description: "Regex parse failure in second request predicate",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getRequestNodeRegexMatch(nodeSubZoneField, "\xbd\xb2"),
+			getResultStringFragment(),
+			getResultStringFragment(),
+		},
+	},
+}
+
 var _ = Describe("GetKey", func() {
 	DescribeTable("should be able to return fragment for",
 		func(match *MatchPredicate, result *ResultPredicate, typeurl string, assert string) {
@@ -397,6 +428,89 @@ var _ = Describe("GetKey", func() {
 			Expect(err).Should(Equal(fmt.Errorf("Cannot map the input to a key")))
 		},
 		multiFragmentNegativeTests...)
+
+	DescribeTable("should be able to return error for regex evaluation failures",
+		func(match *MatchPredicate, result *ResultPredicate) {
+			protoConfig := KeyerConfiguration{
+				Fragments: []*Fragment{
+					{
+						Rules: []*FragmentRule{
+							{
+								Match:  match,
+								Result: result,
+							},
+						},
+					},
+				},
+			}
+			mapper := NewMapper(protoConfig)
+			key, err := mapper.GetKey(getDiscoveryRequest(), clusterTypeURL)
+			Expect(key).To(Equal(""))
+			Expect(err.Error()).Should(Equal("error parsing regexp: invalid UTF-8: `\xbd\xb2`"))
+		},
+		regexpErrorCases...)
+
+	DescribeTable("should be able to join multiple fragments",
+		func(match1 *MatchPredicate,
+			match2 *MatchPredicate,
+			result1 *ResultPredicate,
+			result2 *ResultPredicate,
+			expectedKey string) {
+			protoConfig := KeyerConfiguration{
+				Fragments: []*Fragment{
+					{
+						Rules: []*FragmentRule{
+							{
+								Match:  match1,
+								Result: result1,
+							},
+						},
+					},
+					{
+						Rules: []*FragmentRule{
+							{
+								Match:  match2,
+								Result: result2,
+							},
+						},
+					},
+				},
+			}
+			mapper := NewMapper(protoConfig)
+			key, err := mapper.GetKey(getDiscoveryRequest(), clusterTypeURL)
+			Expect(expectedKey).To(Equal(key))
+			Expect(err).Should(BeNil())
+		},
+		multiFragmentPositiveTests...)
+
+	DescribeTable("should return error for multiple fragments regex failure",
+		func(match1 *MatchPredicate, match2 *MatchPredicate, result1 *ResultPredicate, result2 *ResultPredicate) {
+			protoConfig := KeyerConfiguration{
+				Fragments: []*Fragment{
+					{
+						Rules: []*FragmentRule{
+							{
+								Match:  match1,
+								Result: result1,
+							},
+						},
+					},
+					{
+						Rules: []*FragmentRule{
+							{
+								Match:  match2,
+								Result: result2,
+							},
+						},
+					},
+				},
+			}
+			mapper := NewMapper(protoConfig)
+			key, err := mapper.GetKey(getDiscoveryRequest(), clusterTypeURL)
+			Expect(key).To(Equal(""))
+			Expect(err.Error()).Should(Equal("error parsing regexp: invalid UTF-8: `\xbd\xb2`"))
+		},
+		regexpErrorCasesMultipleFragments...)
 
 	It("TypeUrl should not be empty", func() {
 		mapper := NewMapper(KeyerConfiguration{})

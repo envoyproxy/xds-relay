@@ -69,7 +69,7 @@ func (mapper *mapper) GetKey(request v2.DiscoveryRequest, typeURL string) (strin
 }
 
 func isMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (bool, error) {
-	result, err := isRequestTypeMatch(matchPredicate, typeURL)
+	result, err := isNodeMatch(matchPredicate, node)
 	if err != nil {
 		return false, err
 	}
@@ -77,23 +77,7 @@ func isMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (b
 		return result, nil
 	}
 
-	result, err = isNodeMatch(matchPredicate, node)
-	if err != nil {
-		return false, err
-	}
-	if result {
-		return result, nil
-	}
-
-	result, err = isAnyMatch(matchPredicate)
-	if err != nil {
-		return false, err
-	}
-	if result {
-		return result, nil
-	}
-
-	return false, nil
+	return isRequestTypeMatch(matchPredicate, typeURL) || isAnyMatch(matchPredicate), nil
 }
 
 func isNodeMatch(matchPredicate *matchPredicate, node *core.Node) (bool, error) {
@@ -117,22 +101,22 @@ func isNodeMatch(matchPredicate *matchPredicate, node *core.Node) (bool, error) 
 	}
 }
 
-func isRequestTypeMatch(matchPredicate *matchPredicate, typeURL string) (bool, error) {
+func isRequestTypeMatch(matchPredicate *matchPredicate, typeURL string) bool {
 	predicate := matchPredicate.GetRequestTypeMatch()
 	if predicate == nil {
-		return false, nil
+		return false
 	}
 
 	for _, t := range predicate.GetTypes() {
 		if t == typeURL {
-			return true, nil
+			return true
 		}
 	}
-	return false, nil
+	return false
 }
 
-func isAnyMatch(matchPredicate *matchPredicate) (bool, error) {
-	return matchPredicate.GetAnyMatch(), nil
+func isAnyMatch(matchPredicate *matchPredicate) bool {
+	return matchPredicate.GetAnyMatch()
 }
 
 func getResult(fragmentRule *rule) string {
