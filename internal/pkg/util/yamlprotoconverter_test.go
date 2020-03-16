@@ -13,10 +13,11 @@ type Fragment = aggregationv1.KeyerConfiguration_Fragment
 type FragmentRule = aggregationv1.KeyerConfiguration_Fragment_Rule
 type KeyerConfiguration = aggregationv1.KeyerConfiguration
 type MatchPredicate = aggregationv1.MatchPredicate
+type RegexAction = aggregationv1.ResultPredicate_ResultAction_RegexAction
+type RequestNodeFragment = aggregationv1.ResultPredicate_RequestNodeFragment
 type RequestTypeMatch = aggregationv1.MatchPredicate_RequestTypeMatch
 type ResourceNamesFragment = aggregationv1.ResultPredicate_ResourceNamesFragment
 type ResultAction = aggregationv1.ResultPredicate_ResultAction
-type RegexAction = aggregationv1.ResultPredicate_ResultAction_RegexAction
 type ResultPredicate = aggregationv1.ResultPredicate
 type StringFragment = aggregationv1.ResultPredicate_StringFragment
 
@@ -58,6 +59,35 @@ resource_names_fragment:
 								RegexAction: &RegexAction{
 									Pattern: "some_regex",
 									Replace: "a_replacement",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	},
+	{
+		Description: "test result predicate containing request_node_fragment",
+		Parameters: []interface{}{
+			`
+request_node_fragment:
+  field: 2
+  action:
+    regex_action:
+      pattern: "some_regex_for_node_fragment"
+      replace: "another_replacement"
+`,
+			&ResultPredicate{},
+			&ResultPredicate{
+				Type: &aggregationv1.ResultPredicate_RequestNodeFragment_{
+					&RequestNodeFragment{
+						Field: 2,
+						Action: &ResultAction{
+							Action: &aggregationv1.ResultPredicate_ResultAction_RegexAction_{
+								RegexAction: &RegexAction{
+									Pattern: "some_regex_for_node_fragment",
+									Replace: "another_replacement",
 								},
 							},
 						},
