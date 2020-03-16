@@ -122,7 +122,7 @@ and_result:
 				Type: &aggregationv1.ResultPredicate_AndResult_{
 					&AndResult{
 						ResultPredicates: []*ResultPredicate{
-							&ResultPredicate{
+							{
 								Type: &aggregationv1.ResultPredicate_ResourceNamesFragment_{
 									&ResourceNamesFragment{
 										Field:   1,
@@ -138,7 +138,7 @@ and_result:
 									},
 								},
 							},
-							&ResultPredicate{
+							{
 								Type: &aggregationv1.ResultPredicate_RequestNodeFragment_{
 									&RequestNodeFragment{
 										Field: 2,
