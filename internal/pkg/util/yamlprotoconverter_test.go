@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+type AndResult = aggregationv1.ResultPredicate_AndResult
 type Fragment = aggregationv1.KeyerConfiguration_Fragment
 type FragmentRule = aggregationv1.KeyerConfiguration_Fragment_Rule
 type KeyerConfiguration = aggregationv1.KeyerConfiguration
@@ -88,6 +89,68 @@ request_node_fragment:
 								RegexAction: &RegexAction{
 									Pattern: "some_regex_for_node_fragment",
 									Replace: "another_replacement",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	},
+	{
+		Description: "test result predicate containing and_result",
+		Parameters: []interface{}{
+			`
+and_result:
+  result_predicates:
+    - resource_names_fragment:
+        field: 1
+        element: 0
+        action:
+          regex_action:
+            pattern: "some_regex"
+            replace: "a_replacement"
+    - request_node_fragment:
+        field: 2
+        action:
+          regex_action:
+            pattern: "some_regex_for_node_fragment"
+            replace: "another_replacement"
+`,
+			&ResultPredicate{},
+			&ResultPredicate{
+				Type: &aggregationv1.ResultPredicate_AndResult_{
+					&AndResult{
+						ResultPredicates: []*ResultPredicate{
+							&ResultPredicate{
+								Type: &aggregationv1.ResultPredicate_ResourceNamesFragment_{
+									&ResourceNamesFragment{
+										Field:   1,
+										Element: 0,
+										Action: &ResultAction{
+											Action: &aggregationv1.ResultPredicate_ResultAction_RegexAction_{
+												RegexAction: &RegexAction{
+													Pattern: "some_regex",
+													Replace: "a_replacement",
+												},
+											},
+										},
+									},
+								},
+							},
+							&ResultPredicate{
+								Type: &aggregationv1.ResultPredicate_RequestNodeFragment_{
+									&RequestNodeFragment{
+										Field: 2,
+										Action: &ResultAction{
+											Action: &aggregationv1.ResultPredicate_ResultAction_RegexAction_{
+												RegexAction: &RegexAction{
+													Pattern: "some_regex_for_node_fragment",
+													Replace: "another_replacement",
+												},
+											},
+										},
+									},
 								},
 							},
 						},
