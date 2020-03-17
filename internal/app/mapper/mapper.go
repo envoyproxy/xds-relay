@@ -75,7 +75,7 @@ func isMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (b
 	}
 
 	if isNodeMatch {
-		return isNodeMatch, nil
+		return true, nil
 	}
 
 	isAndMatch, err := isAndMatch(matchPredicate, typeURL, node)
