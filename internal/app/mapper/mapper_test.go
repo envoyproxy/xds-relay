@@ -127,7 +127,7 @@ var postivetests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with node cluster regex match",
 		Parameters: []interface{}{
-			getRequestNodeRegexMatch(nodeClusterField, "c.....r"),
+			getRequestNodeRegexMatch(nodeClusterField, "c*s*r"),
 			getResultStringFragment(),
 			clusterTypeURL,
 			stringFragment,
@@ -136,7 +136,7 @@ var postivetests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with node region regex match",
 		Parameters: []interface{}{
-			getRequestNodeRegexMatch(nodeRegionField, "r....n"),
+			getRequestNodeRegexMatch(nodeRegionField, "^r....[n]"),
 			getResultStringFragment(),
 			clusterTypeURL,
 			stringFragment,
@@ -145,7 +145,7 @@ var postivetests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with node zone regex match",
 		Parameters: []interface{}{
-			getRequestNodeRegexMatch(nodeZoneField, "z..e"),
+			getRequestNodeRegexMatch(nodeZoneField, "z..e$"),
 			getResultStringFragment(),
 			clusterTypeURL,
 			stringFragment,
@@ -154,7 +154,7 @@ var postivetests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with node subzone regex match",
 		Parameters: []interface{}{
-			getRequestNodeRegexMatch(nodeSubZoneField, "s.....e"),
+			getRequestNodeRegexMatch(nodeSubZoneField, "[^0-9](u|v)b{1}...e"),
 			getResultStringFragment(),
 			clusterTypeURL,
 			stringFragment,
@@ -215,7 +215,7 @@ var negativeTests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with node id does not match",
 		Parameters: []interface{}{
-			getRequestNodeExactMatch(nodeIDField, "nonmatchingnode"),
+			getRequestNodeExactMatch(nodeIDField, nodeid+"{5}"),
 			getResultStringFragment(),
 			getDiscoveryRequest(),
 		},
@@ -223,7 +223,7 @@ var negativeTests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with node cluster does not match",
 		Parameters: []interface{}{
-			getRequestNodeExactMatch(nodeClusterField, "nonmatchingnode"),
+			getRequestNodeExactMatch(nodeClusterField, "[^a-z]odecluster"),
 			getResultStringFragment(),
 			getDiscoveryRequest(),
 		},
@@ -231,7 +231,7 @@ var negativeTests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with node region does not match",
 		Parameters: []interface{}{
-			getRequestNodeExactMatch(nodeRegionField, "nonmatchingnode"),
+			getRequestNodeExactMatch(nodeRegionField, noderegion+"\\d"),
 			getResultStringFragment(),
 			getDiscoveryRequest(),
 		},
@@ -239,7 +239,7 @@ var negativeTests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with node zone does not match",
 		Parameters: []interface{}{
-			getRequestNodeExactMatch(nodeZoneField, "nonmatchingnode"),
+			getRequestNodeExactMatch(nodeZoneField, "zon[A-Z]"),
 			getResultStringFragment(),
 			getDiscoveryRequest(),
 		},
@@ -247,7 +247,7 @@ var negativeTests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with node subzone does not match",
 		Parameters: []interface{}{
-			getRequestNodeExactMatch(nodeSubZoneField, "nonmatchingnode"),
+			getRequestNodeExactMatch(nodeSubZoneField, nodesubzone+"+"),
 			getResultStringFragment(),
 			getDiscoveryRequest(),
 		},
@@ -255,7 +255,7 @@ var negativeTests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with node id regex does not match",
 		Parameters: []interface{}{
-			getRequestNodeRegexMatch(nodeIDField, "nonmatchingnode"),
+			getRequestNodeRegexMatch(nodeIDField, nodeid+"{5}"),
 			getResultStringFragment(),
 			getDiscoveryRequest(),
 		},
@@ -263,7 +263,7 @@ var negativeTests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with node cluster regex does not match",
 		Parameters: []interface{}{
-			getRequestNodeRegexMatch(nodeClusterField, "nonmatchingnode"),
+			getRequestNodeRegexMatch(nodeClusterField, "[^a-z]odecluster"),
 			getResultStringFragment(),
 			getDiscoveryRequest(),
 		},
@@ -271,7 +271,7 @@ var negativeTests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with node region regex does not match",
 		Parameters: []interface{}{
-			getRequestNodeRegexMatch(nodeRegionField, "nonmatchingnode"),
+			getRequestNodeRegexMatch(nodeRegionField, noderegion+"\\d"),
 			getResultStringFragment(),
 			getDiscoveryRequest(),
 		},
@@ -279,7 +279,7 @@ var negativeTests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with node zone regex does not match",
 		Parameters: []interface{}{
-			getRequestNodeRegexMatch(nodeZoneField, "nonmatchingnode"),
+			getRequestNodeRegexMatch(nodeZoneField, "zon[A-Z]"),
 			getResultStringFragment(),
 			getDiscoveryRequest(),
 		},
@@ -287,7 +287,7 @@ var negativeTests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with node subzone regex does not match",
 		Parameters: []interface{}{
-			getRequestNodeRegexMatch(nodeSubZoneField, "nonmatchingnode"),
+			getRequestNodeRegexMatch(nodeSubZoneField, nodesubzone+"\\B"),
 			getResultStringFragment(),
 			getDiscoveryRequest(),
 		},
