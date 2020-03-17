@@ -160,6 +160,32 @@ var postivetests = []TableEntry{
 			stringFragment,
 		},
 	},
+	{
+		Description: "AndMatch RequestNodeMatch",
+		Parameters: []interface{}{
+			getRequestNodeAndMatch(
+				[]*aggregationv1.MatchPredicate{
+					getRequestNodeExactMatch(nodeIDField, nodeid),
+					getRequestNodeExactMatch(nodeClusterField, nodecluster),
+				}),
+			getResultStringFragment(),
+			clusterTypeURL,
+			stringFragment,
+		},
+	},
+	{
+		Description: "OrMatch RequestNodeMatch",
+		Parameters: []interface{}{
+			getRequestNodeOrMatch(
+				[]*aggregationv1.MatchPredicate{
+					getRequestNodeExactMatch(nodeIDField, ""),
+					getRequestNodeExactMatch(nodeClusterField, nodecluster),
+				}),
+			getResultStringFragment(),
+			clusterTypeURL,
+			stringFragment,
+		},
+	},
 }
 
 var multiFragmentPositiveTests = []TableEntry{
@@ -370,6 +396,28 @@ var negativeTests = []TableEntry{
 			getRequestNodeRegexMatch(nodeSubZoneField, nodesubzone),
 			getResultStringFragment(),
 			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, "")),
+		},
+	},
+	{
+		Description: "AndMatch RequestNodeMatch does not match",
+		Parameters: []interface{}{
+			getRequestNodeAndMatch(
+				[]*aggregationv1.MatchPredicate{
+					getRequestNodeExactMatch(nodeIDField, "nonmatchingnode"),
+					getRequestNodeExactMatch(nodeClusterField, nodecluster)}),
+			getResultStringFragment(),
+			getDiscoveryRequest(),
+		},
+	},
+	{
+		Description: "OrMatch RequestNodeMatch does not match",
+		Parameters: []interface{}{
+			getRequestNodeOrMatch(
+				[]*aggregationv1.MatchPredicate{
+					getRequestNodeExactMatch(nodeIDField, ""),
+					getRequestNodeExactMatch(nodeClusterField, "")}),
+			getResultStringFragment(),
+			getDiscoveryRequest(),
 		},
 	},
 }
@@ -622,6 +670,26 @@ func getRequestNodeRegexMatch(field aggregationv1.NodeFieldType, regex string) *
 				Type: &aggregationv1.MatchPredicate_RequestNodeMatch_RegexMatch{
 					RegexMatch: regex,
 				},
+			},
+		},
+	}
+}
+
+func getRequestNodeAndMatch(predicates []*MatchPredicate) *MatchPredicate {
+	return &MatchPredicate{
+		Type: &aggregationv1.MatchPredicate_AndMatch{
+			AndMatch: &aggregationv1.MatchPredicate_MatchSet{
+				Rules: predicates,
+			},
+		},
+	}
+}
+
+func getRequestNodeOrMatch(predicates []*MatchPredicate) *MatchPredicate {
+	return &MatchPredicate{
+		Type: &aggregationv1.MatchPredicate_OrMatch{
+			OrMatch: &aggregationv1.MatchPredicate_MatchSet{
+				Rules: predicates,
 			},
 		},
 	}
