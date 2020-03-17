@@ -35,13 +35,13 @@ var testResponse = envoy_api_v2.DiscoveryResponse{
 }
 
 func TestExists_EmptyCache(t *testing.T) {
-	cache, err := newCache(1048576, 60)
+	cache, err := NewCache(1048576, 60)
 	assert.NoError(t, err)
 	assert.Equal(t, false, cache.Exists(testKey))
 }
 
 func TestSetResponseAndFetch(t *testing.T) {
-	cache, err := newCache(1048576, 60)
+	cache, err := NewCache(1048576, 60)
 	assert.NoError(t, err)
 
 	// Simulate cache miss and setting of new watch.
@@ -61,7 +61,8 @@ func TestSetResponseAndFetch(t *testing.T) {
 	// Simulate setting new response.
 	openWatches, err := cache.SetResponse(testKey, testResponse)
 	assert.NoError(t, err)
-	assert.Nil(t, openWatches)
+	assert.Equal(t, 1, len(openWatches))
+	assert.Equal(t, testRequest, *openWatches[0])
 	response, err = cache.Fetch(testKey)
 	assert.NoError(t, err)
 	assert.Equal(t, testResponse, *response)

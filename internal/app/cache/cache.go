@@ -34,10 +34,17 @@ type resource struct {
 	streamOpen bool
 }
 
-func newCache(cacheSizeBytes int64, expireSeconds int) (*cache, error) {
+func NewCache(cacheSizeBytes int64, expireSeconds int) (Cache, error) {
+	// Config values are set as recommended in the ristretto documentation: https://github.com/dgraph-io/ristretto#Config.
 	config := ristretto.Config{
+		// NumCounters sets the number of counters/keys to keep for tracking access frequency.
+		// The value is recommended to be higher than the max cache capacity,
+		// and 10x the number of unique items in the cache when full (note that this is different from MaxCost).
 		NumCounters: 10 * cacheSizeBytes,
-		MaxCost:     cacheSizeBytes,
+		// MaxCost denotes the max size in bytes and determines how eviction decisions are made.
+		// For consistency, the cost passed into SetWithTTL represents the size of the value in bytes.
+		MaxCost: cacheSizeBytes,
+		// BufferItems is the size of the Get buffers. The recommended value is 64.
 		BufferItems: 64,
 	}
 	newCache, err := ristretto.NewCache(&config)
@@ -86,13 +93,13 @@ func (c *cache) SetResponse(key string, resp envoy_api_v2.DiscoveryResponse) ([]
 		return nil, fmt.Errorf("Unable to cast cache value to type resource for key: %s", key)
 	}
 	resource.resp = &resp
-	resource.watches = nil
 	cost := unsafe.Sizeof(resource)
 	set := c.cache.SetWithTTL(key, resource, int64(cost), c.expireSeconds)
+	// TODO: Add logic that allows for notifying of watches.
 	if !set {
-		return nil, fmt.Errorf("Unable to set value for key: %s", key)
+		return resource.watches, fmt.Errorf("Unable to set value for key: %s", key)
 	}
-	return nil, nil
+	return resource.watches, nil
 }
 
 func (c *cache) AddWatch(key string, req envoy_api_v2.DiscoveryRequest) (bool, error) {
@@ -115,6 +122,7 @@ func (c *cache) AddWatch(key string, req envoy_api_v2.DiscoveryRequest) (bool, e
 		return false, fmt.Errorf("Unable to cast cache value to type resource for key: %s", key)
 	}
 	resource.watches = append(resource.watches, &req)
+	// TODO: Add logic to guarantee that a stream has been opened.
 	resource.streamOpen = true
 	cost := unsafe.Sizeof(resource)
 	set := c.cache.SetWithTTL(key, resource, int64(cost), c.expireSeconds)
