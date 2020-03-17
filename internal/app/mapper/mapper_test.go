@@ -341,7 +341,9 @@ var _ = Describe("GetKey", func() {
 				},
 			}
 			mapper := NewMapper(protoConfig)
-			key, err := mapper.GetKey(getDiscoveryRequest(), typeurl)
+			request := getDiscoveryRequest()
+			request.TypeUrl = typeurl
+			key, err := mapper.GetKey(request)
 			Expect(key).To(Equal(assert))
 			Expect(err).Should(BeNil())
 		}, postivetests...)
@@ -361,7 +363,7 @@ var _ = Describe("GetKey", func() {
 				},
 			}
 			mapper := NewMapper(protoConfig)
-			key, err := mapper.GetKey(getDiscoveryRequest(), clusterTypeURL)
+			key, err := mapper.GetKey(getDiscoveryRequest())
 			Expect(key).To(Equal(""))
 			Expect(err).Should(Equal(fmt.Errorf("Cannot map the input to a key")))
 		},
@@ -394,7 +396,7 @@ var _ = Describe("GetKey", func() {
 				},
 			}
 			mapper := NewMapper(protoConfig)
-			key, err := mapper.GetKey(getDiscoveryRequest(), clusterTypeURL)
+			key, err := mapper.GetKey(getDiscoveryRequest())
 			Expect(expectedKey).To(Equal(key))
 			Expect(err).Should(BeNil())
 		},
@@ -423,7 +425,7 @@ var _ = Describe("GetKey", func() {
 				},
 			}
 			mapper := NewMapper(protoConfig)
-			key, err := mapper.GetKey(getDiscoveryRequest(), clusterTypeURL)
+			key, err := mapper.GetKey(getDiscoveryRequest())
 			Expect(key).To(Equal(""))
 			Expect(err).Should(Equal(fmt.Errorf("Cannot map the input to a key")))
 		},
@@ -481,7 +483,9 @@ var _ = Describe("GetKey", func() {
 
 	It("TypeUrl should not be empty", func() {
 		mapper := NewMapper(KeyerConfiguration{})
-		key, err := mapper.GetKey(getDiscoveryRequest(), "")
+		request := getDiscoveryRequest()
+		request.TypeUrl = ""
+		key, err := mapper.GetKey(request)
 		Expect(key).To(Equal(""))
 		Expect(err).Should(Equal(fmt.Errorf("typeURL is empty")))
 	})
