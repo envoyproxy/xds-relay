@@ -34,13 +34,13 @@ type resource struct {
 	streamOpen bool
 }
 
-func NewCache(cacheSizeBytes int64, expireSeconds int) (Cache, error) {
+func NewCache(numCounters int64, cacheSizeBytes int64, expireSeconds int) (Cache, error) {
 	// Config values are set as recommended in the ristretto documentation: https://github.com/dgraph-io/ristretto#Config.
 	config := ristretto.Config{
 		// NumCounters sets the number of counters/keys to keep for tracking access frequency.
 		// The value is recommended to be higher than the max cache capacity,
 		// and 10x the number of unique items in the cache when full (note that this is different from MaxCost).
-		NumCounters: 10 * cacheSizeBytes,
+		NumCounters: numCounters,
 		// MaxCost denotes the max size in bytes and determines how eviction decisions are made.
 		// For consistency, the cost passed into SetWithTTL represents the size of the value in bytes.
 		MaxCost: cacheSizeBytes,

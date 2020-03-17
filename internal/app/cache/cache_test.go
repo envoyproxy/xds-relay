@@ -36,14 +36,14 @@ var testResponse = envoy_api_v2.DiscoveryResponse{
 }
 
 func TestExists_EmptyCache(t *testing.T) {
-	cache, err := NewCache(1048576, 60)
+	cache, err := NewCache(10, 1048576, 60)
 	assert.NoError(t, err)
 
 	assert.False(t, cache.Exists(testKeyA))
 }
 
 func TestAddWatchAndFetch(t *testing.T) {
-	cache, err := NewCache(1048576, 60)
+	cache, err := NewCache(10, 1048576, 60)
 	assert.NoError(t, err)
 
 	// Simulate cache miss and setting of new watch.
@@ -61,7 +61,7 @@ func TestAddWatchAndFetch(t *testing.T) {
 }
 
 func TestSetResponseAndFetch(t *testing.T) {
-	cache, err := NewCache(1048576, 60)
+	cache, err := NewCache(10, 1048576, 60)
 	assert.NoError(t, err)
 
 	// Simulate cache miss and setting of new response.
@@ -80,7 +80,7 @@ func TestSetResponseAndFetch(t *testing.T) {
 // This test demonstrates behavior unique to ristretto caching, i.e. if Set is applied on a new key, it may take
 // a few milliseconds after the call returns, but if the key already exists in the cache, the update is done instantly.
 func TestAddWatchAndSetResponse(t *testing.T) {
-	cache, err := NewCache(1048576, 60)
+	cache, err := NewCache(10, 1048576, 60)
 	assert.NoError(t, err)
 
 	isStreamOpen, err := cache.AddWatch(testKeyA, testRequest)
@@ -103,7 +103,7 @@ func TestAddWatchAndSetResponse(t *testing.T) {
 }
 
 func TestTTL(t *testing.T) {
-	cache, err := NewCache(1048576, 1)
+	cache, err := NewCache(10, 1048576, 1)
 	assert.NoError(t, err)
 	_, err = cache.AddWatch(testKeyA, testRequest)
 	assert.NoError(t, err)
@@ -114,7 +114,7 @@ func TestTTL(t *testing.T) {
 }
 
 func TestMemoryOverflow(t *testing.T) {
-	cache, err := NewCache(40, 60)
+	cache, err := NewCache(10, 40, 60)
 	assert.NoError(t, err)
 	_, err = cache.AddWatch(testKeyA, testRequest)
 	assert.NoError(t, err)
