@@ -1,4 +1,4 @@
-package yamlprotoconverter_test
+package yamlproto_test
 
 import (
 	"testing"

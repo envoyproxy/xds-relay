@@ -1,4 +1,4 @@
-package yamlprotoconverter_test
+package yamlproto_test
 
 import (
 	. "github.com/envoyproxy/xds-relay/internal/pkg/util"

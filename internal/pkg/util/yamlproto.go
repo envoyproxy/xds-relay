@@ -1,4 +1,4 @@
-package yamlprotoconverter
+package yamlproto
 
 import (
 	"github.com/ghodss/yaml"
