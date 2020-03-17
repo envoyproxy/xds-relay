@@ -1,7 +1,11 @@
 package yamlproto
 
 import (
+	"fmt"
+
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
+
+	"io/ioutil"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -26,9 +30,7 @@ var positiveTests = []TableEntry{
 	{
 		Description: "test result predicate containing string_fragment",
 		Parameters: []interface{}{
-			`
-string_fragment: abc
-`,
+			"string_fragment.yaml",
 			&ResultPredicate{
 				Type: &StringFragment{
 					StringFragment: "abc",
@@ -39,15 +41,7 @@ string_fragment: abc
 	{
 		Description: "test result predicate containing resource_names_fragment",
 		Parameters: []interface{}{
-			`
-resource_names_fragment:
-  field: 1
-  element: 0
-  action:
-    regex_action:
-      pattern: "some_regex"
-      replace: "a_replacement"
-`,
+			"resource_names_fragment.yaml",
 			&ResultPredicate{
 				Type: &aggregationv1.ResultPredicate_ResourceNamesFragment_{
 					ResourceNamesFragment: &ResourceNamesFragment{
@@ -69,14 +63,7 @@ resource_names_fragment:
 	{
 		Description: "test result predicate containing request_node_fragment",
 		Parameters: []interface{}{
-			`
-request_node_fragment:
-  field: 2
-  action:
-    regex_action:
-      pattern: "some_regex_for_node_fragment"
-      replace: "another_replacement"
-`,
+			"request_node_fragment.yaml",
 			&ResultPredicate{
 				Type: &aggregationv1.ResultPredicate_RequestNodeFragment_{
 					RequestNodeFragment: &RequestNodeFragment{
@@ -97,23 +84,7 @@ request_node_fragment:
 	{
 		Description: "test result predicate containing and_result",
 		Parameters: []interface{}{
-			`
-and_result:
-  result_predicates:
-    - resource_names_fragment:
-        field: 1
-        element: 0
-        action:
-          regex_action:
-            pattern: "some_regex"
-            replace: "a_replacement"
-    - request_node_fragment:
-        field: 2
-        action:
-          regex_action:
-            pattern: "some_regex_for_node_fragment"
-            replace: "another_replacement"
-`,
+			"and_result.yaml",
 			&ResultPredicate{
 				Type: &aggregationv1.ResultPredicate_AndResult_{
 					AndResult: &AndResult{
@@ -158,17 +129,7 @@ and_result:
 	{
 		Description: "KeyerConfiguration + RequestTypeMatch + StringFragment",
 		Parameters: []interface{}{
-			`
-fragments:
-- rules:
-  - match:
-      request_type_match:
-        types:
-        - type.googleapis.com/envoy.api.v2.Endpoint
-        - type.googleapis.com/envoy.api.v2.Listener
-    result:
-      string_fragment: "abc"
-`,
+			"keyer_configuration_request_type_match_string_fragment.yaml",
 			&KeyerConfiguration{
 				Fragments: []*Fragment{
 					{
@@ -202,49 +163,28 @@ var negativeTests = []TableEntry{
 	{
 		Description: "typo in fragments definition, instead of fragments we have fragmentss",
 		Parameters: []interface{}{
-			`
-fragmentss:
-- rules:
-  - match:
-      request_type_match:
-        types:
-        - type.googleapis.com/envoy.api.v2.Listener
-    result:
-      string_fragment: "abc"
-`,
+			"typo_in_fragments.yaml",
 			&KeyerConfiguration{},
 		},
 	},
 	{
 		Description: "inexistent field in fragment",
 		Parameters: []interface{}{
-			`
-fragments:
-- inexistent_field_in_fragment: 42
-- rules:
-  - match:
-      request_type_match:
-        types:
-        - type.googleapis.com/envoy.api.v2.Listener
-    result:
-      string_fragment: "abc"
-`,
+			"inexistent_field.yaml",
 			&KeyerConfiguration{},
 		},
 	},
 	{
 		Description: "malformed yaml",
 		Parameters: []interface{}{
-			`
-some crazy yaml
-`,
+			"invalid.yaml",
 			&KeyerConfiguration{},
 		},
 	},
 	{
 		Description: "empty yaml",
 		Parameters: []interface{}{
-			``,
+			"empty.yaml",
 			&KeyerConfiguration{},
 		},
 	},
@@ -252,11 +192,13 @@ some crazy yaml
 
 var _ = Describe("Yamlprotoconverter", func() {
 	DescribeTable("should be able to convert from yaml to proto",
-		func(yml string, expectedProto proto.Message) {
+		func(ymlFixtureFilename string, expectedProto proto.Message) {
+			ymlBytes, err := ioutil.ReadFile(fmt.Sprintf("testdata/%s", ymlFixtureFilename))
+			Expect(err).To(BeNil())
 			// Get an empty copy of the expected proto to use as a recipient of the unmarshaling.
 			protoToUnmarshal := proto.Clone(expectedProto)
 			proto.Reset(protoToUnmarshal)
-			err := FromYAMLToProto(yml, protoToUnmarshal)
+			err = FromYAMLToProto(string(ymlBytes), protoToUnmarshal)
 			Expect(err).To(BeNil())
 			Expect(proto.Equal(protoToUnmarshal, expectedProto)).To(Equal(true))
 		},
