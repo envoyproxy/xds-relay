@@ -165,7 +165,7 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			"typo_in_fragments.yaml",
 			&KeyerConfiguration{},
-			"proto: (line 1:2): unknown field \"fragmentss\"",
+			"(line 1:2): unknown field \"fragmentss\"",
 		},
 	},
 	{
@@ -173,7 +173,7 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			"inexistent_field.yaml",
 			&KeyerConfiguration{},
-			"proto: (line 1:16): unknown field \"inexistent_field_in_fragment\"",
+			"(line 1:16): unknown field \"inexistent_field_in_fragment\"",
 		},
 	},
 	{
@@ -181,7 +181,7 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			"empty.yaml",
 			&KeyerConfiguration{},
-			"proto: syntax error (line 1:1): unexpected token null",
+			"syntax error (line 1:1): unexpected token null",
 		},
 	},
 	{
@@ -189,7 +189,7 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			"error_in_second_rule.yaml",
 			&KeyerConfiguration{},
-			"proto: (line 1:16): unknown field \"ruless\"",
+			"(line 1:16): unknown field \"ruless\"",
 		},
 	},
 	{
@@ -197,7 +197,7 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			"invalid.yaml",
 			&ResultPredicate{},
-			"proto: syntax error (line 1:1): unexpected token \"some crazy yaml\\nbla\\n42\"",
+			"syntax error (line 1:1): unexpected token \"some crazy yaml\\nbla\\n42\"",
 		},
 	},
 }
@@ -221,7 +221,8 @@ var _ = Describe("Yamlprotoconverter", func() {
 			ymlBytes, err := ioutil.ReadFile(fmt.Sprintf("testdata/%s", ymlFixtureFilename))
 			Expect(err).To(BeNil())
 			err = FromYAMLToProto(string(ymlBytes), protoToUnmarshal)
-			Expect(err.Error()).Should(Equal(expectedErrorMessage))
+			// Expect(err.Error()).Should(Equal(expectedErrorMessage))
+			Expect(err.Error()).Should(HaveSuffix(expectedErrorMessage))
 		},
 		negativeTests...)
 })
