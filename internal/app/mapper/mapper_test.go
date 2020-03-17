@@ -174,12 +174,25 @@ var postivetests = []TableEntry{
 		},
 	},
 	{
-		Description: "OrMatch RequestNodeMatch",
+		Description: "OrMatch RequestNodeMatch first predicate",
 		Parameters: []interface{}{
 			getRequestNodeOrMatch(
 				[]*aggregationv1.MatchPredicate{
 					getRequestNodeExactMatch(nodeIDField, ""),
 					getRequestNodeExactMatch(nodeClusterField, nodecluster),
+				}),
+			getResultStringFragment(),
+			clusterTypeURL,
+			stringFragment,
+		},
+	},
+	{
+		Description: "OrMatch RequestNodeMatch second predicate",
+		Parameters: []interface{}{
+			getRequestNodeOrMatch(
+				[]*aggregationv1.MatchPredicate{
+					getRequestNodeExactMatch(nodeIDField, nodeid),
+					getRequestNodeExactMatch(nodeClusterField, ""),
 				}),
 			getResultStringFragment(),
 			clusterTypeURL,
@@ -399,12 +412,23 @@ var negativeTests = []TableEntry{
 		},
 	},
 	{
-		Description: "AndMatch RequestNodeMatch does not match",
+		Description: "AndMatch RequestNodeMatch does not match first predicate",
 		Parameters: []interface{}{
 			getRequestNodeAndMatch(
 				[]*aggregationv1.MatchPredicate{
 					getRequestNodeExactMatch(nodeIDField, "nonmatchingnode"),
 					getRequestNodeExactMatch(nodeClusterField, nodecluster)}),
+			getResultStringFragment(),
+			getDiscoveryRequest(),
+		},
+	},
+	{
+		Description: "AndMatch RequestNodeMatch does not match second predicate",
+		Parameters: []interface{}{
+			getRequestNodeAndMatch(
+				[]*aggregationv1.MatchPredicate{
+					getRequestNodeExactMatch(nodeIDField, nodeid),
+					getRequestNodeExactMatch(nodeClusterField, "nomatch")}),
 			getResultStringFragment(),
 			getDiscoveryRequest(),
 		},
