@@ -16,11 +16,11 @@ type Cache interface {
 	// Fetch returns the cached response if it exists.
 	Fetch(key string) (*envoy_api_v2.DiscoveryResponse, error)
 
-	// SetResponse sets the cache response and returns the list of open watches.
+	// SetResponse sets the cache response and returns the list of requests.
 	SetResponse(key string, resp envoy_api_v2.DiscoveryResponse) ([]*envoy_api_v2.DiscoveryRequest, error)
 
-	// AddWatch adds the watch to the cache and returns whether a stream is open.
-	AddWatch(key string, req envoy_api_v2.DiscoveryRequest) (bool, error)
+	// AddRequest adds the request to the cache and returns whether a stream is open.
+	AddRequest(key string, req envoy_api_v2.DiscoveryRequest) (bool, error)
 }
 
 type cache struct {
@@ -30,11 +30,12 @@ type cache struct {
 
 type resource struct {
 	resp       *envoy_api_v2.DiscoveryResponse
-	watches    []*envoy_api_v2.DiscoveryRequest
+	requests   []*envoy_api_v2.DiscoveryRequest
 	streamOpen bool
 }
 
-func NewCache(numCounters int64, cacheSizeBytes int64, expireSeconds int) (Cache, error) {
+func NewCache(numCounters int64, cacheSizeBytes int64, expireSeconds int, onEvict func(key, conflict uint64,
+	value interface{}, cost int64)) (Cache, error) {
 	// Config values are set as recommended in the ristretto documentation: https://github.com/dgraph-io/ristretto#Config.
 	config := ristretto.Config{
 		// NumCounters sets the number of counters/keys to keep for tracking access frequency.
@@ -47,9 +48,7 @@ func NewCache(numCounters int64, cacheSizeBytes int64, expireSeconds int) (Cache
 		// BufferItems is the size of the Get buffers. The recommended value is 64.
 		BufferItems: 64,
 		// OnEvict is called for each eviction and closes the stream if a key is removed (e.g. expiry due to TTL).
-		OnEvict: func(key, conflict uint64, value interface{}, cost int64) {
-			// TODO: Add logic to guarantee that the corresponding stream is closed.
-		},
+		OnEvict: onEvict,
 	}
 	newCache, err := ristretto.NewCache(&config)
 	if err != nil {
@@ -101,17 +100,17 @@ func (c *cache) SetResponse(key string, resp envoy_api_v2.DiscoveryResponse) ([]
 	set := c.cache.SetWithTTL(key, resource, int64(cost), c.expireSeconds)
 	// TODO: Add logic that allows for notifying of watches.
 	if !set {
-		return resource.watches, fmt.Errorf("Unable to set value for key: %s", key)
+		return resource.requests, fmt.Errorf("Unable to set value for key: %s", key)
 	}
-	return resource.watches, nil
+	return resource.requests, nil
 }
 
-func (c *cache) AddWatch(key string, req envoy_api_v2.DiscoveryRequest) (bool, error) {
+func (c *cache) AddRequest(key string, req envoy_api_v2.DiscoveryRequest) (bool, error) {
 	value, found := c.cache.Get(key)
 	if !found {
 		// If no value exists for the key, instantiate a new one.
 		resource := resource{
-			watches:    []*envoy_api_v2.DiscoveryRequest{&req},
+			requests:   []*envoy_api_v2.DiscoveryRequest{&req},
 			streamOpen: true,
 		}
 		cost := unsafe.Sizeof(resource)
@@ -125,7 +124,7 @@ func (c *cache) AddWatch(key string, req envoy_api_v2.DiscoveryRequest) (bool, e
 	if !ok {
 		return false, fmt.Errorf("Unable to cast cache value to type resource for key: %s", key)
 	}
-	resource.watches = append(resource.watches, &req)
+	resource.requests = append(resource.requests, &req)
 	// TODO: Add logic to guarantee that a stream has been opened.
 	resource.streamOpen = true
 	cost := unsafe.Sizeof(resource)

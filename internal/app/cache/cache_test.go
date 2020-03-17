@@ -13,6 +13,10 @@ import (
 const testKeyA = "key_A"
 const testKeyB = "key_B"
 
+func onEvict(key, conflict uint64, value interface{}, cost int64) {
+	// TODO: Simulate eviction behavior, e.g. closing of streams.
+}
+
 var testRequest = envoy_api_v2.DiscoveryRequest{
 	VersionInfo: "version_A",
 	Node: &core.Node{
@@ -36,21 +40,21 @@ var testResponse = envoy_api_v2.DiscoveryResponse{
 }
 
 func TestExists_EmptyCache(t *testing.T) {
-	cache, err := NewCache(10, 1048576, 60)
+	cache, err := NewCache(10, 1048576, 60, onEvict)
 	assert.NoError(t, err)
 
 	assert.False(t, cache.Exists(testKeyA))
 }
 
-func TestAddWatchAndFetch(t *testing.T) {
-	cache, err := NewCache(10, 1048576, 60)
+func TestAddRequestAndFetch(t *testing.T) {
+	cache, err := NewCache(10, 1048576, 60, onEvict)
 	assert.NoError(t, err)
 
-	// Simulate cache miss and setting of new watch.
+	// Simulate cache miss and setting of new request.
 	response, err := cache.Fetch(testKeyA)
 	assert.EqualError(t, err, "No value found for key: key_A")
 	assert.Nil(t, response)
-	isStreamOpen, err := cache.AddWatch(testKeyA, testRequest)
+	isStreamOpen, err := cache.AddRequest(testKeyA, testRequest)
 	assert.NoError(t, err)
 	assert.True(t, isStreamOpen)
 	time.Sleep(1 * time.Millisecond)
@@ -61,16 +65,16 @@ func TestAddWatchAndFetch(t *testing.T) {
 }
 
 func TestSetResponseAndFetch(t *testing.T) {
-	cache, err := NewCache(10, 1048576, 60)
+	cache, err := NewCache(10, 1048576, 60, onEvict)
 	assert.NoError(t, err)
 
 	// Simulate cache miss and setting of new response.
 	response, err := cache.Fetch(testKeyA)
 	assert.EqualError(t, err, "No value found for key: key_A")
 	assert.Nil(t, response)
-	openWatches, err := cache.SetResponse(testKeyA, testResponse)
+	requests, err := cache.SetResponse(testKeyA, testResponse)
 	assert.NoError(t, err)
-	assert.Nil(t, openWatches)
+	assert.Nil(t, requests)
 	time.Sleep(1 * time.Millisecond)
 	response, err = cache.Fetch(testKeyA)
 	assert.NoError(t, err)
@@ -79,23 +83,23 @@ func TestSetResponseAndFetch(t *testing.T) {
 
 // This test demonstrates behavior unique to ristretto caching, i.e. if Set is applied on a new key, it may take
 // a few milliseconds after the call returns, but if the key already exists in the cache, the update is done instantly.
-func TestAddWatchAndSetResponse(t *testing.T) {
-	cache, err := NewCache(10, 1048576, 60)
+func TestAddRequestAndSetResponse(t *testing.T) {
+	cache, err := NewCache(10, 1048576, 60, onEvict)
 	assert.NoError(t, err)
 
-	isStreamOpen, err := cache.AddWatch(testKeyA, testRequest)
+	isStreamOpen, err := cache.AddRequest(testKeyA, testRequest)
 	assert.NoError(t, err)
 	assert.True(t, isStreamOpen)
 	time.Sleep(1 * time.Millisecond)
-	isStreamOpen, err = cache.AddWatch(testKeyA, testRequest)
+	isStreamOpen, err = cache.AddRequest(testKeyA, testRequest)
 	assert.NoError(t, err)
 	assert.True(t, isStreamOpen)
 
-	openWatches, err := cache.SetResponse(testKeyA, testResponse)
+	requests, err := cache.SetResponse(testKeyA, testResponse)
 	assert.NoError(t, err)
-	assert.Equal(t, 2, len(openWatches))
-	assert.Equal(t, testRequest, *openWatches[0])
-	assert.Equal(t, testRequest, *openWatches[1])
+	assert.Equal(t, 2, len(requests))
+	assert.Equal(t, testRequest, *requests[0])
+	assert.Equal(t, testRequest, *requests[1])
 
 	response, err := cache.Fetch(testKeyA)
 	assert.NoError(t, err)
@@ -103,9 +107,9 @@ func TestAddWatchAndSetResponse(t *testing.T) {
 }
 
 func TestTTL(t *testing.T) {
-	cache, err := NewCache(10, 1048576, 1)
+	cache, err := NewCache(10, 1048576, 1, onEvict)
 	assert.NoError(t, err)
-	_, err = cache.AddWatch(testKeyA, testRequest)
+	_, err = cache.AddRequest(testKeyA, testRequest)
 	assert.NoError(t, err)
 	time.Sleep(1 * time.Millisecond)
 	assert.True(t, cache.Exists(testKeyA))
@@ -114,9 +118,9 @@ func TestTTL(t *testing.T) {
 }
 
 func TestMemoryOverflow(t *testing.T) {
-	cache, err := NewCache(10, 40, 60)
+	cache, err := NewCache(10, 40, 60, onEvict)
 	assert.NoError(t, err)
-	_, err = cache.AddWatch(testKeyA, testRequest)
+	_, err = cache.AddRequest(testKeyA, testRequest)
 	assert.NoError(t, err)
 	time.Sleep(1 * time.Millisecond)
 	assert.True(t, cache.Exists(testKeyA))
@@ -124,7 +128,7 @@ func TestMemoryOverflow(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, cache.Exists(testKeyA))
 
-	_, err = cache.AddWatch(testKeyB, testRequest)
+	_, err = cache.AddRequest(testKeyB, testRequest)
 	assert.NoError(t, err)
 	time.Sleep(1 * time.Millisecond)
 	assert.False(t, cache.Exists(testKeyA))
