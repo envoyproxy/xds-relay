@@ -36,8 +36,10 @@ type resource struct {
 	streamOpen bool
 }
 
-func NewCache(numCounters int64, cacheSizeBytes int64, expireSeconds int, onEvict func(key, conflict uint64,
-	value interface{}, cost int64)) (Cache, error) {
+// Callback function for each eviction. Receives the key hash, conflict hash, cache value, and cost when called.
+type onEvictFunc func(key uint64, conflict uint64, value interface{}, cost int64)
+
+func NewCache(numCounters int64, cacheSizeBytes int64, expireSeconds int, onEvict onEvictFunc) (Cache, error) {
 	// Config values are set as recommended in the ristretto documentation: https://github.com/dgraph-io/ristretto#Config.
 	config := ristretto.Config{
 		// NumCounters sets the number of counters/keys to keep for tracking access frequency.
@@ -63,15 +65,11 @@ func NewCache(numCounters int64, cacheSizeBytes int64, expireSeconds int, onEvic
 }
 
 func (c *cache) Exists(key string) bool {
-	c.cacheMu.RLock()
 	_, found := c.cache.Get(key)
-	c.cacheMu.RUnlock()
 	return found
 }
 
 func (c *cache) Fetch(key string) (*envoy_api_v2.DiscoveryResponse, error) {
-	c.cacheMu.RLock()
-	defer c.cacheMu.RUnlock()
 	value, found := c.cache.Get(key)
 	if !found {
 		return nil, fmt.Errorf("No value found for key: %s", key)

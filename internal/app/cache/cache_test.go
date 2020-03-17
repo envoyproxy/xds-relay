@@ -13,7 +13,7 @@ import (
 const testKeyA = "key_A"
 const testKeyB = "key_B"
 
-func onEvict(key, conflict uint64, value interface{}, cost int64) {
+func onEvict(key uint64, conflict uint64, value interface{}, cost int64) {
 	// TODO: Simulate eviction behavior, e.g. closing of streams.
 }
 
