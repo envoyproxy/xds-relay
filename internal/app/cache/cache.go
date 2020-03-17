@@ -46,6 +46,10 @@ func NewCache(cacheSizeBytes int64, expireSeconds int) (Cache, error) {
 		MaxCost: cacheSizeBytes,
 		// BufferItems is the size of the Get buffers. The recommended value is 64.
 		BufferItems: 64,
+		// OnEvict is called for each eviction and closes the stream if a key is removed (e.g. expiry due to TTL).
+		OnEvict: func(key, conflict uint64, value interface{}, cost int64) {
+			// TODO: Add logic to guarantee that the corresponding stream is closed.
+		},
 	}
 	newCache, err := ristretto.NewCache(&config)
 	if err != nil {
