@@ -69,15 +69,12 @@ func (mapper *mapper) GetKey(request v2.DiscoveryRequest) (string, error) {
 }
 
 func isMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (bool, error) {
-	result, err := isNodeMatch(matchPredicate, node)
+	isNodeMatch, err := isNodeMatch(matchPredicate, node)
 	if err != nil {
 		return false, err
 	}
-	if result {
-		return result, nil
-	}
 
-	return isRequestTypeMatch(matchPredicate, typeURL) || isAnyMatch(matchPredicate), nil
+	return isNodeMatch || isRequestTypeMatch(matchPredicate, typeURL) || isAnyMatch(matchPredicate), nil
 }
 
 func isNodeMatch(matchPredicate *matchPredicate, node *core.Node) (bool, error) {
