@@ -78,7 +78,7 @@ func isMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (b
 		return isNodeMatch, nil
 	}
 
-	isAndMatch, err := isAndMatch(matchPredicate, node, typeURL)
+	isAndMatch, err := isAndMatch(matchPredicate, typeURL, node)
 	if err != nil {
 		return false, err
 	}
@@ -86,7 +86,7 @@ func isMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (b
 		return true, nil
 	}
 
-	isOrMatch, err := isOrMatch(matchPredicate, node, typeURL)
+	isOrMatch, err := isOrMatch(matchPredicate, typeURL, node)
 	if err != nil {
 		return false, err
 	}
@@ -136,7 +136,7 @@ func isAnyMatch(matchPredicate *matchPredicate) bool {
 	return matchPredicate.GetAnyMatch()
 }
 
-func isAndMatch(matchPredicate *matchPredicate, node *core.Node, typeURL string) (bool, error) {
+func isAndMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (bool, error) {
 	matchset := matchPredicate.GetAndMatch()
 	if matchset == nil {
 		return false, nil
@@ -154,7 +154,7 @@ func isAndMatch(matchPredicate *matchPredicate, node *core.Node, typeURL string)
 	return true, nil
 }
 
-func isOrMatch(matchPredicate *matchPredicate, node *core.Node, typeURL string) (bool, error) {
+func isOrMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (bool, error) {
 	matchset := matchPredicate.GetOrMatch()
 	if matchset == nil {
 		return false, nil
