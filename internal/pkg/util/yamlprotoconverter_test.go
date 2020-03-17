@@ -29,7 +29,6 @@ var positiveTests = []TableEntry{
 			`
 string_fragment: abc
 `,
-			&ResultPredicate{},
 			&ResultPredicate{
 				Type: &StringFragment{
 					StringFragment: "abc",
@@ -49,7 +48,6 @@ resource_names_fragment:
       pattern: "some_regex"
       replace: "a_replacement"
 `,
-			&ResultPredicate{},
 			&ResultPredicate{
 				Type: &aggregationv1.ResultPredicate_ResourceNamesFragment_{
 					ResourceNamesFragment: &ResourceNamesFragment{
@@ -79,7 +77,6 @@ request_node_fragment:
       pattern: "some_regex_for_node_fragment"
       replace: "another_replacement"
 `,
-			&ResultPredicate{},
 			&ResultPredicate{
 				Type: &aggregationv1.ResultPredicate_RequestNodeFragment_{
 					RequestNodeFragment: &RequestNodeFragment{
@@ -117,7 +114,6 @@ and_result:
             pattern: "some_regex_for_node_fragment"
             replace: "another_replacement"
 `,
-			&ResultPredicate{},
 			&ResultPredicate{
 				Type: &aggregationv1.ResultPredicate_AndResult_{
 					AndResult: &AndResult{
@@ -173,7 +169,6 @@ fragments:
     result:
       string_fragment: "abc"
 `,
-			&KeyerConfiguration{},
 			&KeyerConfiguration{
 				Fragments: []*Fragment{
 					{
@@ -257,7 +252,10 @@ some crazy yaml
 
 var _ = Describe("Yamlprotoconverter", func() {
 	DescribeTable("should be able to convert from yaml to proto",
-		func(yml string, protoToUnmarshal proto.Message, expectedProto proto.Message) {
+		func(yml string, expectedProto proto.Message) {
+			// Get an empty copy of the expected proto to use as a recipient of the unmarshaling.
+			protoToUnmarshal := proto.Clone(expectedProto)
+			proto.Reset(protoToUnmarshal)
 			err := FromYAMLToProto(yml, protoToUnmarshal)
 			Expect(err).To(BeNil())
 			Expect(proto.Equal(protoToUnmarshal, expectedProto)).To(Equal(true))
