@@ -165,6 +165,7 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			"typo_in_fragments.yaml",
 			&KeyerConfiguration{},
+			"proto: (line 1:2): unknown field \"fragmentss\"",
 		},
 	},
 	{
@@ -172,13 +173,7 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			"inexistent_field.yaml",
 			&KeyerConfiguration{},
-		},
-	},
-	{
-		Description: "malformed yaml",
-		Parameters: []interface{}{
-			"invalid.yaml",
-			&KeyerConfiguration{},
+			"proto: (line 1:16): unknown field \"inexistent_field_in_fragment\"",
 		},
 	},
 	{
@@ -186,6 +181,23 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			"empty.yaml",
 			&KeyerConfiguration{},
+			"proto: syntax error (line 1:1): unexpected token null",
+		},
+	},
+	{
+		Description: "malformed second rule",
+		Parameters: []interface{}{
+			"error_in_second_rule.yaml",
+			&KeyerConfiguration{},
+			"proto: (line 1:16): unknown field \"ruless\"",
+		},
+	},
+	{
+		Description: "malformed yaml",
+		Parameters: []interface{}{
+			"invalid.yaml",
+			&ResultPredicate{},
+			"proto: syntax error (line 1:1): unexpected token \"some crazy yaml\\nbla\\n42\"",
 		},
 	},
 }
@@ -205,9 +217,11 @@ var _ = Describe("Yamlprotoconverter", func() {
 		positiveTests...)
 
 	DescribeTable("should not be able to convert from yaml to proto",
-		func(yml string, protoToUnmarshal proto.Message) {
-			err := FromYAMLToProto(yml, protoToUnmarshal)
-			Expect(err).To(HaveOccurred())
+		func(ymlFixtureFilename string, protoToUnmarshal proto.Message, expectedErrorMessage string) {
+			ymlBytes, err := ioutil.ReadFile(fmt.Sprintf("testdata/%s", ymlFixtureFilename))
+			Expect(err).To(BeNil())
+			err = FromYAMLToProto(string(ymlBytes), protoToUnmarshal)
+			Expect(err.Error()).Should(Equal(expectedErrorMessage))
 		},
 		negativeTests...)
 })
