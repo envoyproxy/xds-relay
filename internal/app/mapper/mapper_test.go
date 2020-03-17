@@ -201,6 +201,7 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			getAnyMatch(false),
 			getResultStringFragment(),
+			getDiscoveryRequest(),
 		},
 	},
 	{
@@ -208,6 +209,7 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			getRequestTypeMatch([]string{""}),
 			getResultStringFragment(),
+			getDiscoveryRequest(),
 		},
 	},
 	{
@@ -215,6 +217,7 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			getRequestNodeExactMatch(nodeIDField, "nonmatchingnode"),
 			getResultStringFragment(),
+			getDiscoveryRequest(),
 		},
 	},
 	{
@@ -222,6 +225,7 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			getRequestNodeExactMatch(nodeClusterField, "nonmatchingnode"),
 			getResultStringFragment(),
+			getDiscoveryRequest(),
 		},
 	},
 	{
@@ -229,6 +233,7 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			getRequestNodeExactMatch(nodeRegionField, "nonmatchingnode"),
 			getResultStringFragment(),
+			getDiscoveryRequest(),
 		},
 	},
 	{
@@ -236,6 +241,7 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			getRequestNodeExactMatch(nodeZoneField, "nonmatchingnode"),
 			getResultStringFragment(),
+			getDiscoveryRequest(),
 		},
 	},
 	{
@@ -243,6 +249,7 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			getRequestNodeExactMatch(nodeSubZoneField, "nonmatchingnode"),
 			getResultStringFragment(),
+			getDiscoveryRequest(),
 		},
 	},
 	{
@@ -250,6 +257,7 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			getRequestNodeRegexMatch(nodeIDField, "nonmatchingnode"),
 			getResultStringFragment(),
+			getDiscoveryRequest(),
 		},
 	},
 	{
@@ -257,6 +265,7 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			getRequestNodeRegexMatch(nodeClusterField, "nonmatchingnode"),
 			getResultStringFragment(),
+			getDiscoveryRequest(),
 		},
 	},
 	{
@@ -264,6 +273,7 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			getRequestNodeRegexMatch(nodeRegionField, "nonmatchingnode"),
 			getResultStringFragment(),
+			getDiscoveryRequest(),
 		},
 	},
 	{
@@ -271,6 +281,7 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			getRequestNodeRegexMatch(nodeZoneField, "nonmatchingnode"),
 			getResultStringFragment(),
+			getDiscoveryRequest(),
 		},
 	},
 	{
@@ -278,6 +289,87 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			getRequestNodeRegexMatch(nodeSubZoneField, "nonmatchingnode"),
 			getResultStringFragment(),
+			getDiscoveryRequest(),
+		},
+	},
+	{
+		Description: "RequestNodeMatch with exact match request node id empty",
+		Parameters: []interface{}{
+			getRequestNodeExactMatch(nodeIDField, nodeid),
+			getResultStringFragment(),
+			getDiscoveryRequestWithNode(getNode("", nodecluster, noderegion, nodezone, nodesubzone)),
+		},
+	},
+	{
+		Description: "RequestNodeMatch with regex match request node id empty",
+		Parameters: []interface{}{
+			getRequestNodeRegexMatch(nodeIDField, nodeid),
+			getResultStringFragment(),
+			getDiscoveryRequestWithNode(getNode("", nodecluster, noderegion, nodezone, nodesubzone)),
+		},
+	},
+	{
+		Description: "RequestNodeMatch with exact match request node cluster empty",
+		Parameters: []interface{}{
+			getRequestNodeExactMatch(nodeClusterField, nodecluster),
+			getResultStringFragment(),
+			getDiscoveryRequestWithNode(getNode(nodeid, "", noderegion, nodezone, nodesubzone)),
+		},
+	},
+	{
+		Description: "RequestNodeMatch with regex match request node cluster empty",
+		Parameters: []interface{}{
+			getRequestNodeRegexMatch(nodeClusterField, nodecluster),
+			getResultStringFragment(),
+			getDiscoveryRequestWithNode(getNode(nodeid, "", noderegion, nodezone, nodesubzone)),
+		},
+	},
+	{
+		Description: "RequestNodeMatch with exact match request node region empty",
+		Parameters: []interface{}{
+			getRequestNodeExactMatch(nodeRegionField, noderegion),
+			getResultStringFragment(),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "", nodezone, nodesubzone)),
+		},
+	},
+	{
+		Description: "RequestNodeMatch with regex match request node region empty",
+		Parameters: []interface{}{
+			getRequestNodeRegexMatch(nodeRegionField, noderegion),
+			getResultStringFragment(),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "", nodezone, nodesubzone)),
+		},
+	},
+	{
+		Description: "RequestNodeMatch with exact match request node zone empty",
+		Parameters: []interface{}{
+			getRequestNodeExactMatch(nodeZoneField, nodezone),
+			getResultStringFragment(),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, "", nodesubzone)),
+		},
+	},
+	{
+		Description: "RequestNodeMatch with regex match request node zone empty",
+		Parameters: []interface{}{
+			getRequestNodeRegexMatch(nodeZoneField, nodezone),
+			getResultStringFragment(),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, "", nodesubzone)),
+		},
+	},
+	{
+		Description: "RequestNodeMatch with exact match request node subzone empty",
+		Parameters: []interface{}{
+			getRequestNodeExactMatch(nodeSubZoneField, nodesubzone),
+			getResultStringFragment(),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, "")),
+		},
+	},
+	{
+		Description: "RequestNodeMatch with regex match request node subzone empty",
+		Parameters: []interface{}{
+			getRequestNodeRegexMatch(nodeSubZoneField, nodesubzone),
+			getResultStringFragment(),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, "")),
 		},
 	},
 }
@@ -349,7 +441,7 @@ var _ = Describe("GetKey", func() {
 		}, postivetests...)
 
 	DescribeTable("should be able to return error",
-		func(match *MatchPredicate, result *ResultPredicate) {
+		func(match *MatchPredicate, result *ResultPredicate, request v2.DiscoveryRequest) {
 			protoConfig := KeyerConfiguration{
 				Fragments: []*Fragment{
 					{
@@ -363,7 +455,7 @@ var _ = Describe("GetKey", func() {
 				},
 			}
 			mapper := NewMapper(protoConfig)
-			key, err := mapper.GetKey(getDiscoveryRequest())
+			key, err := mapper.GetKey(request)
 			Expect(key).To(Equal(""))
 			Expect(err).Should(Equal(fmt.Errorf("Cannot map the input to a key")))
 		},
@@ -544,22 +636,26 @@ func getResultStringFragment() *ResultPredicate {
 }
 
 func getDiscoveryRequest() v2.DiscoveryRequest {
+	return getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, nodesubzone))
+}
+
+func getDiscoveryRequestWithNode(node *core.Node) v2.DiscoveryRequest {
 	return v2.DiscoveryRequest{
-		Node:          getNode(),
+		Node:          node,
 		VersionInfo:   "version",
 		ResourceNames: []string{},
 		TypeUrl:       clusterTypeURL,
 	}
 }
 
-func getNode() *core.Node {
+func getNode(id string, cluster string, region string, zone string, subzone string) *core.Node {
 	return &core.Node{
-		Id:      nodeid,
-		Cluster: nodecluster,
+		Id:      id,
+		Cluster: cluster,
 		Locality: &core.Locality{
-			Region:  noderegion,
-			Zone:    nodezone,
-			SubZone: nodesubzone,
+			Region:  region,
+			Zone:    zone,
+			SubZone: subzone,
 		},
 	}
 }
