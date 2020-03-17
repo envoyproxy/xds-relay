@@ -203,6 +203,58 @@ fragments:
 	},
 }
 
+var negativeTests = []TableEntry{
+	{
+		Description: "typo in fragments definition, instead of fragments we have fragmentss",
+		Parameters: []interface{}{
+			`
+fragmentss:
+- rules:
+  - match:
+      request_type_match:
+        types:
+        - type.googleapis.com/envoy.api.v2.Listener
+    result:
+      string_fragment: "abc"
+`,
+			&KeyerConfiguration{},
+		},
+	},
+	{
+		Description: "inexistent field in fragment",
+		Parameters: []interface{}{
+			`
+fragments:
+- inexistent_field_in_fragment: 42
+- rules:
+  - match:
+      request_type_match:
+        types:
+        - type.googleapis.com/envoy.api.v2.Listener
+    result:
+      string_fragment: "abc"
+`,
+			&KeyerConfiguration{},
+		},
+	},
+	{
+		Description: "malformed yaml",
+		Parameters: []interface{}{
+			`
+some crazy yaml
+`,
+			&KeyerConfiguration{},
+		},
+	},
+	{
+		Description: "empty yaml",
+		Parameters: []interface{}{
+			``,
+			&KeyerConfiguration{},
+		},
+	},
+}
+
 var _ = Describe("Yamlprotoconverter", func() {
 	DescribeTable("should be able to convert from yaml to proto",
 		func(yml string, protoToUnmarshal proto.Message, expectedProto proto.Message) {
@@ -211,4 +263,11 @@ var _ = Describe("Yamlprotoconverter", func() {
 			Expect(proto.Equal(protoToUnmarshal, expectedProto)).To(Equal(true))
 		},
 		positiveTests...)
+
+	DescribeTable("should not be able to convert from yaml to proto",
+		func(yml string, protoToUnmarshal proto.Message) {
+			err := FromYAMLToProto(yml, protoToUnmarshal)
+			Expect(err).To(HaveOccurred())
+		},
+		negativeTests...)
 })
