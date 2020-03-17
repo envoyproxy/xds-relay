@@ -1,7 +1,6 @@
-package yamlproto_test
+package yamlproto
 
 import (
-	. "github.com/envoyproxy/xds-relay/internal/pkg/util"
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
 
 	. "github.com/onsi/ginkgo"
