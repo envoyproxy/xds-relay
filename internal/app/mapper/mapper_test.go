@@ -174,6 +174,25 @@ var postivetests = []TableEntry{
 		},
 	},
 	{
+		Description: "AndMatch recursive",
+		Parameters: []interface{}{
+			getRequestNodeAndMatch(
+				[]*aggregationv1.MatchPredicate{
+					getRequestNodeAndMatch([]*aggregationv1.MatchPredicate{
+						getRequestNodeExactMatch(nodeIDField, nodeid),
+						getRequestNodeExactMatch(nodeClusterField, nodecluster),
+					}),
+					getRequestNodeAndMatch([]*aggregationv1.MatchPredicate{
+						getRequestNodeRegexMatch(nodeRegionField, noderegion),
+						getRequestNodeRegexMatch(nodeZoneField, nodezone),
+					}),
+				}),
+			getResultStringFragment(),
+			clusterTypeURL,
+			stringFragment,
+		},
+	},
+	{
 		Description: "OrMatch RequestNodeMatch first predicate",
 		Parameters: []interface{}{
 			getRequestNodeOrMatch(
@@ -193,6 +212,44 @@ var postivetests = []TableEntry{
 				[]*aggregationv1.MatchPredicate{
 					getRequestNodeExactMatch(nodeIDField, nodeid),
 					getRequestNodeExactMatch(nodeClusterField, ""),
+				}),
+			getResultStringFragment(),
+			clusterTypeURL,
+			stringFragment,
+		},
+	},
+	{
+		Description: "OrMatch recursive",
+		Parameters: []interface{}{
+			getRequestNodeOrMatch(
+				[]*aggregationv1.MatchPredicate{
+					getRequestNodeOrMatch([]*aggregationv1.MatchPredicate{
+						getRequestNodeExactMatch(nodeIDField, ""),
+						getRequestNodeExactMatch(nodeClusterField, nodecluster),
+					}),
+					getRequestNodeOrMatch([]*aggregationv1.MatchPredicate{
+						getRequestNodeRegexMatch(nodeRegionField, noderegion),
+						getRequestNodeRegexMatch(nodeZoneField, ""),
+					}),
+				}),
+			getResultStringFragment(),
+			clusterTypeURL,
+			stringFragment,
+		},
+	},
+	{
+		Description: "AndMatch OrMatch recursive combined",
+		Parameters: []interface{}{
+			getRequestNodeAndMatch(
+				[]*aggregationv1.MatchPredicate{
+					getRequestNodeOrMatch([]*aggregationv1.MatchPredicate{
+						getRequestNodeExactMatch(nodeIDField, ""),
+						getRequestNodeExactMatch(nodeClusterField, nodecluster),
+					}),
+					getRequestNodeAndMatch([]*aggregationv1.MatchPredicate{
+						getRequestNodeRegexMatch(nodeRegionField, noderegion),
+						getRequestNodeRegexMatch(nodeZoneField, nodezone),
+					}),
 				}),
 			getResultStringFragment(),
 			clusterTypeURL,
@@ -434,12 +491,62 @@ var negativeTests = []TableEntry{
 		},
 	},
 	{
+		Description: "AndMatch recursive",
+		Parameters: []interface{}{
+			getRequestNodeAndMatch(
+				[]*aggregationv1.MatchPredicate{
+					getRequestNodeAndMatch([]*aggregationv1.MatchPredicate{
+						getRequestNodeExactMatch(nodeIDField, "nonmatchingnode"),
+						getRequestNodeExactMatch(nodeClusterField, nodecluster),
+					}),
+					getRequestNodeExactMatch(nodeClusterField, nodecluster)}),
+			getResultStringFragment(),
+			getDiscoveryRequest(),
+		},
+	},
+	{
 		Description: "OrMatch RequestNodeMatch does not match",
 		Parameters: []interface{}{
 			getRequestNodeOrMatch(
 				[]*aggregationv1.MatchPredicate{
 					getRequestNodeExactMatch(nodeIDField, ""),
 					getRequestNodeExactMatch(nodeClusterField, "")}),
+			getResultStringFragment(),
+			getDiscoveryRequest(),
+		},
+	},
+	{
+		Description: "OrMatch recursive",
+		Parameters: []interface{}{
+			getRequestNodeOrMatch(
+				[]*aggregationv1.MatchPredicate{
+					getRequestNodeOrMatch([]*aggregationv1.MatchPredicate{
+						getRequestNodeExactMatch(nodeIDField, ""),
+						getRequestNodeExactMatch(nodeClusterField, ""),
+					}),
+					getRequestNodeOrMatch([]*aggregationv1.MatchPredicate{
+						getRequestNodeRegexMatch(nodeRegionField, ""),
+						getRequestNodeRegexMatch(nodeZoneField, ""),
+					}),
+				}),
+			getResultStringFragment(),
+			getDiscoveryRequest(),
+		},
+	},
+	{
+		Description: "AndMatch OrMatch recursive combined",
+		Parameters: []interface{}{
+			getRequestNodeAndMatch(
+				[]*aggregationv1.MatchPredicate{
+					getRequestNodeOrMatch([]*aggregationv1.MatchPredicate{
+						getRequestNodeExactMatch(nodeIDField, ""),
+						getRequestNodeExactMatch(nodeClusterField, ""),
+					}),
+					getRequestNodeAndMatch([]*aggregationv1.MatchPredicate{
+						getRequestNodeRegexMatch(nodeRegionField, ""),
+						getRequestNodeRegexMatch(nodeZoneField, ""),
+					}),
+				}),
 			getResultStringFragment(),
 			getDiscoveryRequest(),
 		},
