@@ -446,7 +446,7 @@ var _ = Describe("GetKey", func() {
 				},
 			}
 			mapper := NewMapper(protoConfig)
-			key, err := mapper.GetKey(getDiscoveryRequest(), clusterTypeURL)
+			key, err := mapper.GetKey(getDiscoveryRequest())
 			Expect(key).To(Equal(""))
 			Expect(err.Error()).Should(Equal("error parsing regexp: invalid UTF-8: `\xbd\xb2`"))
 		},
@@ -475,7 +475,7 @@ var _ = Describe("GetKey", func() {
 				},
 			}
 			mapper := NewMapper(protoConfig)
-			key, err := mapper.GetKey(getDiscoveryRequest(), clusterTypeURL)
+			key, err := mapper.GetKey(getDiscoveryRequest())
 			Expect(key).To(Equal(""))
 			Expect(err.Error()).Should(Equal("error parsing regexp: invalid UTF-8: `\xbd\xb2`"))
 		},
