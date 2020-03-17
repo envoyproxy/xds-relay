@@ -2,6 +2,7 @@ package cache
 
 import (
 	"fmt"
+	"sync"
 	"time"
 	"unsafe"
 
@@ -24,6 +25,7 @@ type Cache interface {
 }
 
 type cache struct {
+	cacheMu       sync.RWMutex
 	cache         *ristretto.Cache
 	expireSeconds time.Duration
 }
@@ -61,11 +63,15 @@ func NewCache(numCounters int64, cacheSizeBytes int64, expireSeconds int, onEvic
 }
 
 func (c *cache) Exists(key string) bool {
+	c.cacheMu.RLock()
 	_, found := c.cache.Get(key)
+	c.cacheMu.RUnlock()
 	return found
 }
 
 func (c *cache) Fetch(key string) (*envoy_api_v2.DiscoveryResponse, error) {
+	c.cacheMu.RLock()
+	defer c.cacheMu.RUnlock()
 	value, found := c.cache.Get(key)
 	if !found {
 		return nil, fmt.Errorf("No value found for key: %s", key)
@@ -78,6 +84,8 @@ func (c *cache) Fetch(key string) (*envoy_api_v2.DiscoveryResponse, error) {
 }
 
 func (c *cache) SetResponse(key string, resp envoy_api_v2.DiscoveryResponse) ([]*envoy_api_v2.DiscoveryRequest, error) {
+	c.cacheMu.Lock()
+	defer c.cacheMu.Unlock()
 	value, found := c.cache.Get(key)
 	if !found {
 		// If no value exists for the key, instantiate a new one.
@@ -106,6 +114,8 @@ func (c *cache) SetResponse(key string, resp envoy_api_v2.DiscoveryResponse) ([]
 }
 
 func (c *cache) AddRequest(key string, req envoy_api_v2.DiscoveryRequest) (bool, error) {
+	c.cacheMu.Lock()
+	defer c.cacheMu.Unlock()
 	value, found := c.cache.Get(key)
 	if !found {
 		// If no value exists for the key, instantiate a new one.
