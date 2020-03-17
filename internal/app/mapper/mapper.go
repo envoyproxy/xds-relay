@@ -15,11 +15,11 @@ type rule = aggregationv1.KeyerConfiguration_Fragment_Rule
 type Mapper interface {
 	// GetKey converts a request into an aggregated key
 	// Returns error if the regex parsing in the config fails to compile or match
-	// Returns error if the typeURL is empty. An empty typeURL signifies an ADS request.
-	// ref: envoyproxy/envoy/blob/d1a36f1ea24b38fc414d06ea29c5664f419066ef/api/envoy/api/v2/discovery.proto#L43-L46
-	// ref: envoyproxy/go-control-plane/blob/1152177914f2ec0037411f65c56d9beae526870a/pkg/server/server.go#L305-L310
-	// The go-control-plane will always translate DiscoveryRequest typeURL to one of the resource typeURL.
-	GetKey(request v2.DiscoveryRequest, typeURL string) (string, error)
+	// A DiscoveryRequest will always contain typeUrl
+	// ADS will contain typeUrl https://github.com/envoyproxy/envoy/blob/master/api/envoy/api/v2/discovery.proto#L46
+	// Implicit xds requests will have typeUrl set because go-control-plane mutates the DiscoveryRequest
+	// ref: https://github.com/envoyproxy/go-control-plane/blob/master/pkg/server/server.go#L310
+	GetKey(request v2.DiscoveryRequest) (string, error)
 }
 
 type mapper struct {
@@ -38,8 +38,8 @@ func NewMapper(config *aggregationv1.KeyerConfiguration) Mapper {
 }
 
 // GetKey converts a request into an aggregated key
-func (mapper *mapper) GetKey(request v2.DiscoveryRequest, typeURL string) (string, error) {
-	if typeURL == "" {
+func (mapper *mapper) GetKey(request v2.DiscoveryRequest) (string, error) {
+	if request.GetTypeUrl() == "" {
 		return "", fmt.Errorf("typeURL is empty")
 	}
 
@@ -48,7 +48,7 @@ func (mapper *mapper) GetKey(request v2.DiscoveryRequest, typeURL string) (strin
 		fragmentRules := fragment.GetRules()
 		for _, fragmentRule := range fragmentRules {
 			matchPredicate := fragmentRule.GetMatch()
-			isMatch := isMatch(matchPredicate)
+			isMatch := isMatch(matchPredicate, request.GetTypeUrl())
 			if isMatch {
 				result := getResult(fragmentRule)
 				resultFragments = append(resultFragments, result)
@@ -63,8 +63,22 @@ func (mapper *mapper) GetKey(request v2.DiscoveryRequest, typeURL string) (strin
 	return strings.Join(resultFragments, separator), nil
 }
 
-func isMatch(matchPredicate *matchPredicate) bool {
-	return isAnyMatch(matchPredicate)
+func isMatch(matchPredicate *matchPredicate, typeURL string) bool {
+	return isRequestTypeMatch(matchPredicate, typeURL) || isAnyMatch(matchPredicate)
+}
+
+func isRequestTypeMatch(matchPredicate *matchPredicate, typeURL string) bool {
+	predicate := matchPredicate.GetRequestTypeMatch()
+	if predicate == nil {
+		return false
+	}
+
+	for _, t := range predicate.GetTypes() {
+		if t == typeURL {
+			return true
+		}
+	}
+	return false
 }
 
 func isAnyMatch(matchPredicate *matchPredicate) bool {
