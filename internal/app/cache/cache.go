@@ -25,9 +25,9 @@ type Cache interface {
 }
 
 type cache struct {
-	cacheMu       sync.RWMutex
-	cache         *ristretto.Cache
-	expireSeconds time.Duration
+	cacheMu sync.RWMutex
+	cache   *ristretto.Cache
+	ttl     time.Duration
 }
 
 type resource struct {
@@ -39,7 +39,7 @@ type resource struct {
 // Callback function for each eviction. Receives the key hash, conflict hash, cache value, and cost when called.
 type onEvictFunc func(key uint64, conflict uint64, value interface{}, cost int64)
 
-func NewCache(numCounters int64, cacheSizeBytes int64, expireSeconds int, onEvict onEvictFunc) (Cache, error) {
+func NewCache(numCounters int64, cacheSizeBytes int64, ttl time.Duration, onEvict onEvictFunc) (Cache, error) {
 	// Config values are set as recommended in the ristretto documentation: https://github.com/dgraph-io/ristretto#Config.
 	config := ristretto.Config{
 		// NumCounters sets the number of counters/keys to keep for tracking access frequency.
@@ -59,8 +59,8 @@ func NewCache(numCounters int64, cacheSizeBytes int64, expireSeconds int, onEvic
 		return nil, err
 	}
 	return &cache{
-		cache:         newCache,
-		expireSeconds: time.Duration(expireSeconds) * time.Second,
+		cache: newCache,
+		ttl:   ttl,
 	}, nil
 }
 
@@ -91,7 +91,7 @@ func (c *cache) SetResponse(key string, resp envoy_api_v2.DiscoveryResponse) ([]
 			resp: &resp,
 		}
 		cost := unsafe.Sizeof(resource)
-		set := c.cache.SetWithTTL(key, resource, int64(cost), c.expireSeconds)
+		set := c.cache.SetWithTTL(key, resource, int64(cost), c.ttl)
 		if !set {
 			return nil, fmt.Errorf("Unable to set value for key: %s", key)
 		}
@@ -103,7 +103,7 @@ func (c *cache) SetResponse(key string, resp envoy_api_v2.DiscoveryResponse) ([]
 	}
 	resource.resp = &resp
 	cost := unsafe.Sizeof(resource)
-	set := c.cache.SetWithTTL(key, resource, int64(cost), c.expireSeconds)
+	set := c.cache.SetWithTTL(key, resource, int64(cost), c.ttl)
 	// TODO: Add logic that allows for notifying of watches.
 	if !set {
 		return resource.requests, fmt.Errorf("Unable to set value for key: %s", key)
@@ -122,7 +122,7 @@ func (c *cache) AddRequest(key string, req envoy_api_v2.DiscoveryRequest) (bool,
 			streamOpen: true,
 		}
 		cost := unsafe.Sizeof(resource)
-		set := c.cache.SetWithTTL(key, resource, int64(cost), c.expireSeconds)
+		set := c.cache.SetWithTTL(key, resource, int64(cost), c.ttl)
 		if !set {
 			return false, fmt.Errorf("Unable to set value for key: %s", key)
 		}
@@ -136,7 +136,7 @@ func (c *cache) AddRequest(key string, req envoy_api_v2.DiscoveryRequest) (bool,
 	// TODO: Add logic to guarantee that a stream has been opened.
 	resource.streamOpen = true
 	cost := unsafe.Sizeof(resource)
-	set := c.cache.SetWithTTL(key, resource, int64(cost), c.expireSeconds)
+	set := c.cache.SetWithTTL(key, resource, int64(cost), c.ttl)
 	if !set {
 		return false, fmt.Errorf("Unable to set value for key: %s", key)
 	}
