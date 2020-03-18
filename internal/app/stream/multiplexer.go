@@ -2,6 +2,7 @@ package multiplexer
 
 import (
 	"context"
+	"fmt"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"google.golang.org/grpc"
@@ -18,28 +19,42 @@ type Multiplexer interface {
 }
 
 type multiplexer struct {
-	conn   *grpc.ClientConn
-	stream grpc.ClientStream
+	conn      *grpc.ClientConn
+	stream    grpc.ClientStream
+	cdsClient v2.ClusterDiscoveryServiceClient
+	ldsClient v2.ListenerDiscoveryServiceClient
+	typeURL   string
 }
 
 // NewMux ...
-func NewMux(ctx context.Context, conn *grpc.ClientConn, typeURL string) Multiplexer {
-	return &multiplexer{
-		conn: conn,
+func NewMux(ctx context.Context, conn *grpc.ClientConn, typeURL string) (Multiplexer, error) {
+	switch typeURL {
+	case clusterTypeURL:
+		client := v2.NewClusterDiscoveryServiceClient(conn)
+		return &multiplexer{
+			conn:      conn,
+			cdsClient: client,
+		}
+	case listenerTypeURL:
+		client := v2.NewListenerDiscoveryServiceClient(conn)
+		return &multiplexer{
+			conn:      conn,
+			ldsClient: client,
+		}
 	}
+	return nil, fmt.Errorf("incorrect typeUrl")
 }
 
 func (m *multiplexer) QueueDiscoveryRequest(
 	ctx context.Context,
 	requestChan chan v2.DiscoveryRequest,
 	responseChan chan *v2.DiscoveryResponse) {
-	typeURL := req.GetTypeUrl()
 	var stream grpc.ClientStream
-	switch typeURL {
+	switch m.typeURL {
 	case clusterTypeURL:
-		stream, err := v2.NewClusterDiscoveryServiceClient(conn).StreamClusters(ctx)
+		stream, err := m.cdsClient.StreamClusters(ctx)
 	case listenerTypeURL:
-		stream, err := v2.NewListenerDiscoveryServiceClient(conn).StreamListeners(ctx)
+		stream, err := m.ldsClient.StreamListeners(ctx)
 	}
 
 	go func() {
@@ -69,8 +84,4 @@ func (m *multiplexer) QueueDiscoveryRequest(
 			responseChan <- resp
 		}
 	}()
-}
-
-func getStream() {
-
 }
