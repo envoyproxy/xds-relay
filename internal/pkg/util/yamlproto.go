@@ -20,7 +20,8 @@ func fromYAMLToProto(yml string, pb proto.Message) error {
 	return nil
 }
 
-// FromYAMLToKeyerConfiguration unmarshals a YAML string into a KeyerConfiguration and validates it.
+// FromYAMLToKeyerConfiguration unmarshals a YAML string into a KeyerConfiguration and uses the
+// protoc-gen-validate message validator to validate it.
 func FromYAMLToKeyerConfiguration(yml string, pb *aggregationv1.KeyerConfiguration) error {
 	err := fromYAMLToProto(yml, pb)
 	if err != nil {
