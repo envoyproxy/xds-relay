@@ -216,6 +216,15 @@ var negativeTestsForKeyerConfigurationProto = []TableEntry{
 		Description: "todo",
 		Parameters: []interface{}{
 			"keyer_configuration_empty_request_type_match.yaml",
+			"invalid KeyerConfiguration.Fragments[0]: " +
+				"embedded message failed validation | caused by: invalid " +
+				"KeyerConfiguration_Fragment.Rules[0]: embedded " +
+				"message failed validation | caused by: invalid " +
+				"KeyerConfiguration_Fragment_Rule.Match: embedded message failed " +
+				"validation | caused by: invalid MatchPredicate.RequestTypeMatch: " +
+				"embedded message failed validation | caused by: invalid " +
+				"MatchPredicate_RequestTypeMatch.Types: value must contain at least " +
+				"1 item(s)",
 		},
 	},
 }
@@ -256,22 +265,13 @@ var _ = Describe("yamlproto tests", func() {
 		positiveTestsForKeyerConfigurationProto...)
 
 	DescribeTable("should load yaml but validation for KeyerConfiguration should fail",
-		func(ymlFixtureFilename string) {
+		func(ymlFixtureFilename string, expectedErrorMessage string) {
 			ymlBytes, err := ioutil.ReadFile(fmt.Sprintf("testdata/%s", ymlFixtureFilename))
 			Expect(err).To(BeNil())
 
 			var kc KeyerConfiguration
 			err = FromYAMLToKeyerConfiguration(string(ymlBytes), &kc)
-			fmt.Println(err.Error())
-			Expect(err.Error()).To(Equal("invalid KeyerConfiguration.Fragments[0]: " +
-				"embedded message failed validation | caused by: invalid " +
-				"KeyerConfiguration_Fragment.Rules[0]: embedded " +
-				"message failed validation | caused by: invalid " +
-				"KeyerConfiguration_Fragment_Rule.Match: embedded message failed " +
-				"validation | caused by: invalid MatchPredicate.RequestTypeMatch: " +
-				"embedded message failed validation | caused by: invalid " +
-				"MatchPredicate_RequestTypeMatch.Types: value must contain at least " +
-				"1 item(s)"))
+			Expect(err.Error()).To(Equal(expectedErrorMessage))
 		},
 		negativeTestsForKeyerConfigurationProto...)
 })
