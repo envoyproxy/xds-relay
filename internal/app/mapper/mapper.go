@@ -73,8 +73,27 @@ func isMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (b
 	if err != nil {
 		return false, err
 	}
+	if isNodeMatch {
+		return true, nil
+	}
 
-	return isNodeMatch || isRequestTypeMatch(matchPredicate, typeURL) || isAnyMatch(matchPredicate), nil
+	isAndMatch, err := isAndMatch(matchPredicate, typeURL, node)
+	if err != nil {
+		return false, err
+	}
+	if isAndMatch {
+		return true, nil
+	}
+
+	isOrMatch, err := isOrMatch(matchPredicate, typeURL, node)
+	if err != nil {
+		return false, err
+	}
+	if isOrMatch {
+		return true, nil
+	}
+
+	return isRequestTypeMatch(matchPredicate, typeURL) || isAnyMatch(matchPredicate), nil
 }
 
 func isNodeMatch(matchPredicate *matchPredicate, node *core.Node) (bool, error) {
@@ -114,6 +133,42 @@ func isRequestTypeMatch(matchPredicate *matchPredicate, typeURL string) bool {
 
 func isAnyMatch(matchPredicate *matchPredicate) bool {
 	return matchPredicate.GetAnyMatch()
+}
+
+func isAndMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (bool, error) {
+	matchset := matchPredicate.GetAndMatch()
+	if matchset == nil {
+		return false, nil
+	}
+
+	for _, rule := range matchset.GetRules() {
+		isMatch, err := isMatch(rule, typeURL, node)
+		if err != nil {
+			return false, err
+		}
+		if !isMatch {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+func isOrMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (bool, error) {
+	matchset := matchPredicate.GetOrMatch()
+	if matchset == nil {
+		return false, nil
+	}
+
+	for _, rule := range matchset.GetRules() {
+		isMatch, err := isMatch(rule, typeURL, node)
+		if err != nil {
+			return false, err
+		}
+		if isMatch {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func getResult(fragmentRule *rule) string {
