@@ -2,10 +2,9 @@ package yamlproto
 
 import (
 	"fmt"
+	"io/ioutil"
 
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
-
-	"io/ioutil"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
