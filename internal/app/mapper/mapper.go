@@ -25,7 +25,7 @@ type Mapper interface {
 }
 
 type mapper struct {
-	config aggregationv1.KeyerConfiguration
+	config *aggregationv1.KeyerConfiguration
 }
 
 const (
@@ -33,7 +33,7 @@ const (
 )
 
 // NewMapper constructs a concrete implementation for the Mapper interface
-func NewMapper(config aggregationv1.KeyerConfiguration) Mapper {
+func NewMapper(config *aggregationv1.KeyerConfiguration) Mapper {
 	return &mapper{
 		config: config,
 	}

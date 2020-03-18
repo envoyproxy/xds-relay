@@ -1,0 +1,6 @@
+request_node_fragment:
+  field: 2
+  action:
+    regex_action:
+      pattern: "some_regex_for_node_fragment"
+      replace: "another_replacement"

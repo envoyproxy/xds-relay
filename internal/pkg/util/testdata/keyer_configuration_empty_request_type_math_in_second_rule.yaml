@@ -1,0 +1,15 @@
+fragments:
+  - rules:
+    - match:
+        request_type_match:
+          types:
+            - type.googleapis.com/envoy.api.v2.Endpoint
+            - type.googleapis.com/envoy.api.v2.Listener
+      result:
+        string_fragment: "abc"
+  - rules:
+    - match:
+        request_type_match:
+          types: []
+      result:
+        string_fragment: "42 is a good number for a fragment"

@@ -1,0 +1,6 @@
+fragments:
+  - rules:
+    - match:
+        any_match: false
+      result:
+        string_fragment: "abc"

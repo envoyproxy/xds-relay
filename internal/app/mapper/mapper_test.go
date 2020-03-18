@@ -33,7 +33,7 @@ const (
 	nodeSubZoneField = aggregationv1.NodeFieldType_NODE_LOCALITY_SUBZONE
 )
 
-var postivetests = []TableEntry{
+var positiveTests = []TableEntry{
 	{
 		Description: "AnyMatch returns StringFragment",
 		Parameters: []interface{}{
@@ -611,13 +611,13 @@ var _ = Describe("GetKey", func() {
 					},
 				},
 			}
-			mapper := NewMapper(protoConfig)
+			mapper := NewMapper(&protoConfig)
 			request := getDiscoveryRequest()
 			request.TypeUrl = typeurl
 			key, err := mapper.GetKey(request)
 			Expect(key).To(Equal(assert))
 			Expect(err).Should(BeNil())
-		}, postivetests...)
+		}, positiveTests...)
 
 	DescribeTable("should be able to return error",
 		func(match *MatchPredicate, result *ResultPredicate, request v2.DiscoveryRequest) {
@@ -633,7 +633,7 @@ var _ = Describe("GetKey", func() {
 					},
 				},
 			}
-			mapper := NewMapper(protoConfig)
+			mapper := NewMapper(&protoConfig)
 			key, err := mapper.GetKey(request)
 			Expect(key).To(Equal(""))
 			Expect(err).Should(Equal(fmt.Errorf("Cannot map the input to a key")))
@@ -666,7 +666,7 @@ var _ = Describe("GetKey", func() {
 					},
 				},
 			}
-			mapper := NewMapper(protoConfig)
+			mapper := NewMapper(&protoConfig)
 			key, err := mapper.GetKey(getDiscoveryRequest())
 			Expect(expectedKey).To(Equal(key))
 			Expect(err).Should(BeNil())
@@ -695,7 +695,7 @@ var _ = Describe("GetKey", func() {
 					},
 				},
 			}
-			mapper := NewMapper(protoConfig)
+			mapper := NewMapper(&protoConfig)
 			key, err := mapper.GetKey(getDiscoveryRequest())
 			Expect(key).To(Equal(""))
 			Expect(err).Should(Equal(fmt.Errorf("Cannot map the input to a key")))
@@ -716,7 +716,7 @@ var _ = Describe("GetKey", func() {
 					},
 				},
 			}
-			mapper := NewMapper(protoConfig)
+			mapper := NewMapper(&protoConfig)
 			key, err := mapper.GetKey(getDiscoveryRequest())
 			Expect(key).To(Equal(""))
 			Expect(err.Error()).Should(Equal("error parsing regexp: invalid UTF-8: `\xbd\xb2`"))
@@ -745,7 +745,7 @@ var _ = Describe("GetKey", func() {
 					},
 				},
 			}
-			mapper := NewMapper(protoConfig)
+			mapper := NewMapper(&protoConfig)
 			key, err := mapper.GetKey(getDiscoveryRequest())
 			Expect(key).To(Equal(""))
 			Expect(err.Error()).Should(Equal("error parsing regexp: invalid UTF-8: `\xbd\xb2`"))
@@ -753,7 +753,7 @@ var _ = Describe("GetKey", func() {
 		regexpErrorCasesMultipleFragments...)
 
 	It("TypeUrl should not be empty", func() {
-		mapper := NewMapper(KeyerConfiguration{})
+		mapper := NewMapper(&KeyerConfiguration{})
 		request := getDiscoveryRequest()
 		request.TypeUrl = ""
 		key, err := mapper.GetKey(request)
