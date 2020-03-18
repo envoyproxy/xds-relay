@@ -293,6 +293,7 @@ var _ = Describe("yamlproto tests", func() {
 		func(ymlFixtureFilename string, expectedProto proto.Message) {
 			ymlBytes, err := ioutil.ReadFile(fmt.Sprintf("testdata/%s", ymlFixtureFilename))
 			Expect(err).To(BeNil())
+
 			// Get an empty copy of the expected proto to use as a recipient of the unmarshaling.
 			protoToUnmarshal := proto.Clone(expectedProto)
 			proto.Reset(protoToUnmarshal)
@@ -306,8 +307,8 @@ var _ = Describe("yamlproto tests", func() {
 		func(ymlFixtureFilename string, protoToUnmarshal proto.Message, expectedErrorMessage string) {
 			ymlBytes, err := ioutil.ReadFile(fmt.Sprintf("testdata/%s", ymlFixtureFilename))
 			Expect(err).To(BeNil())
+
 			err = fromYAMLToProto(string(ymlBytes), protoToUnmarshal)
-			// Expect(err.Error()).Should(Equal(expectedErrorMessage))
 			Expect(err.Error()).Should(HaveSuffix(expectedErrorMessage))
 		},
 		negativeTests...)
