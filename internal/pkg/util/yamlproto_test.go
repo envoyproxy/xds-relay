@@ -234,56 +234,84 @@ var negativeTestsForKeyerConfigurationProto = []TableEntry{
 		Description: "empty list of RequestTypeMatch in the single rule",
 		Parameters: []interface{}{
 			"keyer_configuration_empty_request_type_match.yaml",
-			`invalid KeyerConfiguration.Fragments[0]: embedded message failed validation | caused by: invalid KeyerConfiguration_Fragment.Rules[0]: embedded message failed validation | caused by: invalid KeyerConfiguration_Fragment_Rule.Match: embedded message failed validation | caused by: invalid MatchPredicate.RequestTypeMatch: embedded message failed validation | caused by: invalid MatchPredicate_RequestTypeMatch.Types: value must contain at least 1 item(s)`,
+			"invalid KeyerConfiguration.Fragments[0]: embedded message failed validation | caused by: " +
+				"invalid KeyerConfiguration_Fragment.Rules[0]: embedded message failed validation | caused " +
+				"by: invalid KeyerConfiguration_Fragment_Rule.Match: embedded message failed validation | caused " +
+				"by: invalid MatchPredicate.RequestTypeMatch: embedded message failed validation | caused " +
+				"by: invalid MatchPredicate_RequestTypeMatch.Types: value must contain at least 1 item(s)",
 		},
 	},
 	{
 		Description: "empty list of RequestTypeMatch in the second fragment",
 		Parameters: []interface{}{
 			"keyer_configuration_empty_request_type_math_in_second_rule.yaml",
-			`invalid KeyerConfiguration.Fragments[1]: embedded message failed validation | caused by: invalid KeyerConfiguration_Fragment.Rules[0]: embedded message failed validation | caused by: invalid KeyerConfiguration_Fragment_Rule.Match: embedded message failed validation | caused by: invalid MatchPredicate.RequestTypeMatch: embedded message failed validation | caused by: invalid MatchPredicate_RequestTypeMatch.Types: value must contain at least 1 item(s)`,
+			"invalid KeyerConfiguration.Fragments[1]: embedded message failed validation | caused by: " +
+				"invalid KeyerConfiguration_Fragment.Rules[0]: embedded message failed validation | caused " +
+				"by: invalid KeyerConfiguration_Fragment_Rule.Match: embedded message failed validation | caused " +
+				"by: invalid MatchPredicate.RequestTypeMatch: embedded message failed validation | caused by:" +
+				" invalid MatchPredicate_RequestTypeMatch.Types: value must contain at least 1 item(s)",
 		},
 	},
 	{
 		Description: "single rule missing ResultPredicate",
 		Parameters: []interface{}{
 			"keyer_configuration_missing_result_predicate.yaml",
-			`invalid KeyerConfiguration.Fragments[0]: embedded message failed validation | caused by: invalid KeyerConfiguration_Fragment.Rules[0]: embedded message failed validation | caused by: invalid KeyerConfiguration_Fragment_Rule.Result: value is required`,
+			"invalid KeyerConfiguration.Fragments[0]: embedded message failed validation | caused by: " +
+				"invalid KeyerConfiguration_Fragment.Rules[0]: embedded message failed validation | caused " +
+				"by: invalid KeyerConfiguration_Fragment_Rule.Result: value is required",
 		},
 	},
 	{
 		Description: "single rule missing MatchPredicate",
 		Parameters: []interface{}{
 			"keyer_configuration_missing_match_predicate.yaml",
-			`invalid KeyerConfiguration.Fragments[0]: embedded message failed validation | caused by: invalid KeyerConfiguration_Fragment.Rules[0]: embedded message failed validation | caused by: invalid KeyerConfiguration_Fragment_Rule.Match: value is required`,
+			"invalid KeyerConfiguration.Fragments[0]: embedded message failed validation | caused by: " +
+				"invalid KeyerConfiguration_Fragment.Rules[0]: embedded message failed validation | caused " +
+				"by: invalid KeyerConfiguration_Fragment_Rule.Match: value is required",
 		},
 	},
 	{
 		Description: "any_match containing invalid boolean",
 		Parameters: []interface{}{
 			"keyer_configuration_match_predicate_invalid_bool.yaml",
-			`invalid KeyerConfiguration.Fragments[0]: embedded message failed validation | caused by: invalid KeyerConfiguration_Fragment.Rules[0]: embedded message failed validation | caused by: invalid KeyerConfiguration_Fragment_Rule.Match: embedded message failed validation | caused by: invalid MatchPredicate.AnyMatch: value must equal true`,
+			"invalid KeyerConfiguration.Fragments[0]: embedded message failed validation | caused by: " +
+				"invalid KeyerConfiguration_Fragment.Rules[0]: embedded message failed validation | caused " +
+				"by: invalid KeyerConfiguration_Fragment_Rule.Match: embedded message failed validation | caused " +
+				"by: invalid MatchPredicate.AnyMatch: value must equal true",
 		},
 	},
 	{
 		Description: "not_match containing empty request_type_match",
 		Parameters: []interface{}{
 			"keyer_configuration_not_match_empty_request_type_match.yaml",
-			`invalid KeyerConfiguration.Fragments[0]: embedded message failed validation | caused by: invalid KeyerConfiguration_Fragment.Rules[0]: embedded message failed validation | caused by: invalid KeyerConfiguration_Fragment_Rule.Match: embedded message failed validation | caused by: invalid MatchPredicate.NotMatch: embedded message failed validation | caused by: invalid MatchPredicate.RequestTypeMatch: embedded message failed validation | caused by: invalid MatchPredicate_RequestTypeMatch.Types: value must contain at least 1 item(s)`,
+			"invalid KeyerConfiguration.Fragments[0]: embedded message failed validation | caused by: " +
+				"invalid KeyerConfiguration_Fragment.Rules[0]: embedded message failed validation | caused " +
+				"by: invalid KeyerConfiguration_Fragment_Rule.Match: embedded message failed validation | caused " +
+				"by: invalid MatchPredicate.NotMatch: embedded message failed validation | caused by: invalid " +
+				"MatchPredicate.RequestTypeMatch: embedded message failed validation | caused by: invalid " +
+				"MatchPredicate_RequestTypeMatch.Types: value must contain at least 1 item(s)",
 		},
 	},
 	{
 		Description: "or_match containing a single matchset",
 		Parameters: []interface{}{
 			"keyer_configuration_or_match_invalid_request_type_match.yaml",
-			`invalid KeyerConfiguration.Fragments[0]: embedded message failed validation | caused by: invalid KeyerConfiguration_Fragment.Rules[0]: embedded message failed validation | caused by: invalid KeyerConfiguration_Fragment_Rule.Match: embedded message failed validation | caused by: invalid MatchPredicate.OrMatch: embedded message failed validation | caused by: invalid MatchPredicate_MatchSet.Rules: value must contain at least 2 item(s)`,
+			"invalid KeyerConfiguration.Fragments[0]: embedded message failed validation | caused by: " +
+				"invalid KeyerConfiguration_Fragment.Rules[0]: embedded message failed validation | caused " +
+				"by: invalid KeyerConfiguration_Fragment_Rule.Match: embedded message failed validation | caused " +
+				"by: invalid MatchPredicate.OrMatch: embedded message failed validation | caused by: invalid " +
+				"MatchPredicate_MatchSet.Rules: value must contain at least 2 item(s)",
 		},
 	},
 	{
 		Description: "reqesut_node_match cotaining invalid enum value",
 		Parameters: []interface{}{
 			"keyer_configuration_request_node_match_invalid_enum.yaml",
-			`invalid KeyerConfiguration.Fragments[0]: embedded message failed validation | caused by: invalid KeyerConfiguration_Fragment.Rules[0]: embedded message failed validation | caused by: invalid KeyerConfiguration_Fragment_Rule.Match: embedded message failed validation | caused by: invalid MatchPredicate.RequestNodeMatch: embedded message failed validation | caused by: invalid MatchPredicate_RequestNodeMatch.Field: value must be one of the defined enum values`,
+			"invalid KeyerConfiguration.Fragments[0]: embedded message failed validation | caused by: " +
+				"invalid KeyerConfiguration_Fragment.Rules[0]: embedded message failed validation | caused " +
+				"by: invalid KeyerConfiguration_Fragment_Rule.Match: embedded message failed validation | caused " +
+				"by: invalid MatchPredicate.RequestNodeMatch: embedded message failed validation | caused " +
+				"by: invalid MatchPredicate_RequestNodeMatch.Field: value must be one of the defined enum values",
 		},
 	},
 }
