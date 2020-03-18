@@ -73,7 +73,6 @@ func isMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (b
 	if err != nil {
 		return false, err
 	}
-
 	if isNodeMatch {
 		return true, nil
 	}
