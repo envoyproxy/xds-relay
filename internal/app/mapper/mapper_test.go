@@ -268,7 +268,7 @@ var postivetests = []TableEntry{
 	{
 		Description: "Not Match RequestNodeMatch with node id regex",
 		Parameters: []interface{}{
-			getRequestNodeRegexNotMatch(nodeIDField, "notmatchregex"),
+			getRequestNodeRegexNotMatch(nodeIDField),
 			getResultStringFragment(),
 			clusterTypeURL,
 			stringFragment,
@@ -277,7 +277,7 @@ var postivetests = []TableEntry{
 	{
 		Description: "Not Match RequestNodeMatch with node cluster regex",
 		Parameters: []interface{}{
-			getRequestNodeRegexNotMatch(nodeClusterField, "notmatchregex"),
+			getRequestNodeRegexNotMatch(nodeClusterField),
 			getResultStringFragment(),
 			clusterTypeURL,
 			stringFragment,
@@ -286,7 +286,7 @@ var postivetests = []TableEntry{
 	{
 		Description: "Not Match RequestNodeMatch with node region regex",
 		Parameters: []interface{}{
-			getRequestNodeRegexNotMatch(nodeRegionField, "notmatchregex"),
+			getRequestNodeRegexNotMatch(nodeRegionField),
 			getResultStringFragment(),
 			clusterTypeURL,
 			stringFragment,
@@ -295,7 +295,7 @@ var postivetests = []TableEntry{
 	{
 		Description: "Not Match RequestNodeMatch with node zone regex",
 		Parameters: []interface{}{
-			getRequestNodeRegexNotMatch(nodeZoneField, "notmatchregex"),
+			getRequestNodeRegexNotMatch(nodeZoneField),
 			getResultStringFragment(),
 			clusterTypeURL,
 			stringFragment,
@@ -304,7 +304,7 @@ var postivetests = []TableEntry{
 	{
 		Description: "Not Match RequestNodeMatch with node subzone regex",
 		Parameters: []interface{}{
-			getRequestNodeRegexNotMatch(nodeSubZoneField, "notmatchregex"),
+			getRequestNodeRegexNotMatch(nodeSubZoneField),
 			getResultStringFragment(),
 			clusterTypeURL,
 			stringFragment,
@@ -981,10 +981,10 @@ func getRequestTypeNotMatch(typeurls []string) *MatchPredicate {
 	}
 }
 
-func getRequestNodeRegexNotMatch(field aggregationv1.NodeFieldType, regex string) *MatchPredicate {
+func getRequestNodeRegexNotMatch(field aggregationv1.NodeFieldType) *MatchPredicate {
 	return &MatchPredicate{
 		Type: &aggregationv1.MatchPredicate_NotMatch{
-			NotMatch: getRequestNodeRegexMatch(field, regex),
+			NotMatch: getRequestNodeRegexMatch(field, "notmatchregex"),
 		},
 	}
 }
