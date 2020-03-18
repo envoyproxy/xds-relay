@@ -202,7 +202,25 @@ var negativeTests = []TableEntry{
 	},
 }
 
-var _ = Describe("Yamlprotoconverter", func() {
+var positiveTestsForKeyerConfigurationProto = []TableEntry{
+	{
+		Description: "todo",
+		Parameters: []interface{}{
+			"keyer_configuration_request_type_match_string_fragment.yaml",
+		},
+	},
+}
+
+var negativeTestsForKeyerConfigurationProto = []TableEntry{
+	{
+		Description: "todo",
+		Parameters: []interface{}{
+			"keyer_configuration_empty_request_type_match.yaml",
+		},
+	},
+}
+
+var _ = Describe("yamlproto tests", func() {
 	DescribeTable("should be able to convert from yaml to proto",
 		func(ymlFixtureFilename string, expectedProto proto.Message) {
 			ymlBytes, err := ioutil.ReadFile(fmt.Sprintf("testdata/%s", ymlFixtureFilename))
@@ -210,7 +228,7 @@ var _ = Describe("Yamlprotoconverter", func() {
 			// Get an empty copy of the expected proto to use as a recipient of the unmarshaling.
 			protoToUnmarshal := proto.Clone(expectedProto)
 			proto.Reset(protoToUnmarshal)
-			err = FromYAMLToProto(string(ymlBytes), protoToUnmarshal)
+			err = fromYAMLToProto(string(ymlBytes), protoToUnmarshal)
 			Expect(err).To(BeNil())
 			Expect(proto.Equal(protoToUnmarshal, expectedProto)).To(Equal(true))
 		},
@@ -220,9 +238,40 @@ var _ = Describe("Yamlprotoconverter", func() {
 		func(ymlFixtureFilename string, protoToUnmarshal proto.Message, expectedErrorMessage string) {
 			ymlBytes, err := ioutil.ReadFile(fmt.Sprintf("testdata/%s", ymlFixtureFilename))
 			Expect(err).To(BeNil())
-			err = FromYAMLToProto(string(ymlBytes), protoToUnmarshal)
+			err = fromYAMLToProto(string(ymlBytes), protoToUnmarshal)
 			// Expect(err.Error()).Should(Equal(expectedErrorMessage))
 			Expect(err.Error()).Should(HaveSuffix(expectedErrorMessage))
 		},
 		negativeTests...)
+
+	DescribeTable("should load and validate KeyerConfiguration",
+		func(ymlFixtureFilename string) {
+			ymlBytes, err := ioutil.ReadFile(fmt.Sprintf("testdata/%s", ymlFixtureFilename))
+			Expect(err).To(BeNil())
+
+			var kc KeyerConfiguration
+			err = FromYAMLToKeyerConfiguration(string(ymlBytes), &kc)
+			Expect(err).To(BeNil())
+		},
+		positiveTestsForKeyerConfigurationProto...)
+
+	DescribeTable("should load yaml but validation for KeyerConfiguration should fail",
+		func(ymlFixtureFilename string) {
+			ymlBytes, err := ioutil.ReadFile(fmt.Sprintf("testdata/%s", ymlFixtureFilename))
+			Expect(err).To(BeNil())
+
+			var kc KeyerConfiguration
+			err = FromYAMLToKeyerConfiguration(string(ymlBytes), &kc)
+			fmt.Println(err.Error())
+			Expect(err.Error()).To(Equal("invalid KeyerConfiguration.Fragments[0]: " +
+				"embedded message failed validation | caused by: invalid " +
+				"KeyerConfiguration_Fragment.Rules[0]: embedded " +
+				"message failed validation | caused by: invalid " +
+				"KeyerConfiguration_Fragment_Rule.Match: embedded message failed " +
+				"validation | caused by: invalid MatchPredicate.RequestTypeMatch: " +
+				"embedded message failed validation | caused by: invalid " +
+				"MatchPredicate_RequestTypeMatch.Types: value must contain at least " +
+				"1 item(s)"))
+		},
+		negativeTestsForKeyerConfigurationProto...)
 })
