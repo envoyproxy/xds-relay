@@ -9,6 +9,7 @@ require (
 	github.com/golang/protobuf v1.4.0-rc.4
 	github.com/onsi/ginkgo v1.12.0
 	github.com/onsi/gomega v1.9.0
+	github.com/stretchr/testify v1.4.0
 	go.uber.org/zap v1.14.0
 	google.golang.org/grpc v1.27.1
 	google.golang.org/protobuf v1.20.1
