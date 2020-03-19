@@ -28,9 +28,10 @@ type cache struct {
 }
 
 type resource struct {
-	resp       *v2.DiscoveryResponse
-	requests   []*v2.DiscoveryRequest
-	streamOpen bool
+	resp           *v2.DiscoveryResponse
+	requests       []*v2.DiscoveryRequest
+	streamOpen     bool
+	expirationTime time.Time
 }
 
 // Callback function for each eviction. Receives the key and cache value when called.
@@ -59,6 +60,11 @@ func (c *cache) Fetch(key string) (*v2.DiscoveryResponse, error) {
 	if !ok {
 		return nil, fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
+	// Lazy eviction based on TTL occurs here. Fetch does not increase the lifespan of the key.
+	if resource.isExpired() {
+		c.cache.Remove(key)
+		return nil, nil
+	}
 	return resource.resp, nil
 }
 
@@ -68,7 +74,8 @@ func (c *cache) SetResponse(key string, resp v2.DiscoveryResponse) ([]*v2.Discov
 	value, found := c.cache.Get(key)
 	if !found {
 		resource := resource{
-			resp: &resp,
+			resp:           &resp,
+			expirationTime: c.getExpirationTime(),
 		}
 		c.cache.Add(key, resource)
 		return nil, nil
@@ -78,6 +85,7 @@ func (c *cache) SetResponse(key string, resp v2.DiscoveryResponse) ([]*v2.Discov
 		return nil, fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
 	resource.resp = &resp
+	resource.expirationTime = c.getExpirationTime()
 	c.cache.Add(key, resource)
 	// TODO: Add logic that allows for notifying of watches.
 	return resource.requests, nil
@@ -90,8 +98,9 @@ func (c *cache) AddRequest(key string, req v2.DiscoveryRequest) (bool, error) {
 	if !found {
 		// TODO: Add logic to guarantee that a stream has been opened.
 		resource := resource{
-			requests:   []*v2.DiscoveryRequest{&req},
-			streamOpen: true,
+			requests:       []*v2.DiscoveryRequest{&req},
+			streamOpen:     true,
+			expirationTime: c.getExpirationTime(),
 		}
 		c.cache.Add(key, resource)
 		return true, nil
@@ -101,8 +110,23 @@ func (c *cache) AddRequest(key string, req v2.DiscoveryRequest) (bool, error) {
 		return false, fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
 	resource.requests = append(resource.requests, &req)
+	resource.expirationTime = c.getExpirationTime()
 	// TODO: Add logic to guarantee that a stream has been opened.
 	resource.streamOpen = true
 	c.cache.Add(key, resource)
 	return true, nil
+}
+
+func (r *resource) isExpired() bool {
+	if r.expirationTime.IsZero() {
+		return false
+	}
+	return r.expirationTime.Before(time.Now())
+}
+
+func (c *cache) getExpirationTime() time.Time {
+	if c.ttl > 0 {
+		return time.Now().Add(c.ttl)
+	}
+	return time.Time{}
 }

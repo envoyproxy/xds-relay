@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/onsi/gomega"
+
 	"github.com/golang/groupcache/lru"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
@@ -116,6 +118,28 @@ func TestMaxEntries(t *testing.T) {
 	assert.Nil(t, response)
 }
 
-// TODO: Implement test exercising TTL eviction.
-//func TestTTL(t *testing.T) {
-//}
+func TestTTL_Enabled(t *testing.T) {
+	gomega.RegisterTestingT(t)
+	cache := NewCache(1, testOnEvict, time.Millisecond*10)
+	_, err := cache.SetResponse(testKeyA, testResponse)
+	assert.NoError(t, err)
+	response, err := cache.Fetch(testKeyA)
+	assert.NoError(t, err)
+	assert.Equal(t, testResponse, *response)
+	gomega.Eventually(func() (*v2.DiscoveryResponse, error) {
+		return cache.Fetch(testKeyA)
+	}).Should(gomega.BeNil())
+}
+
+func TestTTL_Disabled(t *testing.T) {
+	gomega.RegisterTestingT(t)
+	cache := NewCache(1, testOnEvict, 0)
+	_, err := cache.SetResponse(testKeyA, testResponse)
+	assert.NoError(t, err)
+	response, err := cache.Fetch(testKeyA)
+	assert.NoError(t, err)
+	assert.Equal(t, testResponse, *response)
+	gomega.Consistently(func() (*v2.DiscoveryResponse, error) {
+		return cache.Fetch(testKeyA)
+	}).Should(gomega.Equal(&testResponse))
+}
