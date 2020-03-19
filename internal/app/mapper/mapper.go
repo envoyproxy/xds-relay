@@ -204,8 +204,7 @@ func getResult(fragmentRule *rule, node *core.Node) (string, error) {
 		return result, nil
 	}
 
-	stringFragment := fragmentRule.GetResult().GetStringFragment()
-	return stringFragment, nil
+	return fragmentRule.GetResult().GetStringFragment(), nil
 }
 
 func getResultFromRequestNodeFragment(fragmentRule *rule, node *core.Node) (bool, string, error) {
