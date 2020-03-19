@@ -1,28 +1,29 @@
 export SERVICE_NAME=xds-relay
 
-# Compiles the binary and installs it into /usr/local/bin
 .PHONY: compile
-compile:
+compile: ## Compiles the binary and installs it into /usr/local/bin
 	mkdir -p ./bin && \
-	  go build -o ./bin/${SERVICE_NAME} && \
+	  go build -o ./bin/ && \
 	  cp ./bin/${SERVICE_NAME} /usr/local/bin/${SERVICE_NAME}
 
-# Installs dependencies
 .PHONY: install
-install:
+install: ## Installs dependencies
 	go mod vendor
 
-# Run all unit tests with coverage report
 .PHONY: unit
-unit:
+unit: ## Run all unit tests with coverage report
 	go test -v -cover ./...
 
-# Compile proto files
 .PHONY: compile-protos
-compile-protos:
+compile-protos: ## Compile proto files
 	./scripts/generate-api-protos.sh
 
-# Run golangci-lint
 .PHONY: lint
-lint:
+lint: ## Run golangci-lint
 	golangci-lint run
+
+# Absolutely awesome: http://marmelab.com/blog/2016/02/29/auto-documented-makefile.html
+help:
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+
+.DEFAULT_GOAL := compile

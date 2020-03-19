@@ -1,0 +1,10 @@
+fragments:
+  - rules:
+    - match:
+        or_match:
+          rules:
+            - request_type_match:
+                types:
+                  - type.googleapis.com/envoy.api.v2.Endpoint
+      result:
+        string_fragment: "abc"

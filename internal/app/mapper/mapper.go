@@ -2,9 +2,11 @@ package mapper
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
 )
 
@@ -15,15 +17,15 @@ type rule = aggregationv1.KeyerConfiguration_Fragment_Rule
 type Mapper interface {
 	// GetKey converts a request into an aggregated key
 	// Returns error if the regex parsing in the config fails to compile or match
-	// Returns error if the typeURL is empty. An empty typeURL signifies an ADS request.
-	// ref: envoyproxy/envoy/blob/d1a36f1ea24b38fc414d06ea29c5664f419066ef/api/envoy/api/v2/discovery.proto#L43-L46
-	// ref: envoyproxy/go-control-plane/blob/1152177914f2ec0037411f65c56d9beae526870a/pkg/server/server.go#L305-L310
-	// The go-control-plane will always translate DiscoveryRequest typeURL to one of the resource typeURL.
-	GetKey(request v2.DiscoveryRequest, typeURL string) (string, error)
+	// A DiscoveryRequest will always contain typeUrl
+	// ADS will contain typeUrl https://github.com/envoyproxy/envoy/blob/master/api/envoy/api/v2/discovery.proto#L46
+	// Implicit xds requests will have typeUrl set because go-control-plane mutates the DiscoveryRequest
+	// ref: https://github.com/envoyproxy/go-control-plane/blob/master/pkg/server/server.go#L310
+	GetKey(request v2.DiscoveryRequest) (string, error)
 }
 
 type mapper struct {
-	config aggregationv1.KeyerConfiguration
+	config *aggregationv1.KeyerConfiguration
 }
 
 const (
@@ -31,15 +33,15 @@ const (
 )
 
 // NewMapper constructs a concrete implementation for the Mapper interface
-func NewMapper(config aggregationv1.KeyerConfiguration) Mapper {
+func NewMapper(config *aggregationv1.KeyerConfiguration) Mapper {
 	return &mapper{
 		config: config,
 	}
 }
 
 // GetKey converts a request into an aggregated key
-func (mapper *mapper) GetKey(request v2.DiscoveryRequest, typeURL string) (string, error) {
-	if typeURL == "" {
+func (mapper *mapper) GetKey(request v2.DiscoveryRequest) (string, error) {
+	if request.GetTypeUrl() == "" {
 		return "", fmt.Errorf("typeURL is empty")
 	}
 
@@ -48,7 +50,10 @@ func (mapper *mapper) GetKey(request v2.DiscoveryRequest, typeURL string) (strin
 		fragmentRules := fragment.GetRules()
 		for _, fragmentRule := range fragmentRules {
 			matchPredicate := fragmentRule.GetMatch()
-			isMatch := isMatch(matchPredicate, typeURL)
+			isMatch, err := isMatch(matchPredicate, request.GetTypeUrl(), request.GetNode())
+			if err != nil {
+				return "", err
+			}
 			if isMatch {
 				result := getResult(fragmentRule)
 				resultFragments = append(resultFragments, result)
@@ -63,8 +68,61 @@ func (mapper *mapper) GetKey(request v2.DiscoveryRequest, typeURL string) (strin
 	return strings.Join(resultFragments, separator), nil
 }
 
-func isMatch(matchPredicate *matchPredicate, typeURL string) bool {
-	return isRequestTypeMatch(matchPredicate, typeURL) || isAnyMatch(matchPredicate)
+func isMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (bool, error) {
+	isNodeMatch, err := isNodeMatch(matchPredicate, node)
+	if err != nil {
+		return false, err
+	}
+	if isNodeMatch {
+		return true, nil
+	}
+
+	isAndMatch, err := isAndMatch(matchPredicate, typeURL, node)
+	if err != nil {
+		return false, err
+	}
+	if isAndMatch {
+		return true, nil
+	}
+
+	isOrMatch, err := isOrMatch(matchPredicate, typeURL, node)
+	if err != nil {
+		return false, err
+	}
+	if isOrMatch {
+		return true, nil
+	}
+
+	isNotMatch, err := isNotMatch(matchPredicate, typeURL, node)
+	if err != nil {
+		return false, err
+	}
+	if isNotMatch {
+		return true, nil
+	}
+
+	return isRequestTypeMatch(matchPredicate, typeURL) || isAnyMatch(matchPredicate), nil
+}
+
+func isNodeMatch(matchPredicate *matchPredicate, node *core.Node) (bool, error) {
+	predicate := matchPredicate.GetRequestNodeMatch()
+	if predicate == nil {
+		return false, nil
+	}
+	switch predicate.GetField() {
+	case aggregationv1.NodeFieldType_NODE_CLUSTER:
+		return compare(predicate, node.GetCluster())
+	case aggregationv1.NodeFieldType_NODE_ID:
+		return compare(predicate, node.GetId())
+	case aggregationv1.NodeFieldType_NODE_LOCALITY_REGION:
+		return compare(predicate, node.GetLocality().GetRegion())
+	case aggregationv1.NodeFieldType_NODE_LOCALITY_ZONE:
+		return compare(predicate, node.GetLocality().GetZone())
+	case aggregationv1.NodeFieldType_NODE_LOCALITY_SUBZONE:
+		return compare(predicate, node.GetLocality().GetSubZone())
+	default:
+		return false, nil
+	}
 }
 
 func isRequestTypeMatch(matchPredicate *matchPredicate, typeURL string) bool {
@@ -85,7 +143,74 @@ func isAnyMatch(matchPredicate *matchPredicate) bool {
 	return matchPredicate.GetAnyMatch()
 }
 
+func isAndMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (bool, error) {
+	matchset := matchPredicate.GetAndMatch()
+	if matchset == nil {
+		return false, nil
+	}
+
+	for _, rule := range matchset.GetRules() {
+		isMatch, err := isMatch(rule, typeURL, node)
+		if err != nil {
+			return false, err
+		}
+		if !isMatch {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+func isOrMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (bool, error) {
+	matchset := matchPredicate.GetOrMatch()
+	if matchset == nil {
+		return false, nil
+	}
+
+	for _, rule := range matchset.GetRules() {
+		isMatch, err := isMatch(rule, typeURL, node)
+		if err != nil {
+			return false, err
+		}
+		if isMatch {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func isNotMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (bool, error) {
+	predicate := matchPredicate.GetNotMatch()
+	if predicate == nil {
+		return false, nil
+	}
+
+	isMatch, err := isMatch(predicate, typeURL, node)
+	if err != nil {
+		return false, err
+	}
+	return !isMatch, nil
+}
+
 func getResult(fragmentRule *rule) string {
 	stringFragment := fragmentRule.GetResult().GetStringFragment()
 	return stringFragment
+}
+
+func compare(requestNodeMatch *aggregationv1.MatchPredicate_RequestNodeMatch, nodeValue string) (bool, error) {
+	exactMatch := requestNodeMatch.GetExactMatch()
+	if exactMatch != "" {
+		return nodeValue == exactMatch, nil
+	}
+
+	regexMatch := requestNodeMatch.GetRegexMatch()
+	if regexMatch != "" {
+		match, err := regexp.MatchString(regexMatch, nodeValue)
+		if err != nil {
+			return false, err
+		}
+		return match, nil
+	}
+
+	return false, nil
 }
