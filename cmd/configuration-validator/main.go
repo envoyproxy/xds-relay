@@ -13,19 +13,17 @@ import (
 type KeyerConfiguration = aggregationv1.KeyerConfiguration
 
 func main() {
-	var yamlFilename string
-	flag.StringVar(&yamlFilename, "yaml", "", "configuration yaml filename")
+	var configFile string
+	flag.StringVar(&configFile, "config", "", "path to configuration file")
 	flag.Parse()
 
-	if yamlFilename == "" {
+	if configFile == "" {
 		flag.Usage()
 		os.Exit(1)
 	}
 
-	// Load yaml string from flags
-	yamlFileContent, err := ioutil.ReadFile(yamlFilename)
+	yamlFileContent, err := ioutil.ReadFile(configFile)
 	if err != nil {
-		// TODO add a more descriptive error message
 		log.Fatal(err)
 	}
 
@@ -35,8 +33,6 @@ func main() {
 	var config KeyerConfiguration
 	err = yamlproto.FromYAMLToKeyerConfiguration(string(yamlFileContent), &config)
 	if err != nil {
-		// TODO add a more descriptive error message. Mention that the validation stops
-		// after the first error.
 		log.Fatal(err)
 	}
 }
