@@ -10,7 +10,10 @@ import (
 // Multiplexer handles the connections to the upstream management server
 type Multiplexer interface {
 	// QueueRequest starts a stream with the upstream management server
-	QueueRequest(context.Context, chan *v2.DiscoveryRequest, chan *v2.DiscoveryResponse)
+	// All incoming discovery requests arrive on the request channel
+	// All responses go out through the response channel
+	// All irrecoverable errors go out through the error channel
+	QueueRequest(context.Context, chan *v2.DiscoveryRequest, chan *v2.DiscoveryResponse, chan error)
 }
 
 type multiplexer struct {
@@ -29,5 +32,6 @@ func NewMux(ctx context.Context, conn *grpc.ClientConn, typeURL string) (Multipl
 func (m *multiplexer) QueueRequest(
 	ctx context.Context,
 	requestChan chan *v2.DiscoveryRequest,
-	responseChan chan *v2.DiscoveryResponse) {
+	responseChan chan *v2.DiscoveryResponse,
+	errChan chan error) {
 }
