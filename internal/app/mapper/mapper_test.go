@@ -556,83 +556,83 @@ var negativeTests = []TableEntry{
 		},
 	},
 	{
-		Description: "RequestNodeMatch with exact match request node id empty",
+		Description: "RequestNodeMatch with exact match request node id mismatch",
 		Parameters: []interface{}{
 			getRequestNodeExactMatch(nodeIDField, nodeid),
 			getResultStringFragment(),
-			getDiscoveryRequestWithNode(getNode("", nodecluster, noderegion, nodezone, nodesubzone)),
+			getDiscoveryRequestWithNode(getNode("mismatch", nodecluster, noderegion, nodezone, nodesubzone)),
 		},
 	},
 	{
-		Description: "RequestNodeMatch with regex match request node id empty",
+		Description: "RequestNodeMatch with regex match request node id mismatch",
 		Parameters: []interface{}{
 			getRequestNodeRegexMatch(nodeIDField, nodeid),
 			getResultStringFragment(),
-			getDiscoveryRequestWithNode(getNode("", nodecluster, noderegion, nodezone, nodesubzone)),
+			getDiscoveryRequestWithNode(getNode("mismatch", nodecluster, noderegion, nodezone, nodesubzone)),
 		},
 	},
 	{
-		Description: "RequestNodeMatch with exact match request node cluster empty",
+		Description: "RequestNodeMatch with exact match request node cluster mismatch",
 		Parameters: []interface{}{
 			getRequestNodeExactMatch(nodeClusterField, nodecluster),
 			getResultStringFragment(),
-			getDiscoveryRequestWithNode(getNode(nodeid, "", noderegion, nodezone, nodesubzone)),
+			getDiscoveryRequestWithNode(getNode(nodeid, "mismatch", noderegion, nodezone, nodesubzone)),
 		},
 	},
 	{
-		Description: "RequestNodeMatch with regex match request node cluster empty",
+		Description: "RequestNodeMatch with regex match request node cluster mismatch",
 		Parameters: []interface{}{
 			getRequestNodeRegexMatch(nodeClusterField, nodecluster),
 			getResultStringFragment(),
-			getDiscoveryRequestWithNode(getNode(nodeid, "", noderegion, nodezone, nodesubzone)),
+			getDiscoveryRequestWithNode(getNode(nodeid, "mismatch", noderegion, nodezone, nodesubzone)),
 		},
 	},
 	{
-		Description: "RequestNodeMatch with exact match request node region empty",
+		Description: "RequestNodeMatch with exact match request node region mismatch",
 		Parameters: []interface{}{
 			getRequestNodeExactMatch(nodeRegionField, noderegion),
 			getResultStringFragment(),
-			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "", nodezone, nodesubzone)),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "mismatch", nodezone, nodesubzone)),
 		},
 	},
 	{
-		Description: "RequestNodeMatch with regex match request node region empty",
+		Description: "RequestNodeMatch with regex match request node region mismatch",
 		Parameters: []interface{}{
 			getRequestNodeRegexMatch(nodeRegionField, noderegion),
 			getResultStringFragment(),
-			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "", nodezone, nodesubzone)),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "mismatch", nodezone, nodesubzone)),
 		},
 	},
 	{
-		Description: "RequestNodeMatch with exact match request node zone empty",
+		Description: "RequestNodeMatch with exact match request node zone mismatch",
 		Parameters: []interface{}{
 			getRequestNodeExactMatch(nodeZoneField, nodezone),
 			getResultStringFragment(),
-			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, "", nodesubzone)),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, "mismatch", nodesubzone)),
 		},
 	},
 	{
-		Description: "RequestNodeMatch with regex match request node zone empty",
+		Description: "RequestNodeMatch with regex match request node zone mismatch",
 		Parameters: []interface{}{
 			getRequestNodeRegexMatch(nodeZoneField, nodezone),
 			getResultStringFragment(),
-			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, "", nodesubzone)),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, "mismatch", nodesubzone)),
 		},
 	},
 	{
-		Description: "RequestNodeMatch with exact match request node subzone empty",
+		Description: "RequestNodeMatch with exact match request node subzone mismatch",
 		Parameters: []interface{}{
 			getRequestNodeExactMatch(nodeSubZoneField, nodesubzone),
 			getResultStringFragment(),
-			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, "")),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, "mismatch")),
 		},
 	},
 	{
-		Description: "RequestNodeMatch with regex match request node subzone empty",
+		Description: "RequestNodeMatch with regex match request node subzone mismatch",
 		Parameters: []interface{}{
 			getRequestNodeRegexMatch(nodeSubZoneField, nodesubzone),
 			getResultStringFragment(),
-			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, "")),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, "mismatch")),
 		},
 	},
 	{
@@ -858,6 +858,153 @@ var regexpErrorCasesMultipleFragments = []TableEntry{
 	},
 }
 
+var emptyFragmentErrorCases = []TableEntry{
+	{
+		Description: "empty node id in request predicate",
+		Parameters: []interface{}{
+			getRequestNodeExactMatch(nodeIDField, nodeid),
+			getResultRequestNodeFragment(nodeIDField, getExactAction()),
+			getDiscoveryRequestWithNode(getNode("", nodecluster, noderegion, nodezone, nodesubzone)),
+			"MatchPredicate Node field cannot be empty",
+		},
+	},
+	{
+		Description: "empty node cluster in request predicate",
+		Parameters: []interface{}{
+			getRequestNodeExactMatch(nodeClusterField, nodecluster),
+			getResultRequestNodeFragment(nodeIDField, getExactAction()),
+			getDiscoveryRequestWithNode(getNode(nodeid, "", noderegion, nodezone, nodesubzone)),
+			"MatchPredicate Node field cannot be empty",
+		},
+	},
+	{
+		Description: "empty node region in request predicate",
+		Parameters: []interface{}{
+			getRequestNodeExactMatch(nodeRegionField, noderegion),
+			getResultRequestNodeFragment(nodeIDField, getExactAction()),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "", nodezone, nodesubzone)),
+			"MatchPredicate Node field cannot be empty",
+		},
+	},
+	{
+		Description: "empty node zone in request predicate",
+		Parameters: []interface{}{
+			getRequestNodeExactMatch(nodeZoneField, nodezone),
+			getResultRequestNodeFragment(nodeIDField, getExactAction()),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, "", nodesubzone)),
+			"MatchPredicate Node field cannot be empty",
+		},
+	},
+	{
+		Description: "empty node subzone in request predicate",
+		Parameters: []interface{}{
+			getRequestNodeExactMatch(nodeSubZoneField, nodesubzone),
+			getResultRequestNodeFragment(nodeIDField, getExactAction()),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, "")),
+			"MatchPredicate Node field cannot be empty",
+		},
+	},
+	{
+		Description: "empty node id in response action",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResultRequestNodeFragment(nodeIDField, getExactAction()),
+			getDiscoveryRequestWithNode(getNode("", nodecluster, noderegion, nodezone, nodesubzone)),
+			"RequestNodeFragment exact match resulted in an empty fragment",
+		},
+	},
+	{
+		Description: "empty node cluster in response action",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResultRequestNodeFragment(nodeClusterField, getExactAction()),
+			getDiscoveryRequestWithNode(getNode(nodeid, "", noderegion, nodezone, nodesubzone)),
+			"RequestNodeFragment exact match resulted in an empty fragment",
+		},
+	},
+	{
+		Description: "empty node region in response action",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResultRequestNodeFragment(nodeRegionField, getExactAction()),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "", nodezone, nodesubzone)),
+			"RequestNodeFragment exact match resulted in an empty fragment",
+		},
+	},
+	{
+		Description: "empty node zone in response action",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResultRequestNodeFragment(nodeZoneField, getExactAction()),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, "", nodesubzone)),
+			"RequestNodeFragment exact match resulted in an empty fragment",
+		},
+	},
+	{
+		Description: "empty node subzone in response action",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResultRequestNodeFragment(nodeSubZoneField, getExactAction()),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, "")),
+			"RequestNodeFragment exact match resulted in an empty fragment",
+		},
+	},
+	{
+		Description: "empty node id in regex response action",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResultRequestNodeFragment(nodeIDField, getRegexAction(nodeid, "")),
+			getDiscoveryRequest(),
+			"RequestNodeFragment regex match resulted in an empty fragment",
+		},
+	},
+	{
+		Description: "empty node cluster in regex response action",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResultRequestNodeFragment(nodeClusterField, getRegexAction(nodecluster, "")),
+			getDiscoveryRequest(),
+			"RequestNodeFragment regex match resulted in an empty fragment",
+		},
+	},
+	{
+		Description: "empty node region in regex response action",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResultRequestNodeFragment(nodeRegionField, getRegexAction(noderegion, "")),
+			getDiscoveryRequest(),
+			"RequestNodeFragment regex match resulted in an empty fragment",
+		},
+	},
+	{
+		Description: "empty node zone in regex response action",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResultRequestNodeFragment(nodeZoneField, getRegexAction(nodezone, "")),
+			getDiscoveryRequest(),
+			"RequestNodeFragment regex match resulted in an empty fragment",
+		},
+	},
+	{
+		Description: "empty node subzone in regex response action",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResultRequestNodeFragment(nodeSubZoneField, getRegexAction(nodesubzone, "")),
+			getDiscoveryRequest(),
+			"RequestNodeFragment regex match resulted in an empty fragment",
+		},
+	},
+	{
+		Description: "non matching field type",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResultRequestNodeFragment(10, getExactAction()),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "", nodezone, nodesubzone)),
+			"RequestNodeFragment Invalid NodeFieldType",
+		},
+	},
+}
+
 var _ = Describe("GetKey", func() {
 	DescribeTable("should be able to return fragment for",
 		func(match *MatchPredicate, result *ResultPredicate, typeurl string, assert string) {
@@ -1013,6 +1160,27 @@ var _ = Describe("GetKey", func() {
 			Expect(err.Error()).Should(Equal("error parsing regexp: invalid UTF-8: `\xbd\xb2`"))
 		},
 		regexpErrorCasesMultipleFragments...)
+
+	DescribeTable("should return error for empty fragments",
+		func(match *MatchPredicate, result *ResultPredicate, request v2.DiscoveryRequest, assert string) {
+			protoConfig := KeyerConfiguration{
+				Fragments: []*Fragment{
+					{
+						Rules: []*FragmentRule{
+							{
+								Match:  match,
+								Result: result,
+							},
+						},
+					},
+				},
+			}
+			mapper := NewMapper(&protoConfig)
+			key, err := mapper.GetKey(request)
+			Expect(key).To(Equal(""))
+			Expect(err).Should(Equal(fmt.Errorf(assert)))
+		},
+		emptyFragmentErrorCases...)
 
 	It("TypeUrl should not be empty", func() {
 		mapper := NewMapper(&KeyerConfiguration{})

@@ -124,7 +124,7 @@ func isNodeMatch(matchPredicate *matchPredicate, node *core.Node) (bool, error) 
 	case aggregationv1.NodeFieldType_NODE_LOCALITY_SUBZONE:
 		return compare(predicate, node.GetLocality().GetSubZone())
 	default:
-		return false, nil
+		return false, fmt.Errorf("RequestNodeMatch does not have a valid NodeFieldType")
 	}
 }
 
@@ -214,7 +214,7 @@ func getResultFromRequestNodeFragment(fragmentRule *rule, node *core.Node) (bool
 	}
 
 	nodeField := requestNodeFragment.GetField()
-	var nodeValue = ""
+	var nodeValue string
 	switch nodeField {
 	case aggregationv1.NodeFieldType_NODE_CLUSTER:
 		nodeValue = node.GetCluster()
@@ -226,10 +226,15 @@ func getResultFromRequestNodeFragment(fragmentRule *rule, node *core.Node) (bool
 		nodeValue = node.GetLocality().GetZone()
 	case aggregationv1.NodeFieldType_NODE_LOCALITY_SUBZONE:
 		nodeValue = node.GetLocality().GetSubZone()
+	default:
+		return false, "", fmt.Errorf("RequestNodeFragment Invalid NodeFieldType")
 	}
 
 	action := requestNodeFragment.GetAction()
 	if action.GetExact() {
+		if nodeValue == "" {
+			return false, "", fmt.Errorf("RequestNodeFragment exact match resulted in an empty fragment")
+		}
 		return true, nodeValue, nil
 	}
 
@@ -241,10 +246,19 @@ func getResultFromRequestNodeFragment(fragmentRule *rule, node *core.Node) (bool
 	if err != nil {
 		return false, "", err
 	}
-	return true, reg.ReplaceAllString(nodeValue, replace), nil
+
+	replacedFragment := reg.ReplaceAllString(nodeValue, replace)
+	if replacedFragment == "" {
+		return false, "", fmt.Errorf("RequestNodeFragment regex match resulted in an empty fragment")
+	}
+
+	return true, replacedFragment, nil
 }
 
 func compare(requestNodeMatch *aggregationv1.MatchPredicate_RequestNodeMatch, nodeValue string) (bool, error) {
+	if nodeValue == "" {
+		return false, fmt.Errorf("MatchPredicate Node field cannot be empty")
+	}
 	exactMatch := requestNodeMatch.GetExactMatch()
 	if exactMatch != "" {
 		return nodeValue == exactMatch, nil
