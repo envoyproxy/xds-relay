@@ -52,6 +52,8 @@ func NewCache(maxEntries int, onEvicted onEvictFunc, ttl time.Duration) Cache {
 }
 
 func (c *cache) Fetch(key string) (*v2.DiscoveryResponse, error) {
+	c.cacheMu.Lock()
+	defer c.cacheMu.Unlock()
 	value, found := c.cache.Get(key)
 	if !found {
 		return nil, fmt.Errorf("no value found for key: %s", key)
