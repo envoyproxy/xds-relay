@@ -11,9 +11,6 @@ import (
 )
 
 type Cache interface {
-	// Exists returns true if the key exists in the cache, false otherwise.
-	Exists(key string) bool
-
 	// Fetch returns the cached response if it exists.
 	Fetch(key string) (*envoy_api_v2.DiscoveryResponse, error)
 
@@ -62,11 +59,6 @@ func NewCache(numCounters int64, cacheSizeBytes int64, ttl time.Duration, onEvic
 		cache: newCache,
 		ttl:   ttl,
 	}, nil
-}
-
-func (c *cache) Exists(key string) bool {
-	_, found := c.cache.Get(key)
-	return found
 }
 
 func (c *cache) Fetch(key string) (*envoy_api_v2.DiscoveryResponse, error) {
