@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/groupcache/lru"
+
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"github.com/golang/protobuf/ptypes/any"
@@ -12,11 +14,11 @@ import (
 
 const testKeyA = "key_A"
 
-//const testKeyB = "key_B"
+const testKeyB = "key_B"
 
-//func onEvict(key uint64, conflict uint64, value interface{}, cost int64) {
-// TODO: Simulate eviction behavior, e.g. closing of streams.
-//}
+func testOnEvict(key lru.Key, value interface{}) {
+	// TODO: Simulate eviction behavior, e.g. closing of streams.
+}
 
 var testRequest = v2.DiscoveryRequest{
 	VersionInfo: "version_A",
@@ -41,7 +43,7 @@ var testResponse = v2.DiscoveryResponse{
 }
 
 func TestAddRequestAndFetch(t *testing.T) {
-	cache := NewCache(time.Second * 60)
+	cache := NewCache(1, testOnEvict, time.Second*60)
 	response, err := cache.Fetch(testKeyA)
 	assert.EqualError(t, err, "no value found for key: key_A")
 	assert.Nil(t, response)
@@ -56,7 +58,7 @@ func TestAddRequestAndFetch(t *testing.T) {
 }
 
 func TestSetResponseAndFetch(t *testing.T) {
-	cache := NewCache(time.Second * 60)
+	cache := NewCache(1, testOnEvict, time.Second*60)
 
 	// Simulate cache miss and setting of new response.
 	response, err := cache.Fetch(testKeyA)
@@ -73,7 +75,7 @@ func TestSetResponseAndFetch(t *testing.T) {
 }
 
 func TestAddRequestAndSetResponse(t *testing.T) {
-	cache := NewCache(time.Second * 60)
+	cache := NewCache(1, testOnEvict, time.Second*60)
 
 	isStreamOpen, err := cache.AddRequest(testKeyA, testRequest)
 	assert.NoError(t, err)
@@ -92,6 +94,26 @@ func TestAddRequestAndSetResponse(t *testing.T) {
 	response, err := cache.Fetch(testKeyA)
 	assert.NoError(t, err)
 	assert.Equal(t, testResponse, *response)
+}
+
+func TestMaxEntries(t *testing.T) {
+	cache := NewCache(1, testOnEvict, time.Second*60)
+	_, err := cache.SetResponse(testKeyA, testResponse)
+	assert.NoError(t, err)
+	response, err := cache.Fetch(testKeyA)
+	assert.NoError(t, err)
+	assert.Equal(t, testResponse, *response)
+
+	_, err = cache.AddRequest(testKeyB, testRequest)
+	assert.NoError(t, err)
+
+	response, err = cache.Fetch(testKeyA)
+	assert.EqualError(t, err, "no value found for key: key_A")
+	assert.Nil(t, response)
+
+	response, err = cache.Fetch(testKeyB)
+	assert.NoError(t, err)
+	assert.Nil(t, response)
 }
 
 // TODO: Implement test exercising TTL eviction.

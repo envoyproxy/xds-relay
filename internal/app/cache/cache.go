@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang/groupcache/lru"
+
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 )
 
@@ -21,7 +23,7 @@ type Cache interface {
 
 type cache struct {
 	cacheMu sync.RWMutex
-	cache   map[string]*resource
+	cache   lru.Cache
 	ttl     time.Duration
 }
 
@@ -31,52 +33,76 @@ type resource struct {
 	streamOpen bool
 }
 
-func NewCache(ttl time.Duration) Cache {
+// Callback function for each eviction. Receives the key and cache value when called.
+type onEvictFunc func(key lru.Key, value interface{})
+
+func NewCache(maxEntries int, onEvicted onEvictFunc, ttl time.Duration) Cache {
 	return &cache{
-		cache: make(map[string]*resource),
-		ttl:   ttl,
+		cache: lru.Cache{
+			// Max number of cache entries before an item is evicted. Zero means no limit.
+			MaxEntries: maxEntries,
+			// OnEvict is called for each eviction and closes the stream if a key is removed
+			// (e.g. expiry due to TTL, too many entries).
+			OnEvicted: onEvicted,
+		},
+		// Duration before which an item is evicted for expiring. Zero means no expiration time.
+		ttl: ttl,
 	}
 }
 
 func (c *cache) Fetch(key string) (*v2.DiscoveryResponse, error) {
-	value, found := c.cache[key]
+	value, found := c.cache.Get(key)
 	if !found {
 		return nil, fmt.Errorf("no value found for key: %s", key)
 	}
-	return value.resp, nil
+	resource, ok := value.(resource)
+	if !ok {
+		return nil, fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
+	}
+	return resource.resp, nil
 }
 
 func (c *cache) SetResponse(key string, resp v2.DiscoveryResponse) ([]*v2.DiscoveryRequest, error) {
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
-	value, found := c.cache[key]
+	value, found := c.cache.Get(key)
 	if !found {
-		c.cache[key] = &resource{
+		resource := resource{
 			resp: &resp,
 		}
+		c.cache.Add(key, resource)
 		return nil, nil
 	}
-	value.resp = &resp
-	c.cache[key] = value
+	resource, ok := value.(resource)
+	if !ok {
+		return nil, fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
+	}
+	resource.resp = &resp
+	c.cache.Add(key, resource)
 	// TODO: Add logic that allows for notifying of watches.
-	return value.requests, nil
+	return resource.requests, nil
 }
 
 func (c *cache) AddRequest(key string, req v2.DiscoveryRequest) (bool, error) {
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
-	value, found := c.cache[key]
+	value, found := c.cache.Get(key)
 	if !found {
 		// TODO: Add logic to guarantee that a stream has been opened.
-		c.cache[key] = &resource{
+		resource := resource{
 			requests:   []*v2.DiscoveryRequest{&req},
 			streamOpen: true,
 		}
+		c.cache.Add(key, resource)
 		return true, nil
 	}
-	value.requests = append(value.requests, &req)
+	resource, ok := value.(resource)
+	if !ok {
+		return false, fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
+	}
+	resource.requests = append(resource.requests, &req)
 	// TODO: Add logic to guarantee that a stream has been opened.
-	value.streamOpen = true
-	c.cache[key] = value
+	resource.streamOpen = true
+	c.cache.Add(key, resource)
 	return true, nil
 }
