@@ -93,6 +93,14 @@ func isMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (b
 		return true, nil
 	}
 
+	isNotMatch, err := isNotMatch(matchPredicate, typeURL, node)
+	if err != nil {
+		return false, err
+	}
+	if isNotMatch {
+		return true, nil
+	}
+
 	return isRequestTypeMatch(matchPredicate, typeURL) || isAnyMatch(matchPredicate), nil
 }
 
@@ -169,6 +177,19 @@ func isOrMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) 
 		}
 	}
 	return false, nil
+}
+
+func isNotMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (bool, error) {
+	predicate := matchPredicate.GetNotMatch()
+	if predicate == nil {
+		return false, nil
+	}
+
+	isMatch, err := isMatch(predicate, typeURL, node)
+	if err != nil {
+		return false, err
+	}
+	return !isMatch, nil
 }
 
 func getResult(fragmentRule *rule) string {
