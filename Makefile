@@ -21,6 +21,10 @@ install:
 unit:
 	go test -v -cover ./...
 
+.PHONY: integration-tests
+integration-tests:  ## Run integration tests
+	go test -v ${GOREPO}/integration-tests/
+
 # Compile proto files
 .PHONY: compile-protos
 compile-protos:
