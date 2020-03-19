@@ -333,6 +333,96 @@ var positiveTests = []TableEntry{
 			stringFragment,
 		},
 	},
+	{
+		Description: "AnyMatch With exact Node Id result",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResultRequestNodeFragment(nodeIDField, getExactAction()),
+			clusterTypeURL,
+			nodeid,
+		},
+	},
+	{
+		Description: "AnyMatch With regex Node Id result",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResultRequestNodeFragment(nodeIDField, getRegexAction("n....d", "replace")),
+			clusterTypeURL,
+			"replace",
+		},
+	},
+	{
+		Description: "AnyMatch With exact Node Cluster match",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResultRequestNodeFragment(nodeClusterField, getExactAction()),
+			clusterTypeURL,
+			nodecluster,
+		},
+	},
+	{
+		Description: "AnyMatch With regex Node Cluster match",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResultRequestNodeFragment(nodeClusterField, getRegexAction("c.*r", "replace")),
+			clusterTypeURL,
+			"replace",
+		},
+	},
+	{
+		Description: "AnyMatch With Exact Node Region match",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResultRequestNodeFragment(nodeRegionField, getExactAction()),
+			clusterTypeURL,
+			noderegion,
+		},
+	},
+	{
+		Description: "AnyMatch With regex Node Region match",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResultRequestNodeFragment(nodeRegionField, getRegexAction("r(egion)", "p$1")),
+			clusterTypeURL,
+			"pegion",
+		},
+	},
+	{
+		Description: "AnyMatch With exact Node Zone match",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResultRequestNodeFragment(nodeZoneField, getExactAction()),
+			clusterTypeURL,
+			nodezone,
+		},
+	},
+	{
+		Description: "AnyMatch With regex Node Zone match",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResultRequestNodeFragment(nodeZoneField, getRegexAction("z..e$", "newzone")),
+			clusterTypeURL,
+			"newzone",
+		},
+	},
+	{
+		Description: "AnyMatch With exact Node Subzone match",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResultRequestNodeFragment(nodeSubZoneField, getExactAction()),
+			clusterTypeURL,
+			nodesubzone,
+		},
+	},
+	{
+		Description: "AnyMatch With regex Node Subzone match",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResultRequestNodeFragment(nodeSubZoneField, getRegexAction("[^0-9](u|v)b{1}...e", "zone")),
+			clusterTypeURL,
+			"zone",
+		},
+	},
 }
 
 var multiFragmentPositiveTests = []TableEntry{
@@ -720,6 +810,13 @@ var regexpErrorCases = []TableEntry{
 			getResultStringFragment(),
 		},
 	},
+	{
+		Description: "Regex compilation failure in RegexAction pattern should return error",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResultRequestNodeFragment(nodeIDField, getRegexAction("\xbd\xb2", "")),
+		},
+	},
 }
 
 var regexpErrorCasesMultipleFragments = []TableEntry{
@@ -739,6 +836,24 @@ var regexpErrorCasesMultipleFragments = []TableEntry{
 			getRequestNodeRegexMatch(nodeSubZoneField, "\xbd\xb2"),
 			getResultStringFragment(),
 			getResultStringFragment(),
+		},
+	},
+	{
+		Description: "Regex parse failure in first response predicate",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getAnyMatch(true),
+			getResultRequestNodeFragment(nodeIDField, getRegexAction("\xbd\xb2", "")),
+			getResultStringFragment(),
+		},
+	},
+	{
+		Description: "Regex parse failure in second response predicate",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getAnyMatch(true),
+			getResultStringFragment(),
+			getResultRequestNodeFragment(nodeIDField, getRegexAction("\xbd\xb2", "")),
 		},
 	},
 }
@@ -1001,6 +1116,38 @@ func getResultStringFragment() *ResultPredicate {
 	return &ResultPredicate{
 		Type: &aggregationv1.ResultPredicate_StringFragment{
 			StringFragment: stringFragment,
+		},
+	}
+}
+
+func getResultRequestNodeFragment(
+	field aggregationv1.NodeFieldType,
+	action *aggregationv1.ResultPredicate_ResultAction) *ResultPredicate {
+	return &ResultPredicate{
+		Type: &aggregationv1.ResultPredicate_RequestNodeFragment_{
+			RequestNodeFragment: &aggregationv1.ResultPredicate_RequestNodeFragment{
+				Field:  field,
+				Action: action,
+			},
+		},
+	}
+}
+
+func getExactAction() *aggregationv1.ResultPredicate_ResultAction {
+	return &aggregationv1.ResultPredicate_ResultAction{
+		Action: &aggregationv1.ResultPredicate_ResultAction_Exact{
+			Exact: true,
+		},
+	}
+}
+
+func getRegexAction(pattern string, replace string) *aggregationv1.ResultPredicate_ResultAction {
+	return &aggregationv1.ResultPredicate_ResultAction{
+		Action: &aggregationv1.ResultPredicate_ResultAction_RegexAction_{
+			RegexAction: &aggregationv1.ResultPredicate_ResultAction_RegexAction{
+				Pattern: pattern,
+				Replace: replace,
+			},
 		},
 	}
 }
