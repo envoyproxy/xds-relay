@@ -1,11 +1,14 @@
-export SERVICE_NAME=xds-relay
+SERVICE_NAME := xds-relay
+GOREPO := ${GOPATH}/src/github.com/envoyproxy/xds-relay
 
 # Compiles the binary and installs it into /usr/local/bin
 .PHONY: compile
 compile:
 	mkdir -p ./bin && \
-	  go build -o ./bin/${SERVICE_NAME} && \
-	  cp ./bin/${SERVICE_NAME} /usr/local/bin/${SERVICE_NAME}
+	  go build -o ${GOREPO}/bin/${SERVICE_NAME} && \
+	  cp ${GOREPO}/bin/${SERVICE_NAME} /usr/local/bin/${SERVICE_NAME} && \
+	  cd ${GOREPO}/cmd/configuration-validator && \
+	  go build -o ${GOREPO}/bin/configuration-validator
 
 # Installs dependencies
 .PHONY: install
