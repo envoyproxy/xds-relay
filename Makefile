@@ -21,7 +21,7 @@ unit: ## Run all unit tests with coverage report
 
 .PHONY: integration-tests
 integration-tests:  ## Run integration tests
-	go test -v ./integration-tests/...
+	go test -v ${GOREPO}/integration-tests/
 
 .PHONY: compile-protos
 compile-protos: ## Compile proto files
