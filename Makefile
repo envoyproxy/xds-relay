@@ -1,15 +1,14 @@
 export SERVICE_NAME=xds-relay
-export GOREPO=${GOPATH}/src/github.com/envoyproxy/${SERVICE_NAME}
 SOURCE_FILES?=$$(go list ./... | grep -v integration-tests)
 
 .PHONY: setup
 setup:
-	mkdir -p ${GOREPO}/bin
+	mkdir -p ./bin
 
 .PHONY: compile
 compile: setup  ## Compiles the binary and installs it into /usr/local/bin
-	go build -o ${GOREPO}/bin/${SERVICE_NAME} && \
-	  cp ${GOREPO}/bin/${SERVICE_NAME} /usr/local/bin/${SERVICE_NAME}
+	go build -o ./bin/${SERVICE_NAME} && \
+	  cp ./bin/${SERVICE_NAME} /usr/local/bin/${SERVICE_NAME}
 
 .PHONY: install
 install: ## Installs dependencies
@@ -21,7 +20,7 @@ unit: ## Run all unit tests with coverage report
 
 .PHONY: integration-tests
 integration-tests:  ## Run integration tests
-	go test -v ${GOREPO}/integration-tests/
+	go test -v ./integration-tests/
 
 .PHONY: compile-protos
 compile-protos: ## Compile proto files
@@ -29,8 +28,8 @@ compile-protos: ## Compile proto files
 
 .PHONY: compile-validator-tool
 compile-validator-tool: setup  ## Compiles configuration validator tool
-	cd ${GOREPO}/cmd/configuration-validator && \
-	  go build -o ${GOREPO}/bin/configuration-validator
+	cd ./cmd/configuration-validator && \
+	  go build -o ./bin/configuration-validator
 
 .PHONY: lint
 lint: ## Run golangci-lint
