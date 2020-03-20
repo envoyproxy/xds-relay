@@ -94,6 +94,7 @@ var _ = Describe("Integration tests for the validator tool", func() {
 		// #nosec G204
 		cmd := exec.Command(path.Join(dir, "bin", binaryName))
 		output, err := cmd.CombinedOutput()
+		Expect(err).NotTo(BeNil())
 		// There is an extra newline in the output.
 		expectedErrorMessage := "-config string\n    \tpath to configuration file\n"
 		Expect(string(output)).Should(HaveSuffix(expectedErrorMessage))
