@@ -18,8 +18,17 @@ const testKeyA = "key_A"
 
 const testKeyB = "key_B"
 
+type panicValues struct {
+	key    lru.Key
+	reason string
+}
+
 func testOnEvict(key lru.Key, value interface{}) {
 	// TODO: Simulate eviction behavior, e.g. closing of streams.
+	panic(panicValues{
+		key:    key,
+		reason: "testOnEvict called",
+	})
 }
 
 var testRequest = v2.DiscoveryRequest{
@@ -113,8 +122,13 @@ func TestMaxEntries(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, testResponse, *response)
 
-	_, err = cache.AddRequest(testKeyB, testRequest)
-	assert.NoError(t, err)
+	assert.PanicsWithValue(t, panicValues{
+		key:    testKeyA,
+		reason: "testOnEvict called",
+	}, func() {
+		_, err = cache.AddRequest(testKeyB, testRequest)
+		assert.NoError(t, err)
+	})
 
 	response, err = cache.Fetch(testKeyA)
 	assert.EqualError(t, err, "no value found for key: key_A")
@@ -126,7 +140,6 @@ func TestMaxEntries(t *testing.T) {
 }
 
 func TestTTL_Enabled(t *testing.T) {
-	gomega.RegisterTestingT(t)
 	cache, err := NewCache(1, testOnEvict, time.Millisecond*10)
 	assert.NoError(t, err)
 
@@ -137,9 +150,19 @@ func TestTTL_Enabled(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, testResponse, *response)
 
-	gomega.Eventually(func() (*v2.DiscoveryResponse, error) {
-		return cache.Fetch(testKeyA)
-	}).Should(gomega.BeNil())
+	time.Sleep(time.Millisecond * 10)
+	assert.PanicsWithValue(t, panicValues{
+		key:    testKeyA,
+		reason: "testOnEvict called",
+	}, func() {
+		response, err = cache.Fetch(testKeyA)
+		assert.NoError(t, err)
+		assert.Nil(t, response)
+	})
+
+	response, err = cache.Fetch(testKeyA)
+	assert.EqualError(t, err, "no value found for key: key_A")
+	assert.Nil(t, response)
 }
 
 func TestTTL_Disabled(t *testing.T) {

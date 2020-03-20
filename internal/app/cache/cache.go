@@ -1,3 +1,5 @@
+// Package cache provides a public interface and implementation for an in-memory cache that keeps the most recent
+// response from the control plane per aggregated key.
 package cache
 
 import (
@@ -45,8 +47,7 @@ func NewCache(maxEntries int, onEvicted onEvictFunc, ttl time.Duration) (Cache, 
 		cache: lru.Cache{
 			// Max number of cache entries before an item is evicted. Zero means no limit.
 			MaxEntries: maxEntries,
-			// OnEvict is called for each eviction and closes the stream if a key is removed
-			// (e.g. expiry due to TTL, too many entries).
+			// OnEvict is called for each eviction.
 			OnEvicted: onEvicted,
 		},
 		// Duration before which an item is evicted for expiring. Zero means no expiration time.
