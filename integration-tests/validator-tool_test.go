@@ -18,7 +18,7 @@ const (
 
 func TestMain(m *testing.M) {
 	// TODO I could not find a more robust way of reaching the root of the repo
-	err := os.Chdir(os.Getenv("GOREPO"))
+	err := os.Chdir("..")
 	if err != nil {
 		fmt.Printf("could not change dir: %v", err)
 		os.Exit(1)
