@@ -28,7 +28,7 @@ compile-protos: ## Compile proto files
 
 .PHONY: compile-validator-tool
 compile-validator-tool: setup  ## Compiles configuration validator tool
-	cd ./cmd/configuration-validator && \
+	cd ./tools/configuration-validator && \
 	  go build -o ./bin/configuration-validator
 
 .PHONY: lint
