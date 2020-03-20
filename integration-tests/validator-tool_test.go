@@ -59,6 +59,14 @@ var testCases = []TableEntry{
 				"required",
 		},
 	},
+	{
+		Description: "a negative test containing an inexistent file",
+		Parameters: []interface{}{
+			"bogus-file.yaml",
+			true,
+			"open bogus-file.yaml: no such file or directory",
+		},
+	},
 }
 
 var _ = Describe("Integration tests for the validator tool", func() {
@@ -78,4 +86,16 @@ var _ = Describe("Integration tests for the validator tool", func() {
 				Expect(err).To(BeNil())
 			}
 		}, testCases...)
+
+	It("should fail if -config flag is missing", func() {
+		dir, err := os.Getwd()
+		Expect(err).To(BeNil())
+
+		// #nosec G204
+		cmd := exec.Command(path.Join(dir, "bin", binaryName))
+		output, err := cmd.CombinedOutput()
+		// There is an extra newline in the output.
+		expectedErrorMessage := "-config string\n    \tpath to configuration file\n"
+		Expect(string(output)).Should(HaveSuffix(expectedErrorMessage))
+	})
 })
