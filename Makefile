@@ -1,5 +1,6 @@
 export SERVICE_NAME=xds-relay
 export GOREPO=${GOPATH}/src/github.com/envoyproxy/${SERVICE_NAME}
+SOURCE_FILES?=$$(go list ./... | grep -v integration)
 
 .PHONY: setup
 setup:
@@ -16,7 +17,7 @@ install: ## Installs dependencies
 
 .PHONY: unit
 unit: ## Run all unit tests with coverage report
-	go test -short -v -cover ./...
+	go test -v -cover $(SOURCE_FILES)
 
 .PHONY: integration-tests
 integration-tests:  ## Run integration tests
