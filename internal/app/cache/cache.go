@@ -37,7 +37,10 @@ type resource struct {
 // Callback function for each eviction. Receives the key and cache value when called.
 type onEvictFunc func(key lru.Key, value interface{})
 
-func NewCache(maxEntries int, onEvicted onEvictFunc, ttl time.Duration) Cache {
+func NewCache(maxEntries int, onEvicted onEvictFunc, ttl time.Duration) (Cache, error) {
+	if ttl < 0 {
+		return nil, fmt.Errorf("ttl must be nonnegative but was set to %v", ttl)
+	}
 	return &cache{
 		cache: lru.Cache{
 			// Max number of cache entries before an item is evicted. Zero means no limit.
@@ -48,7 +51,7 @@ func NewCache(maxEntries int, onEvicted onEvictFunc, ttl time.Duration) Cache {
 		},
 		// Duration before which an item is evicted for expiring. Zero means no expiration time.
 		ttl: ttl,
-	}
+	}, nil
 }
 
 func (c *cache) Fetch(key string) (*v2.DiscoveryResponse, error) {

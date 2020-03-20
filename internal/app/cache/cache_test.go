@@ -45,7 +45,8 @@ var testResponse = v2.DiscoveryResponse{
 }
 
 func TestAddRequestAndFetch(t *testing.T) {
-	cache := NewCache(1, testOnEvict, time.Second*60)
+	cache, err := NewCache(1, testOnEvict, time.Second*60)
+	assert.NoError(t, err)
 
 	response, err := cache.Fetch(testKeyA)
 	assert.EqualError(t, err, "no value found for key: key_A")
@@ -61,7 +62,8 @@ func TestAddRequestAndFetch(t *testing.T) {
 }
 
 func TestSetResponseAndFetch(t *testing.T) {
-	cache := NewCache(1, testOnEvict, time.Second*60)
+	cache, err := NewCache(1, testOnEvict, time.Second*60)
+	assert.NoError(t, err)
 
 	// Simulate cache miss and setting of new response.
 	response, err := cache.Fetch(testKeyA)
@@ -78,7 +80,8 @@ func TestSetResponseAndFetch(t *testing.T) {
 }
 
 func TestAddRequestAndSetResponse(t *testing.T) {
-	cache := NewCache(1, testOnEvict, time.Second*60)
+	cache, err := NewCache(1, testOnEvict, time.Second*60)
+	assert.NoError(t, err)
 
 	isStreamOpen, err := cache.AddRequest(testKeyA, testRequest)
 	assert.NoError(t, err)
@@ -100,9 +103,10 @@ func TestAddRequestAndSetResponse(t *testing.T) {
 }
 
 func TestMaxEntries(t *testing.T) {
-	cache := NewCache(1, testOnEvict, time.Second*60)
+	cache, err := NewCache(1, testOnEvict, time.Second*60)
+	assert.NoError(t, err)
 
-	_, err := cache.SetResponse(testKeyA, testResponse)
+	_, err = cache.SetResponse(testKeyA, testResponse)
 	assert.NoError(t, err)
 
 	response, err := cache.Fetch(testKeyA)
@@ -123,9 +127,10 @@ func TestMaxEntries(t *testing.T) {
 
 func TestTTL_Enabled(t *testing.T) {
 	gomega.RegisterTestingT(t)
-	cache := NewCache(1, testOnEvict, time.Millisecond*10)
+	cache, err := NewCache(1, testOnEvict, time.Millisecond*10)
+	assert.NoError(t, err)
 
-	_, err := cache.SetResponse(testKeyA, testResponse)
+	_, err = cache.SetResponse(testKeyA, testResponse)
 	assert.NoError(t, err)
 
 	response, err := cache.Fetch(testKeyA)
@@ -139,9 +144,10 @@ func TestTTL_Enabled(t *testing.T) {
 
 func TestTTL_Disabled(t *testing.T) {
 	gomega.RegisterTestingT(t)
-	cache := NewCache(1, testOnEvict, 0)
+	cache, err := NewCache(1, testOnEvict, 0)
+	assert.NoError(t, err)
 
-	_, err := cache.SetResponse(testKeyA, testResponse)
+	_, err = cache.SetResponse(testKeyA, testResponse)
 	assert.NoError(t, err)
 
 	response, err := cache.Fetch(testKeyA)
@@ -151,4 +157,10 @@ func TestTTL_Disabled(t *testing.T) {
 	gomega.Consistently(func() (*v2.DiscoveryResponse, error) {
 		return cache.Fetch(testKeyA)
 	}).Should(gomega.Equal(&testResponse))
+}
+
+func TestTTL_Negative(t *testing.T) {
+	cache, err := NewCache(1, testOnEvict, -1)
+	assert.EqualError(t, err, "ttl must be nonnegative but was set to -1ns")
+	assert.Nil(t, cache)
 }
