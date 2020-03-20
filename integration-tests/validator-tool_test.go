@@ -6,9 +6,15 @@ import (
 	"os/exec"
 	"path"
 	"testing"
+
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/extensions/table"
+	. "github.com/onsi/gomega"
 )
 
-var binaryName = "configuration-validator"
+const (
+	binaryName = "configuration-validator"
+)
 
 func TestMain(m *testing.M) {
 	// TODO I could not find a more robust way of reaching the root of the repo
@@ -29,28 +35,44 @@ func TestMain(m *testing.M) {
 }
 
 func TestConfigurationValidatorTool(t *testing.T) {
-	tests := []struct {
-		name string
-		args []string
-	}{
-		{"valid file", []string{"-config", "t.yaml"}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			dir, err := os.Getwd()
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			cmd := exec.Command(path.Join(dir, "bin", binaryName), tt.args...)
-			fmt.Println(cmd)
-			output, err := cmd.CombinedOutput()
-			if err != nil {
-				t.Fatal(string(output))
-				t.Fatal(err)
-			}
-
-			fmt.Println(output)
-		})
-	}
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "configuration-validator integration tests suite")
 }
+
+var testCases = []TableEntry{
+	{
+		Description: "a positive test",
+		Parameters: []interface{}{
+			"./integration-tests/testdata/keyer_configuration_request_type_match_string_fragment.yaml",
+			false,
+			"",
+		},
+	},
+	{
+		Description: "a negative test",
+		Parameters: []interface{}{
+			"./integration-tests/testdata/keyer_configuration_missing_match_predicate.yaml",
+			true,
+			"invalid KeyerConfiguration.Fragments[0]: embedded message failed validation | caused by: " +
+				"invalid KeyerConfiguration_Fragment.Rules[0]: embedded message failed validation | caused " +
+				"by: invalid KeyerConfiguration_Fragment_Rule.Match: value is required",
+		},
+	},
+}
+
+var _ = Describe("Integration tests for the validator tool", func() {
+	DescribeTable("table driven integration tests for the validator tool", func(ymlFilename string, wantErr bool, errorMessage string) {
+		dir, err := os.Getwd()
+		Expect(err).To(BeNil())
+
+		cmd := exec.Command(path.Join(dir, "bin", binaryName), "-config", ymlFilename)
+		output, err := cmd.CombinedOutput()
+		if wantErr {
+			Expect(err).NotTo(BeNil())
+			// There is an extra newline in the output.
+			Expect(string(output)).Should(HaveSuffix(errorMessage + "\n"))
+		} else {
+			Expect(err).To(BeNil())
+		}
+	}, testCases...)
+})
