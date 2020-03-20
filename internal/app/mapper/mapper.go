@@ -55,7 +55,10 @@ func (mapper *mapper) GetKey(request v2.DiscoveryRequest) (string, error) {
 				return "", err
 			}
 			if isMatch {
-				result := getResult(fragmentRule)
+				result, err := getResult(fragmentRule, request.GetNode())
+				if err != nil {
+					return "", err
+				}
 				resultFragments = append(resultFragments, result)
 			}
 		}
@@ -121,7 +124,7 @@ func isNodeMatch(matchPredicate *matchPredicate, node *core.Node) (bool, error) 
 	case aggregationv1.NodeFieldType_NODE_LOCALITY_SUBZONE:
 		return compare(predicate, node.GetLocality().GetSubZone())
 	default:
-		return false, nil
+		return false, fmt.Errorf("RequestNodeMatch does not have a valid NodeFieldType")
 	}
 }
 
@@ -192,12 +195,70 @@ func isNotMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node)
 	return !isMatch, nil
 }
 
-func getResult(fragmentRule *rule) string {
-	stringFragment := fragmentRule.GetResult().GetStringFragment()
-	return stringFragment
+func getResult(fragmentRule *rule, node *core.Node) (string, error) {
+	found, result, err := getResultFromRequestNodeFragment(fragmentRule, node)
+	if err != nil {
+		return "", err
+	}
+	if found {
+		return result, nil
+	}
+
+	return fragmentRule.GetResult().GetStringFragment(), nil
+}
+
+func getResultFromRequestNodeFragment(fragmentRule *rule, node *core.Node) (bool, string, error) {
+	requestNodeFragment := fragmentRule.GetResult().GetRequestNodeFragment()
+	if requestNodeFragment == nil {
+		return false, "", nil
+	}
+
+	nodeField := requestNodeFragment.GetField()
+	var nodeValue string
+	switch nodeField {
+	case aggregationv1.NodeFieldType_NODE_CLUSTER:
+		nodeValue = node.GetCluster()
+	case aggregationv1.NodeFieldType_NODE_ID:
+		nodeValue = node.GetId()
+	case aggregationv1.NodeFieldType_NODE_LOCALITY_REGION:
+		nodeValue = node.GetLocality().GetRegion()
+	case aggregationv1.NodeFieldType_NODE_LOCALITY_ZONE:
+		nodeValue = node.GetLocality().GetZone()
+	case aggregationv1.NodeFieldType_NODE_LOCALITY_SUBZONE:
+		nodeValue = node.GetLocality().GetSubZone()
+	default:
+		return false, "", fmt.Errorf("RequestNodeFragment Invalid NodeFieldType")
+	}
+
+	action := requestNodeFragment.GetAction()
+	if action.GetExact() {
+		if nodeValue == "" {
+			return false, "", fmt.Errorf("RequestNodeFragment exact match resulted in an empty fragment")
+		}
+		return true, nodeValue, nil
+	}
+
+	regexAction := action.GetRegexAction()
+	pattern := regexAction.GetPattern()
+	replace := regexAction.GetReplace()
+
+	reg, err := regexp.Compile(pattern)
+	if err != nil {
+		return false, "", err
+	}
+
+	replacedFragment := reg.ReplaceAllString(nodeValue, replace)
+	if replacedFragment == "" {
+		return false, "", fmt.Errorf("RequestNodeFragment regex match resulted in an empty fragment")
+	}
+
+	return true, replacedFragment, nil
 }
 
 func compare(requestNodeMatch *aggregationv1.MatchPredicate_RequestNodeMatch, nodeValue string) (bool, error) {
+	if nodeValue == "" {
+		return false, fmt.Errorf("MatchPredicate Node field cannot be empty")
+	}
 	exactMatch := requestNodeMatch.GetExactMatch()
 	if exactMatch != "" {
 		return nodeValue == exactMatch, nil
