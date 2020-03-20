@@ -35,6 +35,9 @@ func TestMain(m *testing.M) {
 }
 
 func TestConfigurationValidatorTool(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping testing in short mode")
+	}
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "configuration-validator integration tests suite")
 }
