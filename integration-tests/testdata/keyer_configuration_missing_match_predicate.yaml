@@ -2,4 +2,3 @@ fragments:
   - rules:
     - result:
         string_fragment: "abc"
-

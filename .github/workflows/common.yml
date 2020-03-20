@@ -38,4 +38,3 @@ jobs:
       - name: Run configuration validator integration tests
         run: make integration-tests
         working-directory: ${{ env.PACKAGEPATH }}
-
