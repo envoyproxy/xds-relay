@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/envoyproxy/xds-relay/internal/pkg/util"
+	yamlproto "github.com/envoyproxy/xds-relay/internal/pkg/util"
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
 )
 

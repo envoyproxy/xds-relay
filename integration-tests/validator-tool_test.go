@@ -1,4 +1,4 @@
-package integration_tests
+package integrationtests
 
 import (
 	"fmt"
@@ -54,25 +54,28 @@ var testCases = []TableEntry{
 			"./integration-tests/testdata/keyer_configuration_missing_match_predicate.yaml",
 			true,
 			"invalid KeyerConfiguration.Fragments[0]: embedded message failed validation | caused by: " +
-				"invalid KeyerConfiguration_Fragment.Rules[0]: embedded message failed validation | caused " +
-				"by: invalid KeyerConfiguration_Fragment_Rule.Match: value is required",
+				"invalid KeyerConfiguration_Fragment.Rules[0]: embedded message failed " +
+				"validation | caused by: invalid KeyerConfiguration_Fragment_Rule.Match: value is " +
+				"required",
 		},
 	},
 }
 
 var _ = Describe("Integration tests for the validator tool", func() {
-	DescribeTable("table driven integration tests for the validator tool", func(ymlFilename string, wantErr bool, errorMessage string) {
-		dir, err := os.Getwd()
-		Expect(err).To(BeNil())
-
-		cmd := exec.Command(path.Join(dir, "bin", binaryName), "-config", ymlFilename)
-		output, err := cmd.CombinedOutput()
-		if wantErr {
-			Expect(err).NotTo(BeNil())
-			// There is an extra newline in the output.
-			Expect(string(output)).Should(HaveSuffix(errorMessage + "\n"))
-		} else {
+	DescribeTable("table driven integration tests for the validator tool",
+		func(ymlFilename string, wantErr bool, errorMessage string) {
+			dir, err := os.Getwd()
 			Expect(err).To(BeNil())
-		}
-	}, testCases...)
+
+			// #nosec G204
+			cmd := exec.Command(path.Join(dir, "bin", binaryName), "-config", ymlFilename)
+			output, err := cmd.CombinedOutput()
+			if wantErr {
+				Expect(err).NotTo(BeNil())
+				// There is an extra newline in the output.
+				Expect(string(output)).Should(HaveSuffix(errorMessage + "\n"))
+			} else {
+				Expect(err).To(BeNil())
+			}
+		}, testCases...)
 })
