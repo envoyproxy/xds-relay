@@ -1,5 +1,5 @@
-SERVICE_NAME := xds-relay
-GOREPO := ${GOPATH}/src/github.com/envoyproxy/xds-relay
+export SERVICE_NAME=xds-relay
+export GOREPO=${GOPATH}/src/github.com/envoyproxy/${SERVICE_NAME}
 
 .PHONY: setup
 setup:
