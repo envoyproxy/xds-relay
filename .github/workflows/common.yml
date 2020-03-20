@@ -35,3 +35,7 @@ jobs:
       - name: Run unit tests
         run: make unit
         working-directory: ${{ env.PACKAGEPATH }}
+      - name: Run configuration validator integration tests
+        run: make integration-tests
+        working-directory: ${{ env.PACKAGEPATH }}
+
