@@ -5,37 +5,38 @@ GOREPO := ${GOPATH}/src/github.com/envoyproxy/xds-relay
 setup:
 	mkdir -p ${GOREPO}/bin
 
-# Compiles the binary and installs it into /usr/local/bin
 .PHONY: compile
-compile: setup
+compile: setup  ## Compiles the binary and installs it into /usr/local/bin
 	go build -o ${GOREPO}/bin/${SERVICE_NAME} && \
 	  cp ${GOREPO}/bin/${SERVICE_NAME} /usr/local/bin/${SERVICE_NAME}
 
-# Installs dependencies
 .PHONY: install
-install:
+install: ## Installs dependencies
 	go mod vendor
 
-# Run all unit tests with coverage report
 .PHONY: unit
-unit:
+unit: ## Run all unit tests with coverage report
 	go test -v -cover ./...
 
 .PHONY: integration-tests
 integration-tests:  ## Run integration tests
 	go test -v ${GOREPO}/integration-tests/
 
-# Compile proto files
 .PHONY: compile-protos
-compile-protos:
+compile-protos: ## Compile proto files
 	./scripts/generate-api-protos.sh
 
 .PHONY: compile-validator-tool
-compile-validator-tool: setup  # Compiles validator tool
+compile-validator-tool: setup  ## Compiles configuration validator tool
 	cd ${GOREPO}/cmd/configuration-validator && \
 	  go build -o ${GOREPO}/bin/configuration-validator
 
-# Run golangci-lint
 .PHONY: lint
-lint:
+lint: ## Run golangci-lint
 	golangci-lint run
+
+# Absolutely awesome: http://marmelab.com/blog/2016/02/29/auto-documented-makefile.html
+help:
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+
+.DEFAULT_GOAL := compile
