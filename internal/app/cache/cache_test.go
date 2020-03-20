@@ -164,3 +164,29 @@ func TestTTL_Negative(t *testing.T) {
 	assert.EqualError(t, err, "ttl must be nonnegative but was set to -1ns")
 	assert.Nil(t, cache)
 }
+
+func TestIsExpired(t *testing.T) {
+	var resource resource
+
+	// The expiration time is 0, meaning TTL is disabled, so the resource is not considered expired.
+	resource.expirationTime = time.Time{}
+	assert.False(t, resource.isExpired(time.Now()))
+
+	resource.expirationTime = time.Now()
+	assert.False(t, resource.isExpired(time.Time{}))
+
+	resource.expirationTime = time.Now()
+	assert.True(t, resource.isExpired(resource.expirationTime.Add(1)))
+}
+
+func TestGetExpirationTime(t *testing.T) {
+	var c cache
+
+	c.ttl = 0
+	assert.Equal(t, time.Time{}, c.getExpirationTime(time.Now()))
+
+	c.ttl = time.Second
+	currentTime := time.Date(0, 0, 0, 0, 0, 1, 0, time.UTC)
+	expirationTime := time.Date(0, 0, 0, 0, 0, 2, 0, time.UTC)
+	assert.Equal(t, expirationTime, c.getExpirationTime(currentTime))
+}

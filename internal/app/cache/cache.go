@@ -66,7 +66,7 @@ func (c *cache) Fetch(key string) (*v2.DiscoveryResponse, error) {
 		return nil, fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
 	// Lazy eviction based on TTL occurs here. Fetch does not increase the lifespan of the key.
-	if resource.isExpired() {
+	if resource.isExpired(time.Now()) {
 		c.cache.Remove(key)
 		return nil, nil
 	}
@@ -80,7 +80,7 @@ func (c *cache) SetResponse(key string, resp v2.DiscoveryResponse) ([]*v2.Discov
 	if !found {
 		resource := resource{
 			resp:           &resp,
-			expirationTime: c.getExpirationTime(),
+			expirationTime: c.getExpirationTime(time.Now()),
 		}
 		c.cache.Add(key, resource)
 		return nil, nil
@@ -90,7 +90,7 @@ func (c *cache) SetResponse(key string, resp v2.DiscoveryResponse) ([]*v2.Discov
 		return nil, fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
 	resource.resp = &resp
-	resource.expirationTime = c.getExpirationTime()
+	resource.expirationTime = c.getExpirationTime(time.Now())
 	c.cache.Add(key, resource)
 	// TODO: Add logic that allows for notifying of watches.
 	return resource.requests, nil
@@ -105,7 +105,7 @@ func (c *cache) AddRequest(key string, req v2.DiscoveryRequest) (bool, error) {
 		resource := resource{
 			requests:       []*v2.DiscoveryRequest{&req},
 			streamOpen:     true,
-			expirationTime: c.getExpirationTime(),
+			expirationTime: c.getExpirationTime(time.Now()),
 		}
 		c.cache.Add(key, resource)
 		return true, nil
@@ -115,23 +115,23 @@ func (c *cache) AddRequest(key string, req v2.DiscoveryRequest) (bool, error) {
 		return false, fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
 	resource.requests = append(resource.requests, &req)
-	resource.expirationTime = c.getExpirationTime()
+	resource.expirationTime = c.getExpirationTime(time.Now())
 	// TODO: Add logic to guarantee that a stream has been opened.
 	resource.streamOpen = true
 	c.cache.Add(key, resource)
 	return true, nil
 }
 
-func (r *resource) isExpired() bool {
+func (r *resource) isExpired(currentTime time.Time) bool {
 	if r.expirationTime.IsZero() {
 		return false
 	}
-	return r.expirationTime.Before(time.Now())
+	return r.expirationTime.Before(currentTime)
 }
 
-func (c *cache) getExpirationTime() time.Time {
+func (c *cache) getExpirationTime(currentTime time.Time) time.Time {
 	if c.ttl > 0 {
-		return time.Now().Add(c.ttl)
+		return currentTime.Add(c.ttl)
 	}
 	return time.Time{}
 }
