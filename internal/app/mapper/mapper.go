@@ -206,7 +206,7 @@ func getResult(fragmentRule *rule, node *core.Node) (string, error) {
 		return result, nil
 	}
 
-	found, result, err = getAndResultFragment(fragmentRule, node)
+	found, result, err = getResultFromAndResultFragmentRule(fragmentRule, node)
 	if err != nil {
 		return "", err
 	}
@@ -226,7 +226,7 @@ func getResultFromRequestNodeFragmentRule(fragmentRule *rule, node *core.Node) (
 	return getResultFromRequestNodePredicate(fragmentRule.GetResult(), node)
 }
 
-func getAndResultFragment(fragmentRule *rule, node *core.Node) (bool, string, error) {
+func getResultFromAndResultFragmentRule(fragmentRule *rule, node *core.Node) (bool, string, error) {
 	resultPredicate := fragmentRule.GetResult()
 	if resultPredicate == nil {
 		return false, "", nil
