@@ -282,27 +282,6 @@ func getResultFromAndResultPredicate(resultPredicate *resultPredicate, node *cor
 	return true, resultfragments, nil
 }
 
-func compare(requestNodeMatch *aggregationv1.MatchPredicate_RequestNodeMatch, nodeValue string) (bool, error) {
-	if nodeValue == "" {
-		return false, fmt.Errorf("MatchPredicate Node field cannot be empty")
-	}
-	exactMatch := requestNodeMatch.GetExactMatch()
-	if exactMatch != "" {
-		return nodeValue == exactMatch, nil
-	}
-
-	regexMatch := requestNodeMatch.GetRegexMatch()
-	if regexMatch != "" {
-		match, err := regexp.MatchString(regexMatch, nodeValue)
-		if err != nil {
-			return false, err
-		}
-		return match, nil
-	}
-
-	return false, nil
-}
-
 func getNodeValue(requestNodeFragment *resultPredicateRequestNodeFragment, node *core.Node) (string, error) {
 	nodeField := requestNodeFragment.GetField()
 	var nodeValue string
@@ -354,4 +333,25 @@ func getResultFragmentFromAction(
 	}
 
 	return replacedFragment, nil
+}
+
+func compare(requestNodeMatch *aggregationv1.MatchPredicate_RequestNodeMatch, nodeValue string) (bool, error) {
+	if nodeValue == "" {
+		return false, fmt.Errorf("MatchPredicate Node field cannot be empty")
+	}
+	exactMatch := requestNodeMatch.GetExactMatch()
+	if exactMatch != "" {
+		return nodeValue == exactMatch, nil
+	}
+
+	regexMatch := requestNodeMatch.GetRegexMatch()
+	if regexMatch != "" {
+		match, err := regexp.MatchString(regexMatch, nodeValue)
+		if err != nil {
+			return false, err
+		}
+		return match, nil
+	}
+
+	return false, nil
 }
