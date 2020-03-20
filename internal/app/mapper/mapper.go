@@ -198,7 +198,7 @@ func isNotMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node)
 }
 
 func getResult(fragmentRule *rule, node *core.Node) (string, error) {
-	found, result, err := getResultFromRequestNodeFragment(fragmentRule, node)
+	found, result, err := getResultFromRequestNodeFragmentRule(fragmentRule, node)
 	if err != nil {
 		return "", err
 	}
@@ -217,55 +217,35 @@ func getResult(fragmentRule *rule, node *core.Node) (string, error) {
 	return fragmentRule.GetResult().GetStringFragment(), nil
 }
 
-func getNodeValue(requestNodeFragment *resultPredicateRequestNodeFragment, node *core.Node) (string, error) {
-	nodeField := requestNodeFragment.GetField()
-	var nodeValue string
-	switch nodeField {
-	case aggregationv1.NodeFieldType_NODE_CLUSTER:
-		nodeValue = node.GetCluster()
-	case aggregationv1.NodeFieldType_NODE_ID:
-		nodeValue = node.GetId()
-	case aggregationv1.NodeFieldType_NODE_LOCALITY_REGION:
-		nodeValue = node.GetLocality().GetRegion()
-	case aggregationv1.NodeFieldType_NODE_LOCALITY_ZONE:
-		nodeValue = node.GetLocality().GetZone()
-	case aggregationv1.NodeFieldType_NODE_LOCALITY_SUBZONE:
-		nodeValue = node.GetLocality().GetSubZone()
-	default:
-		return "", fmt.Errorf("RequestNodeFragment Invalid NodeFieldType")
+func getResultFromRequestNodeFragmentRule(fragmentRule *rule, node *core.Node) (bool, string, error) {
+	resultPredicate := fragmentRule.GetResult()
+	if resultPredicate == nil {
+		return false, "", nil
 	}
 
-	return nodeValue, nil
+	return getResultFromRequestNodePredicate(fragmentRule.GetResult(), node)
 }
 
-func getResultFragment(requestNodeFragment *resultPredicateRequestNodeFragment, node *core.Node) (string, error) {
-	nodeValue, err := getNodeValue(requestNodeFragment, node)
+func getAndResultFragment(fragmentRule *rule, node *core.Node) (bool, string, error) {
+	resultPredicate := fragmentRule.GetResult()
+	if resultPredicate == nil {
+		return false, "", nil
+	}
+	return getAndResultPredicate(resultPredicate, node)
+}
+
+func getResultFromRequestNodePredicate(predicate *resultPredicate, node *core.Node) (bool, string, error) {
+	requestNodeFragment := predicate.GetRequestNodeFragment()
+	if requestNodeFragment == nil {
+		return false, "", nil
+	}
+
+	resultFragment, err := getResultFragmentFromAction(requestNodeFragment, node)
 	if err != nil {
-		return "", err
-	}
-	action := requestNodeFragment.GetAction()
-	if action.GetExact() {
-		if nodeValue == "" {
-			return "", fmt.Errorf("RequestNodeFragment exact match resulted in an empty fragment")
-		}
-		return nodeValue, nil
+		return false, "", err
 	}
 
-	regexAction := action.GetRegexAction()
-	pattern := regexAction.GetPattern()
-	replace := regexAction.GetReplace()
-
-	reg, err := regexp.Compile(pattern)
-	if err != nil {
-		return "", err
-	}
-
-	replacedFragment := reg.ReplaceAllString(nodeValue, replace)
-	if replacedFragment == "" {
-		return "", fmt.Errorf("RequestNodeFragment regex match resulted in an empty fragment")
-	}
-
-	return replacedFragment, nil
+	return true, resultFragment, nil
 }
 
 func getAndResultPredicate(resultPredicate *resultPredicate, node *core.Node) (bool, string, error) {
@@ -302,37 +282,6 @@ func getAndResultPredicate(resultPredicate *resultPredicate, node *core.Node) (b
 	return true, resultfragments, nil
 }
 
-func getAndResultFragment(fragmentRule *rule, node *core.Node) (bool, string, error) {
-	resultPredicate := fragmentRule.GetResult()
-	if resultPredicate == nil {
-		return false, "", nil
-	}
-	return getAndResultPredicate(resultPredicate, node)
-}
-
-func getResultFromRequestNodeFragment(fragmentRule *rule, node *core.Node) (bool, string, error) {
-	resultPredicate := fragmentRule.GetResult()
-	if resultPredicate == nil {
-		return false, "", nil
-	}
-
-	return getResultFromRequestNodePredicate(fragmentRule.GetResult(), node)
-}
-
-func getResultFromRequestNodePredicate(predicate *resultPredicate, node *core.Node) (bool, string, error) {
-	requestNodeFragment := predicate.GetRequestNodeFragment()
-	if requestNodeFragment == nil {
-		return false, "", nil
-	}
-
-	resultFragment, err := getResultFragment(requestNodeFragment, node)
-	if err != nil {
-		return false, "", err
-	}
-
-	return true, resultFragment, nil
-}
-
 func compare(requestNodeMatch *aggregationv1.MatchPredicate_RequestNodeMatch, nodeValue string) (bool, error) {
 	if nodeValue == "" {
 		return false, fmt.Errorf("MatchPredicate Node field cannot be empty")
@@ -352,4 +301,57 @@ func compare(requestNodeMatch *aggregationv1.MatchPredicate_RequestNodeMatch, no
 	}
 
 	return false, nil
+}
+
+func getNodeValue(requestNodeFragment *resultPredicateRequestNodeFragment, node *core.Node) (string, error) {
+	nodeField := requestNodeFragment.GetField()
+	var nodeValue string
+	switch nodeField {
+	case aggregationv1.NodeFieldType_NODE_CLUSTER:
+		nodeValue = node.GetCluster()
+	case aggregationv1.NodeFieldType_NODE_ID:
+		nodeValue = node.GetId()
+	case aggregationv1.NodeFieldType_NODE_LOCALITY_REGION:
+		nodeValue = node.GetLocality().GetRegion()
+	case aggregationv1.NodeFieldType_NODE_LOCALITY_ZONE:
+		nodeValue = node.GetLocality().GetZone()
+	case aggregationv1.NodeFieldType_NODE_LOCALITY_SUBZONE:
+		nodeValue = node.GetLocality().GetSubZone()
+	default:
+		return "", fmt.Errorf("RequestNodeFragment Invalid NodeFieldType")
+	}
+
+	return nodeValue, nil
+}
+
+func getResultFragmentFromAction(
+	requestNodeFragment *resultPredicateRequestNodeFragment,
+	node *core.Node) (string, error) {
+	nodeValue, err := getNodeValue(requestNodeFragment, node)
+	if err != nil {
+		return "", err
+	}
+	action := requestNodeFragment.GetAction()
+	if action.GetExact() {
+		if nodeValue == "" {
+			return "", fmt.Errorf("RequestNodeFragment exact match resulted in an empty fragment")
+		}
+		return nodeValue, nil
+	}
+
+	regexAction := action.GetRegexAction()
+	pattern := regexAction.GetPattern()
+	replace := regexAction.GetReplace()
+
+	reg, err := regexp.Compile(pattern)
+	if err != nil {
+		return "", err
+	}
+
+	replacedFragment := reg.ReplaceAllString(nodeValue, replace)
+	if replacedFragment == "" {
+		return "", fmt.Errorf("RequestNodeFragment regex match resulted in an empty fragment")
+	}
+
+	return replacedFragment, nil
 }
