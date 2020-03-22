@@ -3,7 +3,7 @@ export SERVICE_NAME=xds-relay
 .PHONY: compile
 compile: ## Compiles the binary and installs it into /usr/local/bin
 	mkdir -p ./bin && \
-	  go build -o ./bin/ && \
+	  go build -o ./bin/${SERVICE_NAME} && \
 	  cp ./bin/${SERVICE_NAME} /usr/local/bin/${SERVICE_NAME}
 
 .PHONY: install
