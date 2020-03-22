@@ -29,7 +29,7 @@ compile-protos: ## Compile proto files
 
 .PHONY: compile-validator-tool
 compile-validator-tool: setup  ## Compiles configuration validator tool
-	go build -o ./bin/configuration-validator $(go list ./tools/configuration-validator)
+	go build -o ./bin/configuration-validator $$(go list ./tools/configuration-validator)
 
 .PHONY: lint
 lint: ## Run golangci-lint
