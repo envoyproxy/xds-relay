@@ -2,105 +2,123 @@
 package log
 
 import (
-	"io"
-	"os"
+	"context"
 
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
+	"github.com/envoyproxy/xds-relay/internal/pkg/log/zap"
+
+	z "go.uber.org/zap"
 )
 
-// Options contains all possible log settings.
-type Options struct {
-	// Level configures the log verbosity. Defaults to Debug.
-	Level *zap.AtomicLevel
-	// StacktraceLevel is the level which stacktraces will be emitted. Defaults
-	// to Warn.
-	StacktraceLevel *zap.AtomicLevel
-	// Encoder configures how Zap will encode the output. Defaults to JSON.
-	Encoder zapcore.Encoder
-	// OutputDest controls the destination of the log output. Defaults to
-	// os.Stderr.
-	OutputDest io.Writer
-	// ZapOptions allows passing additional optional zap.Options, ex: Sampling.
-	ZapOptions []zap.Option
+// Logger is the contract for xds-relay's logging implementation.
+//
+// A self-contained usage example looks as follows:
+//
+//    Log.Named("foo-component").With(
+//        "field1", "value1",
+//        "field2", "value2",
+//     ).Error("my error message")
+type Logger interface {
+	// Named adds a sub-scope to the logger.
+	Named(name string) Logger
+
+	// With adds a variadic number of fields to the logging context.
+	// When processing pairs, the first element of the pair is used as the
+	// field key and the second as the field value.
+	//
+	// For example,
+	//
+	//   Log.With(
+	//     "hello", "world",
+	//     "failure", errors.New("oh no"),
+	//     "count", 42,
+	//     "user", User{Name: "alice"},
+	//  ).Info("this is an error message")
+	With(args ...interface{}) Logger
+
+	// Log a message at level Debug, annotated with fields provided through With().
+	Debug(ctx context.Context, msg ...interface{})
+
+	// Log a message at level Info, annotated with fields provided through With().
+	Info(ctx context.Context, msg ...interface{})
+
+	// Log a message at level Warn, annotated with fields provided through With().
+	Warn(ctx context.Context, msg ...interface{})
+
+	// Log a message at level Error, annotated with fields provided through With().
+	Error(ctx context.Context, msg ...interface{})
+
+	// Log a message at level Panic, annotated with fields provided through With(), and immediately
+	// panic.
+	Panic(ctx context.Context, msg ...interface{})
+
+	// Log a message at level Fatal, annotated with fields provided through With(), and immediately
+	// call os.Exit.
+	Fatal(ctx context.Context, msg ...interface{})
+
+	// Sync flushes any buffered log entries.
+	Sync() error
 }
 
-// Opts allows manipulation of the Zap options.
-type Opts func(*Options)
-
-// addDefaults adds defaults to the Options
-func (o *Options) addDefaults() {
-	if o.OutputDest == nil {
-		o.OutputDest = os.Stderr
-	}
-	if o.Encoder == nil {
-		encCfg := zap.NewProductionEncoderConfig()
-		o.Encoder = zapcore.NewJSONEncoder(encCfg)
-	}
-	if o.Level == nil {
-		level := zap.NewAtomicLevelAt(zap.DebugLevel)
-		o.Level = &level
-	}
-	if o.StacktraceLevel == nil {
-		level := zap.NewAtomicLevelAt(zap.WarnLevel)
-		o.StacktraceLevel = &level
-	}
-
-	o.ZapOptions = append(o.ZapOptions, zap.AddStacktrace(o.StacktraceLevel))
+type logger struct {
+	zap *z.SugaredLogger
 }
 
-// New returns a new zap.Logger configured with the passed Options or their
-// defaults.
-func New(opts ...Opts) *zap.Logger {
-	o := &Options{}
-	for _, opt := range opts {
-		opt(o)
+// New returns an instance of Logger implemented using the Zap logging framework.
+func New(logLevel string) Logger {
+	zLevel, parseLogLevelErr := zap.ParseLogLevel(logLevel)
+
+	log := zap.New(
+		zap.Level(&zLevel),
+		// CallerSkip skips 1 number of callers, otherwise the file that gets
+		// logged will always be the wrapped file. In this case, log.go.
+		zap.AddCallerSkip(1),
+	)
+
+	if parseLogLevelErr != nil {
+		// Log an invalid log level error and set the default level to info.
+		log.Error("cannot set logger to desired log level")
 	}
-	o.addDefaults()
-
-	sink := zapcore.AddSync(o.OutputDest)
-
-	o.ZapOptions = append(o.ZapOptions, zap.AddCallerSkip(1), zap.ErrorOutput(sink))
-	log := zap.New(zapcore.NewCore(o.Encoder, sink, *o.Level))
-	log = log.WithOptions(o.ZapOptions...)
-	return log
+	return &logger{zap: log.Sugar()}
 }
 
-// WriteTo configures the logger to write to the given io.Writer, instead of
-// stderr. See Options.OutputDest.
-func WriteTo(out io.Writer) Opts {
-	return func(o *Options) {
-		o.OutputDest = out
-	}
+func (l *logger) Named(name string) Logger {
+	l.zap = l.zap.Named(name)
+	return l
 }
 
-// Encoder configures how the logger will encode the output e.g console, JSON.
-// See Options.Encoder.
-func Encoder(encoder zapcore.Encoder) func(o *Options) {
-	return func(o *Options) {
-		o.Encoder = encoder
-	}
+func (l *logger) With(args ...interface{}) Logger {
+	l.zap = l.zap.With(args...)
+	return l
 }
 
-// Level sets the the minimum enabled logging level e.g Debug, Info, Warn,
-// Error. See Options.Level.
-func Level(level *zap.AtomicLevel) func(o *Options) {
-	return func(o *Options) {
-		o.Level = level
-	}
+func (l *logger) WithContext(ctx context.Context) *logger {
+	// We can add origin xDS request context here later.
+	// For now, just return the logger.
+	return l
 }
 
-// StacktraceLevel configures the logger to record a stack trace for all messages at
-// or above the given level. See Options.StacktraceLevel.
-func StacktraceLevel(stacktraceLevel *zap.AtomicLevel) func(o *Options) {
-	return func(o *Options) {
-		o.StacktraceLevel = stacktraceLevel
-	}
+func (l *logger) Sync() error { return l.zap.Sync() }
+
+func (l *logger) Debug(ctx context.Context, args ...interface{}) {
+	l.WithContext(ctx).zap.Debug(args...)
 }
 
-// ZapOptions allows appending additional zap.Options. See Options.ZapOptions.
-func ZapOptions(options ...zap.Option) func(o *Options) {
-	return func(o *Options) {
-		o.ZapOptions = append(o.ZapOptions, options...)
-	}
+func (l *logger) Info(ctx context.Context, args ...interface{}) {
+	l.WithContext(ctx).zap.Info(args...)
+}
+
+func (l *logger) Warn(ctx context.Context, args ...interface{}) {
+	l.WithContext(ctx).zap.Warn(args...)
+}
+
+func (l *logger) Error(ctx context.Context, args ...interface{}) {
+	l.WithContext(ctx).zap.Error(args...)
+}
+
+func (l *logger) Fatal(ctx context.Context, args ...interface{}) {
+	l.WithContext(ctx).zap.Fatal(args...)
+}
+
+func (l *logger) Panic(ctx context.Context, args ...interface{}) {
+	l.WithContext(ctx).zap.Panic(args...)
 }
