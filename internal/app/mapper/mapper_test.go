@@ -423,6 +423,24 @@ var positiveTests = []TableEntry{
 			"zone",
 		},
 	},
+	{
+		Description: "AnyMatch With result concatenation",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getRepeatedResultPredicate1(),
+			clusterTypeURL,
+			nodeid + nodecluster,
+		},
+	},
+	{
+		Description: "AnyMatch With regex action2",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getRepeatedResultPredicate2(),
+			clusterTypeURL,
+			"str" + noderegion + nodezone + "nTid" + nodecluster,
+		},
+	},
 }
 
 var multiFragmentPositiveTests = []TableEntry{
@@ -1284,6 +1302,47 @@ func getResultStringFragment() *ResultPredicate {
 	return &ResultPredicate{
 		Type: &aggregationv1.ResultPredicate_StringFragment{
 			StringFragment: stringFragment,
+		},
+	}
+}
+
+func getRepeatedResultPredicate1() *ResultPredicate {
+	return &ResultPredicate{
+		Type: &aggregationv1.ResultPredicate_AndResult_{
+			AndResult: &aggregationv1.ResultPredicate_AndResult{
+				ResultPredicates: []*aggregationv1.ResultPredicate{
+					getResultRequestNodeFragment(nodeIDField, getExactAction()),
+					getResultRequestNodeFragment(nodeClusterField, getExactAction()),
+				},
+			},
+		},
+	}
+}
+
+func getRepeatedResultPredicate2() *ResultPredicate {
+	return &ResultPredicate{
+		Type: &aggregationv1.ResultPredicate_AndResult_{
+			AndResult: &aggregationv1.ResultPredicate_AndResult{
+				ResultPredicates: []*aggregationv1.ResultPredicate{
+					{
+						Type: &aggregationv1.ResultPredicate_AndResult_{
+							AndResult: &aggregationv1.ResultPredicate_AndResult{
+								ResultPredicates: []*aggregationv1.ResultPredicate{
+									{
+										Type: &aggregationv1.ResultPredicate_StringFragment{
+											StringFragment: "str",
+										},
+									},
+									getResultRequestNodeFragment(nodeRegionField, getExactAction()),
+									getResultRequestNodeFragment(nodeZoneField, getExactAction()),
+								},
+							},
+						},
+					},
+					getResultRequestNodeFragment(nodeIDField, getRegexAction("ode", "T")),
+					getResultRequestNodeFragment(nodeClusterField, getExactAction()),
+				},
+			},
 		},
 	}
 }
