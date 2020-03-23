@@ -24,6 +24,9 @@ jobs:
         uses: actions/setup-go@v2-beta
         with:
           go-version: ${{ matrix.go-version }}
+      - name: Build configuration validator tool
+        run: make compile-validator-tool
+        working-directory: ${{ env.PACKAGEPATH }}
       - name: Run configuration validator integration tests
         run: make integration-tests
         working-directory: ${{ env.PACKAGEPATH }}

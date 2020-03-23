@@ -24,13 +24,6 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	make := exec.Command("make", "compile-validator-tool")
-	err = make.Run()
-	if err != nil {
-		fmt.Printf("could not make binary for %s: %v", binaryName, err)
-		os.Exit(1)
-	}
-
 	os.Exit(m.Run())
 }
 
