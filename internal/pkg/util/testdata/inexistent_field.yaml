@@ -1,0 +1,9 @@
+fragments:
+  - inexistent_field_in_fragment: 42
+  - rules:
+      - match:
+          request_type_match:
+            types:
+              - type.googleapis.com/envoy.api.v2.Listener
+        result:
+          string_fragment: "abc"

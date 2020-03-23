@@ -279,12 +279,12 @@ func (m *ResultPredicate) Validate() error {
 
 	switch m.Type.(type) {
 
-	case *ResultPredicate_ResultPredicate:
+	case *ResultPredicate_AndResult_:
 
-		if v, ok := interface{}(m.GetResultPredicate()).(interface{ Validate() error }); ok {
+		if v, ok := interface{}(m.GetAndResult()).(interface{ Validate() error }); ok {
 			if err := v.Validate(); err != nil {
 				return ResultPredicateValidationError{
-					field:  "ResultPredicate",
+					field:  "AndResult",
 					reason: "embedded message failed validation",
 					cause:  err,
 				}
@@ -929,6 +929,95 @@ var _ interface {
 	ErrorName() string
 } = ResultPredicate_ResultActionValidationError{}
 
+// Validate checks the field values on ResultPredicate_AndResult with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, an error is returned.
+func (m *ResultPredicate_AndResult) Validate() error {
+	if m == nil {
+		return nil
+	}
+
+	if len(m.GetResultPredicates()) < 2 {
+		return ResultPredicate_AndResultValidationError{
+			field:  "ResultPredicates",
+			reason: "value must contain at least 2 item(s)",
+		}
+	}
+
+	for idx, item := range m.GetResultPredicates() {
+		_, _ = idx, item
+
+		if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return ResultPredicate_AndResultValidationError{
+					field:  fmt.Sprintf("ResultPredicates[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	return nil
+}
+
+// ResultPredicate_AndResultValidationError is the validation error returned by
+// ResultPredicate_AndResult.Validate if the designated constraints aren't met.
+type ResultPredicate_AndResultValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e ResultPredicate_AndResultValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e ResultPredicate_AndResultValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e ResultPredicate_AndResultValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e ResultPredicate_AndResultValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e ResultPredicate_AndResultValidationError) ErrorName() string {
+	return "ResultPredicate_AndResultValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e ResultPredicate_AndResultValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sResultPredicate_AndResult.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = ResultPredicate_AndResultValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = ResultPredicate_AndResultValidationError{}
+
 // Validate checks the field values on ResultPredicate_RequestNodeFragment with
 // the rules defined in the proto definition for this message. If any rules
 // are violated, an error is returned.
@@ -1119,96 +1208,6 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = ResultPredicate_ResourceNamesFragmentValidationError{}
-
-// Validate checks the field values on ResultPredicate_RepeatedResultPredicate
-// with the rules defined in the proto definition for this message. If any
-// rules are violated, an error is returned.
-func (m *ResultPredicate_RepeatedResultPredicate) Validate() error {
-	if m == nil {
-		return nil
-	}
-
-	if len(m.GetAndResult()) < 2 {
-		return ResultPredicate_RepeatedResultPredicateValidationError{
-			field:  "AndResult",
-			reason: "value must contain at least 2 item(s)",
-		}
-	}
-
-	for idx, item := range m.GetAndResult() {
-		_, _ = idx, item
-
-		if v, ok := interface{}(item).(interface{ Validate() error }); ok {
-			if err := v.Validate(); err != nil {
-				return ResultPredicate_RepeatedResultPredicateValidationError{
-					field:  fmt.Sprintf("AndResult[%v]", idx),
-					reason: "embedded message failed validation",
-					cause:  err,
-				}
-			}
-		}
-
-	}
-
-	return nil
-}
-
-// ResultPredicate_RepeatedResultPredicateValidationError is the validation
-// error returned by ResultPredicate_RepeatedResultPredicate.Validate if the
-// designated constraints aren't met.
-type ResultPredicate_RepeatedResultPredicateValidationError struct {
-	field  string
-	reason string
-	cause  error
-	key    bool
-}
-
-// Field function returns field value.
-func (e ResultPredicate_RepeatedResultPredicateValidationError) Field() string { return e.field }
-
-// Reason function returns reason value.
-func (e ResultPredicate_RepeatedResultPredicateValidationError) Reason() string { return e.reason }
-
-// Cause function returns cause value.
-func (e ResultPredicate_RepeatedResultPredicateValidationError) Cause() error { return e.cause }
-
-// Key function returns key value.
-func (e ResultPredicate_RepeatedResultPredicateValidationError) Key() bool { return e.key }
-
-// ErrorName returns error name.
-func (e ResultPredicate_RepeatedResultPredicateValidationError) ErrorName() string {
-	return "ResultPredicate_RepeatedResultPredicateValidationError"
-}
-
-// Error satisfies the builtin error interface
-func (e ResultPredicate_RepeatedResultPredicateValidationError) Error() string {
-	cause := ""
-	if e.cause != nil {
-		cause = fmt.Sprintf(" | caused by: %v", e.cause)
-	}
-
-	key := ""
-	if e.key {
-		key = "key for "
-	}
-
-	return fmt.Sprintf(
-		"invalid %sResultPredicate_RepeatedResultPredicate.%s: %s%s",
-		key,
-		e.field,
-		e.reason,
-		cause)
-}
-
-var _ error = ResultPredicate_RepeatedResultPredicateValidationError{}
-
-var _ interface {
-	Field() string
-	Reason() string
-	Key() bool
-	Cause() error
-	ErrorName() string
-} = ResultPredicate_RepeatedResultPredicateValidationError{}
 
 // Validate checks the field values on ResultPredicate_ResultAction_RegexAction
 // with the rules defined in the proto definition for this message. If any

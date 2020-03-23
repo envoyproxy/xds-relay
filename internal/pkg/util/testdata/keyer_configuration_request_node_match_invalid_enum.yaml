@@ -1,0 +1,8 @@
+fragments:
+  - rules:
+    - match:
+        request_node_match:
+          field: 42
+          exact_match: "the answer to life, universe and everything"
+      result:
+        string_fragment: "abc"

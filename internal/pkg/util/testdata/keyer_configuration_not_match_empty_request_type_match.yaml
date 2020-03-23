@@ -1,0 +1,8 @@
+fragments:
+  - rules:
+    - match:
+        not_match:
+          request_type_match:
+            types: []
+      result:
+        string_fragment: "abc"

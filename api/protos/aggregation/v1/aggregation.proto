@@ -134,6 +134,10 @@ message ResultPredicate {
     }
   }
 
+  message AndResult {
+    repeated ResultPredicate result_predicates = 1 [(validate.rules).repeated.min_items = 2];
+  }
+
   // Rules for generating the resulting fragment from a Envoy request node.
   // [#next-free-field: 3]
   message RequestNodeFragment {
@@ -161,7 +165,7 @@ message ResultPredicate {
 
     // A set that describes a logical AND. The result is a non-separated
     // append operation between two or more fragments.
-    RepeatedResultPredicate result_predicate = 1 ;
+    AndResult and_result = 1 ;
 
     // A fragment generated from an Envoy request node.
     RequestNodeFragment request_node_fragment = 2;
@@ -171,9 +175,5 @@ message ResultPredicate {
 
     // A simple string fragment
     string string_fragment = 4;
-  }
-
-  message RepeatedResultPredicate {
-    repeated ResultPredicate and_result = 1 [(validate.rules).repeated.min_items = 2];
   }
 }

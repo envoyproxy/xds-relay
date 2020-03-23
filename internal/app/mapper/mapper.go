@@ -25,7 +25,7 @@ type Mapper interface {
 }
 
 type mapper struct {
-	config aggregationv1.KeyerConfiguration
+	config *aggregationv1.KeyerConfiguration
 }
 
 const (
@@ -33,7 +33,7 @@ const (
 )
 
 // NewMapper constructs a concrete implementation for the Mapper interface
-func NewMapper(config aggregationv1.KeyerConfiguration) Mapper {
+func NewMapper(config *aggregationv1.KeyerConfiguration) Mapper {
 	return &mapper{
 		config: config,
 	}
@@ -55,7 +55,10 @@ func (mapper *mapper) GetKey(request v2.DiscoveryRequest) (string, error) {
 				return "", err
 			}
 			if isMatch {
-				result := getResult(fragmentRule)
+				result, err := getResult(fragmentRule, request.GetNode())
+				if err != nil {
+					return "", err
+				}
 				resultFragments = append(resultFragments, result)
 			}
 		}
@@ -73,8 +76,35 @@ func isMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (b
 	if err != nil {
 		return false, err
 	}
+	if isNodeMatch {
+		return true, nil
+	}
 
-	return isNodeMatch || isRequestTypeMatch(matchPredicate, typeURL) || isAnyMatch(matchPredicate), nil
+	isAndMatch, err := isAndMatch(matchPredicate, typeURL, node)
+	if err != nil {
+		return false, err
+	}
+	if isAndMatch {
+		return true, nil
+	}
+
+	isOrMatch, err := isOrMatch(matchPredicate, typeURL, node)
+	if err != nil {
+		return false, err
+	}
+	if isOrMatch {
+		return true, nil
+	}
+
+	isNotMatch, err := isNotMatch(matchPredicate, typeURL, node)
+	if err != nil {
+		return false, err
+	}
+	if isNotMatch {
+		return true, nil
+	}
+
+	return isRequestTypeMatch(matchPredicate, typeURL) || isAnyMatch(matchPredicate), nil
 }
 
 func isNodeMatch(matchPredicate *matchPredicate, node *core.Node) (bool, error) {
@@ -94,7 +124,7 @@ func isNodeMatch(matchPredicate *matchPredicate, node *core.Node) (bool, error) 
 	case aggregationv1.NodeFieldType_NODE_LOCALITY_SUBZONE:
 		return compare(predicate, node.GetLocality().GetSubZone())
 	default:
-		return false, nil
+		return false, fmt.Errorf("RequestNodeMatch does not have a valid NodeFieldType")
 	}
 }
 
@@ -116,12 +146,119 @@ func isAnyMatch(matchPredicate *matchPredicate) bool {
 	return matchPredicate.GetAnyMatch()
 }
 
-func getResult(fragmentRule *rule) string {
-	stringFragment := fragmentRule.GetResult().GetStringFragment()
-	return stringFragment
+func isAndMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (bool, error) {
+	matchset := matchPredicate.GetAndMatch()
+	if matchset == nil {
+		return false, nil
+	}
+
+	for _, rule := range matchset.GetRules() {
+		isMatch, err := isMatch(rule, typeURL, node)
+		if err != nil {
+			return false, err
+		}
+		if !isMatch {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+func isOrMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (bool, error) {
+	matchset := matchPredicate.GetOrMatch()
+	if matchset == nil {
+		return false, nil
+	}
+
+	for _, rule := range matchset.GetRules() {
+		isMatch, err := isMatch(rule, typeURL, node)
+		if err != nil {
+			return false, err
+		}
+		if isMatch {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func isNotMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (bool, error) {
+	predicate := matchPredicate.GetNotMatch()
+	if predicate == nil {
+		return false, nil
+	}
+
+	isMatch, err := isMatch(predicate, typeURL, node)
+	if err != nil {
+		return false, err
+	}
+	return !isMatch, nil
+}
+
+func getResult(fragmentRule *rule, node *core.Node) (string, error) {
+	found, result, err := getResultFromRequestNodeFragment(fragmentRule, node)
+	if err != nil {
+		return "", err
+	}
+	if found {
+		return result, nil
+	}
+
+	return fragmentRule.GetResult().GetStringFragment(), nil
+}
+
+func getResultFromRequestNodeFragment(fragmentRule *rule, node *core.Node) (bool, string, error) {
+	requestNodeFragment := fragmentRule.GetResult().GetRequestNodeFragment()
+	if requestNodeFragment == nil {
+		return false, "", nil
+	}
+
+	nodeField := requestNodeFragment.GetField()
+	var nodeValue string
+	switch nodeField {
+	case aggregationv1.NodeFieldType_NODE_CLUSTER:
+		nodeValue = node.GetCluster()
+	case aggregationv1.NodeFieldType_NODE_ID:
+		nodeValue = node.GetId()
+	case aggregationv1.NodeFieldType_NODE_LOCALITY_REGION:
+		nodeValue = node.GetLocality().GetRegion()
+	case aggregationv1.NodeFieldType_NODE_LOCALITY_ZONE:
+		nodeValue = node.GetLocality().GetZone()
+	case aggregationv1.NodeFieldType_NODE_LOCALITY_SUBZONE:
+		nodeValue = node.GetLocality().GetSubZone()
+	default:
+		return false, "", fmt.Errorf("RequestNodeFragment Invalid NodeFieldType")
+	}
+
+	action := requestNodeFragment.GetAction()
+	if action.GetExact() {
+		if nodeValue == "" {
+			return false, "", fmt.Errorf("RequestNodeFragment exact match resulted in an empty fragment")
+		}
+		return true, nodeValue, nil
+	}
+
+	regexAction := action.GetRegexAction()
+	pattern := regexAction.GetPattern()
+	replace := regexAction.GetReplace()
+
+	reg, err := regexp.Compile(pattern)
+	if err != nil {
+		return false, "", err
+	}
+
+	replacedFragment := reg.ReplaceAllString(nodeValue, replace)
+	if replacedFragment == "" {
+		return false, "", fmt.Errorf("RequestNodeFragment regex match resulted in an empty fragment")
+	}
+
+	return true, replacedFragment, nil
 }
 
 func compare(requestNodeMatch *aggregationv1.MatchPredicate_RequestNodeMatch, nodeValue string) (bool, error) {
+	if nodeValue == "" {
+		return false, fmt.Errorf("MatchPredicate Node field cannot be empty")
+	}
 	exactMatch := requestNodeMatch.GetExactMatch()
 	if exactMatch != "" {
 		return nodeValue == exactMatch, nil

@@ -1,0 +1,15 @@
+and_result:
+  result_predicates:
+    - resource_names_fragment:
+        field: 1
+        element: 0
+        action:
+          regex_action:
+            pattern: "some_regex"
+            replace: "a_replacement"
+    - request_node_fragment:
+        field: 2
+        action:
+          regex_action:
+            pattern: "some_regex_for_node_fragment"
+            replace: "another_replacement"
