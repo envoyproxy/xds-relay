@@ -4,7 +4,7 @@ go 1.14
 
 require (
 	github.com/envoyproxy/go-control-plane v0.9.4
-	github.com/envoyproxy/protoc-gen-validate v0.1.0
+	github.com/envoyproxy/protoc-gen-validate v0.3.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang/protobuf v1.4.0-rc.4
 	github.com/onsi/ginkgo v1.12.0
