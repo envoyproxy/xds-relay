@@ -19,15 +19,22 @@ type Multiplexer interface {
 	// QueueRequest uses the retry and timeout configurations to make best effort to get the responses from origin server.
 	// If there's a new request in between retries, the retries are abandoned.
 	// The request and response happen asynchronously. Retries are scoped for sending messages to origin server.
-	// If the timeouts are exhausted, receive fails or a irrecoverable error occurs,
-	// the error is sent back through the error channel.
+	// If the timeouts are exhausted, receive fails or a irrecoverable error occurs, the error is sent back.
 	// It is the caller's responsibility to send a new request from the last known DiscoveryRequest.
 	// Cancellation and cleanup operations will be based on cancellation of the context and closing of channels.
-	QueueRequest(context.Context, chan *v2.DiscoveryRequest, chan *v2.DiscoveryResponse) error
+	QueueRequest(context.Context, chan *v2.DiscoveryRequest, chan *Response) error
 }
 
 type multiplexer struct {
 	conn *grpc.ClientConn
+}
+
+// Response struct is a holder for the result from a single request.
+// A request can result in a response from origin server or an error
+// One one of the fields is valid at any time. If the error is set, the response will be ignored.
+type Response struct {
+	response v2.DiscoveryResponse
+	err      error
 }
 
 // NewMux creates an instance based on the typeUrl of the resource.
@@ -43,6 +50,6 @@ func NewMux(ctx context.Context, conn *grpc.ClientConn, typeURL string) (Multipl
 func (m *multiplexer) QueueRequest(
 	ctx context.Context,
 	requestChan chan *v2.DiscoveryRequest,
-	responseChan chan *v2.DiscoveryResponse) error {
+	responseChan chan *Response) error {
 	return nil
 }
