@@ -19,8 +19,8 @@ type Cache interface {
 	// SetResponse sets the cache response and returns the list of requests.
 	SetResponse(key string, resp v2.DiscoveryResponse) ([]*v2.DiscoveryRequest, error)
 
-	// AddRequest adds the request to the cache and returns whether a stream is open.
-	AddRequest(key string, req v2.DiscoveryRequest) (bool, error)
+	// AddRequest adds the request to the cache.
+	AddRequest(key string, req v2.DiscoveryRequest) error
 }
 
 type cache struct {
@@ -32,7 +32,6 @@ type cache struct {
 type resource struct {
 	resp           *v2.DiscoveryResponse
 	requests       []*v2.DiscoveryRequest
-	streamOpen     bool
 	expirationTime time.Time
 }
 
@@ -97,30 +96,26 @@ func (c *cache) SetResponse(key string, resp v2.DiscoveryResponse) ([]*v2.Discov
 	return resource.requests, nil
 }
 
-func (c *cache) AddRequest(key string, req v2.DiscoveryRequest) (bool, error) {
+func (c *cache) AddRequest(key string, req v2.DiscoveryRequest) error {
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
 	value, found := c.cache.Get(key)
 	if !found {
-		// TODO: Add logic to guarantee that a stream has been opened.
 		resource := resource{
 			requests:       []*v2.DiscoveryRequest{&req},
-			streamOpen:     true,
 			expirationTime: c.getExpirationTime(time.Now()),
 		}
 		c.cache.Add(key, resource)
-		return true, nil
+		return nil
 	}
 	resource, ok := value.(resource)
 	if !ok {
-		return false, fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
+		return fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
 	resource.requests = append(resource.requests, &req)
 	resource.expirationTime = c.getExpirationTime(time.Now())
-	// TODO: Add logic to guarantee that a stream has been opened.
-	resource.streamOpen = true
 	c.cache.Add(key, resource)
-	return true, nil
+	return nil
 }
 
 func (r *resource) isExpired(currentTime time.Time) bool {

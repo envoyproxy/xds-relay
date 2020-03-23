@@ -61,9 +61,8 @@ func TestAddRequestAndFetch(t *testing.T) {
 	assert.EqualError(t, err, "no value found for key: key_A")
 	assert.Nil(t, response)
 
-	isStreamOpen, err := cache.AddRequest(testKeyA, testRequest)
+	err = cache.AddRequest(testKeyA, testRequest)
 	assert.NoError(t, err)
-	assert.True(t, isStreamOpen)
 
 	response, err = cache.Fetch(testKeyA)
 	assert.NoError(t, err)
@@ -92,13 +91,11 @@ func TestAddRequestAndSetResponse(t *testing.T) {
 	cache, err := NewCache(1, testOnEvict, time.Second*60)
 	assert.NoError(t, err)
 
-	isStreamOpen, err := cache.AddRequest(testKeyA, testRequest)
+	err = cache.AddRequest(testKeyA, testRequest)
 	assert.NoError(t, err)
-	assert.True(t, isStreamOpen)
 
-	isStreamOpen, err = cache.AddRequest(testKeyA, testRequest)
+	err = cache.AddRequest(testKeyA, testRequest)
 	assert.NoError(t, err)
-	assert.True(t, isStreamOpen)
 
 	requests, err := cache.SetResponse(testKeyA, testResponse)
 	assert.NoError(t, err)
@@ -126,7 +123,7 @@ func TestMaxEntries(t *testing.T) {
 		key:    testKeyA,
 		reason: "testOnEvict called",
 	}, func() {
-		_, err = cache.AddRequest(testKeyB, testRequest)
+		err = cache.AddRequest(testKeyB, testRequest)
 		assert.NoError(t, err)
 	})
 
