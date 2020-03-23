@@ -1,5 +1,6 @@
 export SERVICE_NAME=xds-relay
 
+# We exclude integration tests files because we do not want to run those in unit tests
 SOURCE_FILES?=$$(go list ./... | grep -v integration-tests)
 
 .PHONY: setup
