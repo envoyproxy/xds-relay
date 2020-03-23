@@ -62,9 +62,7 @@ func New(opts ...Opts) *zap.Logger {
 		opt(o)
 	}
 	o.addDefaults()
-
 	sink := zapcore.AddSync(o.OutputDest)
-
 	o.ZapOptions = append(o.ZapOptions, zap.AddCallerSkip(o.CallerSkip), zap.ErrorOutput(sink))
 	log := zap.New(zapcore.NewCore(o.Encoder, sink, *o.Level))
 	log = log.WithOptions(o.ZapOptions...)
