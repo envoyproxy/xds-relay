@@ -7,9 +7,9 @@ import (
 	"google.golang.org/grpc"
 )
 
-// Multiplexer handles the connections to the upstream management server
+// Multiplexer handles the connections to the origin server
 type Multiplexer interface {
-	// QueueRequest starts a stream with the upstream management server
+	// QueueRequest starts a stream with the origin server
 	// All incoming discovery requests arrive on the request channel
 	// All responses go out through the response channel
 	// All irrecoverable errors go out through the error channel
