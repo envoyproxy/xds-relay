@@ -1,4 +1,4 @@
-package multiplexer
+package client
 
 import (
 	"context"
@@ -7,11 +7,11 @@ import (
 	"google.golang.org/grpc"
 )
 
-// Multiplexer handles the requests and responses from the origin server.
-// The multiplexer handles each xds request on a separate stream,
+// XdsClient handles the requests and responses from the origin server.
+// The xds client handles each xds request on a separate stream,
 // e.g. 2 different cds requests happen on 2 separate streams.
-// It is the caller's responsibility to make sure there is one instance of Multipler per unique xds request.
-type Multiplexer interface {
+// It is the caller's responsibility to make sure there is one instance of XdsClient per unique xds request.
+type XdsClient interface {
 	// QueueRequest creates a stream with the origin server
 	// All discovery requests to origin server arrive on the request channel
 	// All responses from the origin server are sent back through the response channel
@@ -25,29 +25,31 @@ type Multiplexer interface {
 	QueueRequest(context.Context, chan *v2.DiscoveryRequest, chan *Response) error
 }
 
-type multiplexer struct {
+type xdsClient struct {
 	conn *grpc.ClientConn
 }
 
 // Response struct is a holder for the result from a single request.
 // A request can result in a response from origin server or an error
-// One one of the fields is valid at any time. If the error is set, the response will be ignored.
+// Only one of the fields is valid at any time. If the error is set, the response will be ignored.
 type Response struct {
+	//nolint
 	response v2.DiscoveryResponse
-	err      error
+	//nolint
+	err error
 }
 
 // NewMux creates an instance based on the typeUrl of the resource.
-// A new instance of Multiplexer is recommended per xds type.
+// A new instance of XdsClient is recommended per xds type.
 // e.g. For eds requests of different services, create an instance each.
 // TODO: pass retry/timeout configurations
-func NewMux(ctx context.Context, conn *grpc.ClientConn, typeURL string) (Multiplexer, error) {
-	return &multiplexer{
+func NewMux(ctx context.Context, conn *grpc.ClientConn, typeURL string) (XdsClient, error) {
+	return &xdsClient{
 		conn: conn,
 	}, nil
 }
 
-func (m *multiplexer) QueueRequest(
+func (m *xdsClient) QueueRequest(
 	ctx context.Context,
 	requestChan chan *v2.DiscoveryRequest,
 	responseChan chan *Response) error {
