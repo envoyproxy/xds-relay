@@ -1,4 +1,4 @@
-package client
+package upstream
 
 import (
 	"context"
@@ -39,11 +39,11 @@ type Response struct {
 	err error
 }
 
-// NewMux creates an instance based on the typeUrl of the resource.
+// NewClient creates an instance based on the typeUrl of the resource.
 // A new instance of XdsClient is recommended per xds type.
 // e.g. For eds requests of different services, create an instance each.
 // TODO: pass retry/timeout configurations
-func NewMux(ctx context.Context, conn *grpc.ClientConn, typeURL string) (XdsClient, error) {
+func NewClient(ctx context.Context, conn *grpc.ClientConn, typeURL string) (XdsClient, error) {
 	return &xdsClient{
 		conn: conn,
 	}, nil
