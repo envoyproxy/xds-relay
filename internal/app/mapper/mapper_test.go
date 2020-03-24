@@ -433,7 +433,7 @@ var positiveTests = []TableEntry{
 		},
 	},
 	{
-		Description: "yMatch With result concatenation recursive",
+		Description: "AnyMatch With result concatenation recursive",
 		Parameters: []interface{}{
 			getAnyMatch(true),
 			getRepeatedResultPredicate2(),

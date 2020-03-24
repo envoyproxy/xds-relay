@@ -13,7 +13,7 @@ import (
 type matchPredicate = aggregationv1.MatchPredicate
 type rule = aggregationv1.KeyerConfiguration_Fragment_Rule
 type resultPredicate = aggregationv1.ResultPredicate
-type resultPredicateRequestNodeFragment = aggregationv1.ResultPredicate_RequestNodeFragment
+type requestNodeFragment = aggregationv1.ResultPredicate_RequestNodeFragment
 
 // Mapper defines the interface that Maps an incoming request to an aggregation key
 type Mapper interface {
@@ -282,7 +282,7 @@ func getResultFromAndResultPredicate(resultPredicate *resultPredicate, node *cor
 	return true, resultfragments, nil
 }
 
-func getNodeValue(requestNodeFragment *resultPredicateRequestNodeFragment, node *core.Node) (string, error) {
+func getNodeValue(requestNodeFragment *requestNodeFragment, node *core.Node) (string, error) {
 	nodeField := requestNodeFragment.GetField()
 	var nodeValue string
 	switch nodeField {
@@ -303,9 +303,7 @@ func getNodeValue(requestNodeFragment *resultPredicateRequestNodeFragment, node 
 	return nodeValue, nil
 }
 
-func getResultFragmentFromAction(
-	requestNodeFragment *resultPredicateRequestNodeFragment,
-	node *core.Node) (string, error) {
+func getResultFragmentFromAction(requestNodeFragment *requestNodeFragment, node *core.Node) (string, error) {
 	nodeValue, err := getNodeValue(requestNodeFragment, node)
 	if err != nil {
 		return "", err
