@@ -69,7 +69,7 @@ var _ = Describe("Integration tests for the validator tool", func() {
 			Expect(err).To(BeNil())
 
 			// #nosec G204
-			cmd := exec.Command(path.Join(dir, "bin", binaryName), "-config", ymlFilename)
+			cmd := exec.Command(path.Join(dir, "bin", binaryName), "--config-file", ymlFilename)
 			output, err := cmd.CombinedOutput()
 			if wantErr {
 				Expect(err).NotTo(BeNil())
@@ -80,16 +80,13 @@ var _ = Describe("Integration tests for the validator tool", func() {
 			}
 		}, testCases...)
 
-	It("should fail if -config flag is missing", func() {
+	It("should fail if --config-file flag is missing", func() {
 		dir, err := os.Getwd()
 		Expect(err).To(BeNil())
 
 		// #nosec G204
 		cmd := exec.Command(path.Join(dir, "bin", binaryName))
-		output, err := cmd.CombinedOutput()
-		Expect(err).NotTo(BeNil())
-		// There is an extra newline in the output.
-		expectedErrorMessage := "-config string\n    \tpath to configuration file\n"
-		Expect(string(output)).Should(HaveSuffix(expectedErrorMessage))
+		output, _ := cmd.CombinedOutput()
+		Expect(string(output)).Should(HavePrefix("Error: required flag(s) \"config-file\" not set"))
 	})
 })
