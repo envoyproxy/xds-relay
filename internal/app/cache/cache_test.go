@@ -23,7 +23,7 @@ type panicValues struct {
 	reason string
 }
 
-func testOnEvict(key string, value resource) {
+func testOnEvict(key string, value Resource) {
 	// TODO: Simulate eviction behavior, e.g. closing of streams.
 	panic(panicValues{
 		key:    key,
@@ -186,7 +186,7 @@ func TestTTL_Negative(t *testing.T) {
 }
 
 func TestIsExpired(t *testing.T) {
-	var resource resource
+	var resource Resource
 
 	// The expiration time is 0, meaning TTL is disabled, so the resource is not considered expired.
 	resource.expirationTime = time.Time{}

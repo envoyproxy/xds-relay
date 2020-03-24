@@ -29,14 +29,14 @@ type cache struct {
 	ttl     time.Duration
 }
 
-type resource struct {
+type Resource struct {
 	resp           *v2.DiscoveryResponse
 	requests       []*v2.DiscoveryRequest
 	expirationTime time.Time
 }
 
 // Callback function for each eviction. Receives the key and cache value when called.
-type onEvictFunc func(key string, value resource)
+type onEvictFunc func(key string, value Resource)
 
 func NewCache(maxEntries int, onEvicted onEvictFunc, ttl time.Duration) (Cache, error) {
 	if ttl < 0 {
@@ -52,7 +52,7 @@ func NewCache(maxEntries int, onEvicted onEvictFunc, ttl time.Duration) (Cache, 
 				if !ok {
 					panic(fmt.Sprintf("Unable to cast key %v to string upon eviction", cacheKey))
 				}
-				value, ok := cacheValue.(resource)
+				value, ok := cacheValue.(Resource)
 				if !ok {
 					panic(fmt.Sprintf("Unable to cast value %v to resource upon eviction", cacheValue))
 				}
@@ -71,7 +71,7 @@ func (c *cache) Fetch(key string) (*v2.DiscoveryResponse, error) {
 	if !found {
 		return nil, fmt.Errorf("no value found for key: %s", key)
 	}
-	resource, ok := value.(resource)
+	resource, ok := value.(Resource)
 	if !ok {
 		return nil, fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
@@ -88,14 +88,14 @@ func (c *cache) SetResponse(key string, resp v2.DiscoveryResponse) ([]*v2.Discov
 	defer c.cacheMu.Unlock()
 	value, found := c.cache.Get(key)
 	if !found {
-		resource := resource{
+		resource := Resource{
 			resp:           &resp,
 			expirationTime: c.getExpirationTime(time.Now()),
 		}
 		c.cache.Add(key, resource)
 		return nil, nil
 	}
-	resource, ok := value.(resource)
+	resource, ok := value.(Resource)
 	if !ok {
 		return nil, fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
@@ -111,14 +111,14 @@ func (c *cache) AddRequest(key string, req v2.DiscoveryRequest) error {
 	defer c.cacheMu.Unlock()
 	value, found := c.cache.Get(key)
 	if !found {
-		resource := resource{
+		resource := Resource{
 			requests:       []*v2.DiscoveryRequest{&req},
 			expirationTime: c.getExpirationTime(time.Now()),
 		}
 		c.cache.Add(key, resource)
 		return nil
 	}
-	resource, ok := value.(resource)
+	resource, ok := value.(Resource)
 	if !ok {
 		return fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
@@ -128,7 +128,7 @@ func (c *cache) AddRequest(key string, req v2.DiscoveryRequest) error {
 	return nil
 }
 
-func (r *resource) isExpired(currentTime time.Time) bool {
+func (r *Resource) isExpired(currentTime time.Time) bool {
 	if r.expirationTime.IsZero() {
 		return false
 	}
