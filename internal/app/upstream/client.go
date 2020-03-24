@@ -4,13 +4,12 @@ import (
 	"context"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	"google.golang.org/grpc"
 )
 
 // XdsClient handles the requests and responses from the origin server.
 // The xds client handles each xds request on a separate stream,
 // e.g. 2 different cds requests happen on 2 separate streams.
-// It is the caller's responsibility to make sure there is one instance of XdsClient per unique xds request.
+// It is the caller's responsibility to make sure there is one instance of XdsClient overall.
 type XdsClient interface {
 	// QueueRequest creates a stream with the origin server
 	// All discovery requests to origin server arrive on the request channel
@@ -22,11 +21,18 @@ type XdsClient interface {
 	// If the timeouts are exhausted, receive fails or a irrecoverable error occurs, the error is sent back to the caller.
 	// It is the caller's responsibility to send a new request from the last known DiscoveryRequest.
 	// Cancellation and cleanup operations will be based on cancellation of the context and closing of channels.
-	Start(context.Context, chan *v2.DiscoveryRequest, chan *Response) error
+	Start(context.Context, chan *v2.DiscoveryRequest, chan *Response, string) error
 }
 
 type xdsClient struct {
-	conn *grpc.ClientConn
+	//nolint
+	ldsClient v2.ListenerDiscoveryServiceClient
+	//nolint
+	rdsClient v2.RouteDiscoveryServiceClient
+	//nolint
+	edsClient v2.EndpointDiscoveryServiceClient
+	//nolint
+	cdsClient v2.ClusterDiscoveryServiceClient
 }
 
 // Response struct is a holder for the result from a single request.
@@ -39,19 +45,21 @@ type Response struct {
 	err error
 }
 
-// NewClient creates an instance based on the typeUrl of the resource.
-// A new instance of XdsClient is recommended per xds type.
-// e.g. For eds requests of different services, create an instance each.
+// NewClient creates a grpc connection with an upstream origin server.
+// Each xds relay server should create a single such upstream connection.
+// grpc will handle the actual number of underlying tcp connections.
+//
+// The method does not block until the underlying connection is up.
+// Returns immediately and connecting the server happens in background
 // TODO: pass retry/timeout configurations
-func NewClient(ctx context.Context, conn *grpc.ClientConn, typeURL string) (XdsClient, error) {
-	return &xdsClient{
-		conn: conn,
-	}, nil
+func NewClient(ctx context.Context, url string) (XdsClient, error) {
+	return &xdsClient{}, nil
 }
 
 func (m *xdsClient) Start(
 	ctx context.Context,
 	requestChan chan *v2.DiscoveryRequest,
-	responseChan chan *Response) error {
+	responseChan chan *Response,
+	typeURL string) error {
 	return nil
 }
