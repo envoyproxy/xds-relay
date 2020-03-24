@@ -22,7 +22,7 @@ type XdsClient interface {
 	// If the timeouts are exhausted, receive fails or a irrecoverable error occurs, the error is sent back to the caller.
 	// It is the caller's responsibility to send a new request from the last known DiscoveryRequest.
 	// Cancellation and cleanup operations will be based on cancellation of the context and closing of channels.
-	QueueRequest(context.Context, chan *v2.DiscoveryRequest, chan *Response) error
+	Start(context.Context, chan *v2.DiscoveryRequest, chan *Response) error
 }
 
 type xdsClient struct {
@@ -49,7 +49,7 @@ func NewMux(ctx context.Context, conn *grpc.ClientConn, typeURL string) (XdsClie
 	}, nil
 }
 
-func (m *xdsClient) QueueRequest(
+func (m *xdsClient) Start(
 	ctx context.Context,
 	requestChan chan *v2.DiscoveryRequest,
 	responseChan chan *Response) error {
