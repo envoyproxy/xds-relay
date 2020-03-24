@@ -36,7 +36,7 @@ type resource struct {
 }
 
 // Callback function for each eviction. Receives the key and cache value when called.
-type onEvictFunc func(key lru.Key, value interface{})
+type onEvictFunc func(key string, value resource)
 
 func NewCache(maxEntries int, onEvicted onEvictFunc, ttl time.Duration) (Cache, error) {
 	if ttl < 0 {
@@ -47,7 +47,17 @@ func NewCache(maxEntries int, onEvicted onEvictFunc, ttl time.Duration) (Cache, 
 			// Max number of cache entries before an item is evicted. Zero means no limit.
 			MaxEntries: maxEntries,
 			// OnEvict is called for each eviction.
-			OnEvicted: onEvicted,
+			OnEvicted: func(cacheKey lru.Key, cacheValue interface{}) {
+				key, ok := cacheKey.(string)
+				if !ok {
+					panic(fmt.Sprintf("Unable to cast key %v to string upon eviction", cacheKey))
+				}
+				value, ok := cacheValue.(resource)
+				if !ok {
+					panic(fmt.Sprintf("Unable to cast value %v to resource upon eviction", cacheValue))
+				}
+				onEvicted(key, value)
+			},
 		},
 		// Duration before which an item is evicted for expiring. Zero means no expiration time.
 		ttl: ttl,

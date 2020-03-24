@@ -23,7 +23,7 @@ type panicValues struct {
 	reason string
 }
 
-func testOnEvict(key lru.Key, value interface{}) {
+func testOnEvict(key string, value resource) {
 	// TODO: Simulate eviction behavior, e.g. closing of streams.
 	panic(panicValues{
 		key:    key,
