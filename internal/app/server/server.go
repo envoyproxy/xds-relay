@@ -4,6 +4,8 @@ import (
 	"context"
 	"net"
 
+	"github.com/envoyproxy/xds-relay/internal/pkg/stats"
+
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 
 	api "github.com/envoyproxy/go-control-plane/envoy/api/v2"
@@ -12,15 +14,31 @@ import (
 	"google.golang.org/grpc"
 )
 
+const (
+	metricSubscope    = "server"
+	metricServerAlive = "alive"
+)
+
 // Run instantiates a running gRPC server for accepting incoming xDS-based
 // requests.
 func Run() {
 	logger := log.New().Sugar()
 
+	// TODO make configurable
+	stats, statsCloser, err := stats.NewScope(stats.Config{
+		StatsdAddress: "127.0.0.1:8125",
+		RootPrefix:    "xds-relay",
+		SampleRate:    1.0,
+	})
+	if err != nil {
+		logger.Fatalw("failed to configure stats client", "err", err)
+	}
+
 	// Cursory implementation of go-control-plane's server.
 	// TODO cancel should be invoked by shutdown handlers.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	defer statsCloser.Close()
 
 	snapshotCache := cache.NewSnapshotCache(false, cache.IDHash{}, nil)
 	gcpServer := gcp.NewServer(ctx, snapshotCache, nil)
@@ -36,6 +54,7 @@ func Run() {
 	api.RegisterListenerDiscoveryServiceServer(server, gcpServer)
 
 	logger.Info("Initializing server at", listener.Addr().String())
+	stats.SubScope(metricSubscope).Gauge(metricServerAlive).Update(1)
 	if err := server.Serve(listener); err != nil {
 		logger.Fatalw("failed to initialize server", "err", err)
 	}
