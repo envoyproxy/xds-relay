@@ -1118,13 +1118,6 @@ func (m *ResultPredicate_ResourceNamesFragment) Validate() error {
 		return nil
 	}
 
-	if _, ok := NodeFieldType_name[int32(m.GetField())]; !ok {
-		return ResultPredicate_ResourceNamesFragmentValidationError{
-			field:  "Field",
-			reason: "value must be one of the defined enum values",
-		}
-	}
-
 	if m.GetElement() < 0 {
 		return ResultPredicate_ResourceNamesFragmentValidationError{
 			field:  "Element",

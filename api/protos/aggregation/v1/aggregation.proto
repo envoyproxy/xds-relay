@@ -151,8 +151,6 @@ message ResultPredicate {
   // [#next-free-field: 4]
   message ResourceNamesFragment {
 
-    NodeFieldType field = 1 [(validate.rules).enum.defined_only = true];
-
     // The index of the resource name to operate on.
     // TODO support operation on multiple elements once we move past the MVP.
     int32 element = 2 [(validate.rules).int32.gte = 0];
