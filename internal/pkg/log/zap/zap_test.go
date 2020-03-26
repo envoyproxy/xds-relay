@@ -17,16 +17,16 @@ func (w *mockWriter) Write(p []byte) (int, error) {
 }
 
 var _ = Describe("Zap options setup", func() {
-	var opts *Options
+	var opts *options
 
 	BeforeEach(func() {
-		opts = &Options{}
+		opts = &options{}
 	})
 
 	It("should set a custom writer", func() {
 		var w mockWriter
 		WriteTo(&w)(opts)
-		Expect(opts.OutputDest).To(Equal(&w))
+		Expect(opts.outputDest).To(Equal(&w))
 	})
 })
 
