@@ -5,16 +5,16 @@ import (
 
 	discovery "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache"
-	orchestrator "github.com/envoyproxy/xds-relay/internal/app/orchestrator"
+	"github.com/envoyproxy/xds-relay/internal/app/orchestrator"
 )
 
-// GcpCache is the implementation that implements the functions needed for integrating with go-control-plane
-// It implements the CreateWatch function which is required to create xds grpc streams with sidecars.
+// GcpCache implements the cache needed for integrating with go-control-plane.
+// It implements the CreateWatch function which is required to create xDS gRPC streams with xDS clients.
 type GcpCache struct {
 	orchestrator orchestrator.Orchestrator
 }
 
-// NewGcpCache creates an instance of GcpCache
+// NewGcpCache creates an instance of GcpCache.
 func NewGcpCache(orchestrator orchestrator.Orchestrator) *GcpCache {
 	return &GcpCache{
 		orchestrator: orchestrator,
