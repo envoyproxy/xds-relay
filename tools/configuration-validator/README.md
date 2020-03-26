@@ -1,22 +1,33 @@
-## configuration-validator
+## Synopsis
 
-A tool to help validate aggregation key configuration files
+configuration-validator is a CLI tool used to validate xds-relay configuration
+files.
 
-### Synopsis
+The tool can be embedded in user CI pipelines to ensure that xds-relay is
+provisioned correctly.
 
-configuration-validator is a CLI tool used to validate aggregation key yaml files.
-The aggregation key yaml file is validated against the [https://github.com/envoyproxy/xds-relay/blob/master/api/protos/aggregation/v1/aggregation.proto](proto file).
-The same proto file is annotated with [protoc-gen-validate constraint rules](https://github.com/envoyproxy/protoc-gen-validate/#constraint-rules) to enforce semantic rules. Both the xds-relay initialization and the CLI share the same validation method. 
+It currently supports:
 
-The idea behind having a separate CLI tool to validate yaml files is to enable tooling around the generation and validation of config files. For example, imagine a scenario where an automated process generates a config file and a CI pipeline uses the validator tool to ensure the generated yaml is valid.
+* Aggregation Key configurations
+
+## Aggregation Key
+
+The aggregation key yaml configuration is validated against the
+[proto file](https://github.com/envoyproxy/xds-relay/blob/master/api/protos/aggregation/v1/aggregation.proto
+).  The same proto file is annotated with [protoc-gen-validate constraint
+rules](https://github.com/envoyproxy/protoc-gen-validate/#constraint-rules) to
+enforce semantic rules. Both the xds-relay initialization and the CLI share the
+same validation method.
+
+### Usage
 
 ```
-configuration-validator [flags]
+configuration-validator aggregation [flags]
 ```
 
-### Options
+#### Options
 
 ```
-  -c, --config-file string   path to configuration file
-  -h, --help                 help for configuration-validator
+  -p, --path string   path to aggregation key configuration file
+  -h, --help          help for configuration-validator
 ```

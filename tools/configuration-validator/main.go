@@ -18,17 +18,19 @@ var (
 
 	validatorCmd = &cobra.Command{
 		Use:   "configuration-validator",
-		Short: "A tool to help validate aggregation key configuration files",
-		Long: `configuration-validator is a CLI tool used to validate aggregation key yaml files.
+		Short: "A tool to help validate xds-relay configuration files",
+	}
+
+	aggregationCmd = &cobra.Command{
+		Use:   "aggregation",
+		Short: "A tool to help validate xds-relay aggregation key configuration files",
+		Long: `aggregation is a comand used to validate aggregation key config files.
+
 The aggregation key yaml file is validated against the
 [https://github.com/envoyproxy/xds-relay/blob/master/api/protos/aggregation/v1/aggregation.proto](proto file).
 The same proto file is annotated with
 [protoc-gen-validate constraint rules](https://github.com/envoyproxy/protoc-gen-validate/#constraint-rules)
 to enforce semantic rules. Both the xds-relay initialization and the CLI share the same validation method.
-
-The idea behind having a separate CLI tool to validate yaml files is to enable tooling around the generation
-and validation of config files. For example, imagine a scenario where an automated process generates a
-config file and a CI pipeline uses the validator tool to ensure the generated yaml is valid.
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 			yamlFileContent, err := ioutil.ReadFile(cfgFile)
@@ -50,11 +52,12 @@ config file and a CI pipeline uses the validator tool to ensure the generated ya
 )
 
 func main() {
-	validatorCmd.Flags().StringVarP(&cfgFile, "config-file", "c", "", "path to configuration file")
-	if err := validatorCmd.MarkFlagRequired("config-file"); err != nil {
-		log.Fatal("Could not mark config-file flag as required")
+	aggregationCmd.Flags().StringVarP(&cfgFile, "path", "p", "", "path to aggregation key configuration file")
+	if err := aggregationCmd.MarkFlagRequired("path"); err != nil {
+		log.Fatal("Could not mark the path flag as required")
 	}
 
+	validatorCmd.AddCommand(aggregationCmd)
 	if err := validatorCmd.Execute(); err != nil {
 		os.Exit(1)
 	}

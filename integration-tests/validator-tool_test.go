@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	binaryName = "configuration-validator"
+	binaryName            = "configuration-validator"
+	aggregationSubcommand = "aggregation"
 )
 
 func TestMain(m *testing.M) {
@@ -69,7 +70,7 @@ var _ = Describe("Integration tests for the validator tool", func() {
 			Expect(err).To(BeNil())
 
 			// #nosec G204
-			cmd := exec.Command(path.Join(dir, "bin", binaryName), "--config-file", ymlFilename)
+			cmd := exec.Command(path.Join(dir, "bin", binaryName), aggregationSubcommand, "--path", ymlFilename)
 			output, err := cmd.CombinedOutput()
 			if wantErr {
 				Expect(err).NotTo(BeNil())
@@ -85,8 +86,8 @@ var _ = Describe("Integration tests for the validator tool", func() {
 		Expect(err).To(BeNil())
 
 		// #nosec G204
-		cmd := exec.Command(path.Join(dir, "bin", binaryName))
+		cmd := exec.Command(path.Join(dir, "bin", binaryName), aggregationSubcommand)
 		output, _ := cmd.CombinedOutput()
-		Expect(string(output)).Should(HavePrefix("Error: required flag(s) \"config-file\" not set"))
+		Expect(string(output)).Should(HavePrefix("Error: required flag(s) \"path\" not set"))
 	})
 })
