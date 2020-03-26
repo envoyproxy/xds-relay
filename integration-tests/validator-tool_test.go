@@ -1,7 +1,10 @@
 package integrationtests
 
 import (
+	"fmt"
+	"os"
 	"os/exec"
+	"path"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
@@ -14,6 +17,17 @@ const (
 	aggregationSubcommand = "aggregation"
 )
 
+func TestMain(m *testing.M) {
+	// TODO I could not find a more robust way of reaching the root of the repo
+	err := os.Chdir("..")
+	if err != nil {
+		fmt.Printf("could not change dir: %v", err)
+		os.Exit(1)
+	}
+
+	os.Exit(m.Run())
+}
+
 func TestConfigurationValidatorTool(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "configuration-validator integration tests suite")
@@ -23,7 +37,7 @@ var testCases = []TableEntry{
 	{
 		Description: "a positive test",
 		Parameters: []interface{}{
-			"./testdata/keyer_configuration_request_type_match_string_fragment.yaml",
+			"./integration-tests/testdata/keyer_configuration_request_type_match_string_fragment.yaml",
 			false,
 			"",
 		},
@@ -31,7 +45,7 @@ var testCases = []TableEntry{
 	{
 		Description: "a negative test",
 		Parameters: []interface{}{
-			"./testdata/keyer_configuration_missing_match_predicate.yaml",
+			"./integration-tests/testdata/keyer_configuration_missing_match_predicate.yaml",
 			true,
 			"invalid KeyerConfiguration.Fragments[0]: embedded message failed validation | caused by: " +
 				"invalid KeyerConfiguration_Fragment.Rules[0]: embedded message failed " +
@@ -52,8 +66,11 @@ var testCases = []TableEntry{
 var _ = Describe("Integration tests for the validator tool", func() {
 	DescribeTable("table driven integration tests for the validator tool",
 		func(ymlFilename string, wantErr bool, errorMessage string) {
+			dir, err := os.Getwd()
+			Expect(err).To(BeNil())
+
 			// #nosec G204
-			cmd := exec.Command(binaryName, aggregationSubcommand, "--path", ymlFilename)
+			cmd := exec.Command(path.Join(dir, "bin", binaryName), aggregationSubcommand, "--path", ymlFilename)
 			output, err := cmd.CombinedOutput()
 			if wantErr {
 				Expect(err).NotTo(BeNil())
@@ -65,8 +82,11 @@ var _ = Describe("Integration tests for the validator tool", func() {
 		}, testCases...)
 
 	It("should fail if --config-file flag is missing", func() {
+		dir, err := os.Getwd()
+		Expect(err).To(BeNil())
+
 		// #nosec G204
-		cmd := exec.Command(binaryName, aggregationSubcommand)
+		cmd := exec.Command(path.Join(dir, "bin", binaryName), aggregationSubcommand)
 		output, _ := cmd.CombinedOutput()
 		Expect(string(output)).Should(HavePrefix("Error: required flag(s) \"path\" not set"))
 	})
