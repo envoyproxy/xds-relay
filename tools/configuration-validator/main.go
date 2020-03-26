@@ -46,7 +46,6 @@ to enforce semantic rules. Both the xds-relay initialization and the CLI share t
 			if err != nil {
 				log.Fatal(err)
 			}
-			os.Exit(0)
 		},
 	}
 )
