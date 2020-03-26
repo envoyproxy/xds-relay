@@ -274,10 +274,10 @@ func getResultFromAndResultPredicate(
 	}
 
 	results := resultPredicate.GetAndResult().GetResultPredicates()
-	var resultfragments string
+	var resultfragments []string
 	for _, result := range results {
 		if result.GetStringFragment() != "" {
-			resultfragments = resultfragments + result.GetStringFragment()
+			resultfragments = append(resultfragments, result.GetStringFragment())
 		}
 
 		found, fragment, err := getResultFromRequestNodePredicate(result, node)
@@ -285,7 +285,7 @@ func getResultFromAndResultPredicate(
 			return false, "", err
 		}
 		if found {
-			resultfragments = resultfragments + fragment
+			resultfragments = append(resultfragments, fragment)
 		}
 
 		found, fragment, err = getResultFromResourceNamesPredicate(result, resourceNames)
@@ -293,7 +293,7 @@ func getResultFromAndResultPredicate(
 			return false, "", err
 		}
 		if found {
-			resultfragments = resultfragments + fragment
+			resultfragments = append(resultfragments, fragment)
 		}
 
 		found, fragment, err = getResultFromAndResultPredicate(result, node, resourceNames)
@@ -301,10 +301,10 @@ func getResultFromAndResultPredicate(
 			return false, "", err
 		}
 		if found {
-			resultfragments = resultfragments + fragment
+			resultfragments = append(resultfragments, fragment)
 		}
 	}
-	return true, resultfragments, nil
+	return true, strings.Join(resultfragments, ""), nil
 }
 
 func getResultFromResourceNamesFragmentRule(
