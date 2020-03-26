@@ -196,7 +196,7 @@ func isNotMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node)
 	return !isMatch, nil
 }
 
-func getResult(fragmentRule *rule, node *core.Node, resoureNames []string) (string, error) {
+func getResult(fragmentRule *rule, node *core.Node, resourceNames []string) (string, error) {
 	found, result, err := getResultFromRequestNodeFragmentRule(fragmentRule, node)
 	if err != nil {
 		return "", err
@@ -205,7 +205,7 @@ func getResult(fragmentRule *rule, node *core.Node, resoureNames []string) (stri
 		return result, nil
 	}
 
-	found, result, err = getResultFromAndResultFragmentRule(fragmentRule, node, resoureNames)
+	found, result, err = getResultFromAndResultFragmentRule(fragmentRule, node, resourceNames)
 	if err != nil {
 		return "", err
 	}
@@ -213,7 +213,7 @@ func getResult(fragmentRule *rule, node *core.Node, resoureNames []string) (stri
 		return result, nil
 	}
 
-	found, result, err = getResultFromResourceNamesFragmentRule(fragmentRule, resoureNames)
+	found, result, err = getResultFromResourceNamesFragmentRule(fragmentRule, resourceNames)
 	if err != nil {
 		return "", err
 	}
@@ -309,18 +309,18 @@ func getResultFromAndResultPredicate(
 
 func getResultFromResourceNamesFragmentRule(
 	fragmentRule *rule,
-	resoureNames []string) (bool, string, error) {
+	resourceNames []string) (bool, string, error) {
 	resultPredicate := fragmentRule.GetResult()
 	if resultPredicate == nil {
 		return false, "", nil
 	}
 
-	return getResultFromResourceNamesPredicate(resultPredicate, resoureNames)
+	return getResultFromResourceNamesPredicate(resultPredicate, resourceNames)
 }
 
 func getResultFromResourceNamesPredicate(
 	predicate *resultPredicate,
-	resoureNames []string) (bool, string, error) {
+	resourceNames []string) (bool, string, error) {
 	if predicate == nil {
 		return false, "", nil
 	}
@@ -331,10 +331,10 @@ func getResultFromResourceNamesPredicate(
 	resourceNamesFragment := predicate.GetResourceNamesFragment()
 
 	index := resourceNamesFragment.GetElement()
-	if index < 0 || index >= int32(len(resoureNames)) {
+	if index < 0 || index >= int32(len(resourceNames)) {
 		return false, "", fmt.Errorf("ResourceNamesFragment.Element cannot be negative or larger than length")
 	}
-	resource := resoureNames[index]
+	resource := resourceNames[index]
 
 	action := resourceNamesFragment.GetAction()
 	result, err := getResultFragmentFromAction(resource, action)

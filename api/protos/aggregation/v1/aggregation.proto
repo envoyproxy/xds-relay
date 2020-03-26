@@ -148,14 +148,14 @@ message ResultPredicate {
   }
 
   // Rules for generating the resulting fragment from Envoy request names.
-  // [#next-free-field: 4]
+  // [#next-free-field: 3]
   message ResourceNamesFragment {
 
     // The index of the resource name to operate on.
     // TODO support operation on multiple elements once we move past the MVP.
-    int32 element = 2 [(validate.rules).int32.gte = 0];
+    int32 element = 1 [(validate.rules).int32.gte = 0];
 
-    ResultAction action = 3 [(validate.rules).message.required = true];
+    ResultAction action = 2 [(validate.rules).message.required = true];
   }
 
   oneof type {
