@@ -7,8 +7,9 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 
 	api "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	"github.com/envoyproxy/go-control-plane/pkg/cache"
 	gcp "github.com/envoyproxy/go-control-plane/pkg/server"
+	internalcache "github.com/envoyproxy/xds-relay/internal/app/cache"
+	orchestrator "github.com/envoyproxy/xds-relay/internal/app/orchestrator"
 	"google.golang.org/grpc"
 )
 
@@ -22,8 +23,8 @@ func Run() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	snapshotCache := cache.NewSnapshotCache(false, cache.IDHash{}, nil)
-	gcpServer := gcp.NewServer(ctx, snapshotCache, nil)
+	gcpCache := internalcache.NewGcpCache(orchestrator.NewOrchestrator())
+	gcpServer := gcp.NewServer(ctx, gcpCache, nil)
 	server := grpc.NewServer()
 	listener, err := net.Listen("tcp", ":8080") // #nosec
 	if err != nil {
