@@ -1,5 +1,4 @@
 resource_names_fragment:
-  field: 1
   element: 0
   action:
     regex_action:
