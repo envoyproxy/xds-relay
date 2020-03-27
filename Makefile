@@ -1,9 +1,15 @@
 export SERVICE_NAME=xds-relay
 
+# We exclude integration tests files because we do not want to run those in unit tests
+SOURCE_FILES?=$$(go list ./... | grep -v integration)
+
+.PHONY: setup
+setup:
+	mkdir -p ./bin
+
 .PHONY: compile
-compile: ## Compiles the binary and installs it into /usr/local/bin
-	mkdir -p ./bin && \
-	  go build -o ./bin/ && \
+compile: setup  ## Compiles the binary and installs it into /usr/local/bin
+	go build -o ./bin/${SERVICE_NAME} && \
 	  cp ./bin/${SERVICE_NAME} /usr/local/bin/${SERVICE_NAME}
 
 .PHONY: install
@@ -12,11 +18,19 @@ install: ## Installs dependencies
 
 .PHONY: unit
 unit: ## Run all unit tests with coverage report
-	go test -v -cover ./...
+	go test -v -cover $(SOURCE_FILES)
+
+.PHONY: integration-tests
+integration-tests:  ## Run integration tests
+	go test -v ./integration/
 
 .PHONY: compile-protos
 compile-protos: ## Compile proto files
 	./scripts/generate-api-protos.sh
+
+.PHONY: compile-validator-tool
+compile-validator-tool: setup  ## Compiles configuration validator tool
+	go build -o ./bin/configuration-validator $$(go list ./tools/configuration-validator)
 
 .PHONY: lint
 lint: ## Run golangci-lint

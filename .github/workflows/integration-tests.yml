@@ -1,14 +1,21 @@
-name: common
+name: integration
 on:
   push:
     branches:
       - master
+    paths:
+      - 'api/**'
+      - 'tools/configuration-validator/**'
+      - .github/workflows/integration-tests.yml
   pull_request:
     branches:
       - master
+    paths:
+      - 'api/**'
+      - 'tools/configuration-validator/**'
+      - .github/workflows/integration-tests.yml
 env:
   PACKAGEPATH: ${{ github.workspace }}/go/src/github.com/${{ github.repository }}
-  GOLANGCI_LINT_VERSION: v1.23.7
 jobs:
   tests:
     strategy:
@@ -25,13 +32,9 @@ jobs:
         uses: actions/setup-go@v2-beta
         with:
           go-version: ${{ matrix.go-version }}
-      - name: Install golangci-lint
-        # https://github.com/golangci/golangci-lint#binary
-        # golangci-lint binary will be installed at path ${{ github.workspace }}/bin with version ${{ env.GOLANGCI_LINT_VERSION }}
-        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b ${{ github.workspace }}/bin ${{ env.GOLANGCI_LINT_VERSION }}
-      - name: Run golangci-lint
-        run: ${{ github.workspace }}/bin/golangci-lint run
+      - name: Build configuration validator tool
+        run: make compile-validator-tool
         working-directory: ${{ env.PACKAGEPATH }}
-      - name: Run unit tests
-        run: make unit
+      - name: Run configuration validator integration tests
+        run: make integration-tests
         working-directory: ${{ env.PACKAGEPATH }}

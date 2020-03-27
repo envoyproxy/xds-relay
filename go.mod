@@ -12,6 +12,7 @@ require (
 	github.com/lyft/protoc-gen-star v0.4.14 // indirect
 	github.com/onsi/ginkgo v1.12.0
 	github.com/onsi/gomega v1.9.0
+	github.com/spf13/cobra v0.0.6
 	github.com/spf13/afero v1.2.2 // indirect
 	github.com/stretchr/testify v1.4.0
 	go.uber.org/zap v1.14.0
