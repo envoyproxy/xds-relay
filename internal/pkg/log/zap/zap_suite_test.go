@@ -1,4 +1,4 @@
-package log_test
+package zap_test
 
 import (
 	"testing"
@@ -9,5 +9,5 @@ import (
 
 func TestLog(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Log Suite")
+	RunSpecs(t, "Zap Log Suite")
 }

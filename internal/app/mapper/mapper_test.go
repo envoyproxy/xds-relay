@@ -25,6 +25,8 @@ const (
 	noderegion       = "region"
 	nodezone         = "zone"
 	nodesubzone      = "subzone"
+	resource1        = "resource1"
+	resource2        = "resource2"
 	stringFragment   = "stringFragment"
 	nodeIDField      = aggregationv1.NodeFieldType_NODE_ID
 	nodeClusterField = aggregationv1.NodeFieldType_NODE_CLUSTER
@@ -439,6 +441,42 @@ var positiveTests = []TableEntry{
 			getRepeatedResultPredicate2(),
 			clusterTypeURL,
 			"str" + noderegion + nodezone + "nTid" + nodecluster,
+		},
+	},
+	{
+		Description: "AnyMatch With resource names fragment element 0",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResourceNameFragment(0, getExactAction()),
+			clusterTypeURL,
+			resource1,
+		},
+	},
+	{
+		Description: "AnyMatch With resource names fragment element 1",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResourceNameFragment(1, getExactAction()),
+			clusterTypeURL,
+			resource2,
+		},
+	},
+	{
+		Description: "AnyMatch With resource names fragment regex",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResourceNameFragment(0, getRegexAction("^"+resource1+"$", "rsrc")),
+			clusterTypeURL,
+			"rsrc",
+		},
+	},
+	{
+		Description: "AnyMatch With result concatenation of resource name fragment",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getRepeatedResultPredicate3(),
+			clusterTypeURL,
+			resource1 + resource2,
 		},
 	},
 }
@@ -874,6 +912,15 @@ var regexpErrorCasesMultipleFragments = []TableEntry{
 			getResultRequestNodeFragment(nodeIDField, getRegexAction("\xbd\xb2", "")),
 		},
 	},
+	{
+		Description: "Regex parse failure in resource name fragment",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getAnyMatch(true),
+			getResultStringFragment(),
+			getResourceNameFragment(0, getRegexAction("\xbd\xb2", "")),
+		},
+	},
 }
 
 var emptyFragmentErrorCases = []TableEntry{
@@ -1019,6 +1066,24 @@ var emptyFragmentErrorCases = []TableEntry{
 			getResultRequestNodeFragment(10, getExactAction()),
 			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "", nodezone, nodesubzone)),
 			"RequestNodeFragment Invalid NodeFieldType",
+		},
+	},
+	{
+		Description: "resource fragment is negative",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResourceNameFragment(-1, getExactAction()),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "", nodezone, nodesubzone)),
+			"ResourceNamesFragment.Element cannot be negative or larger than length",
+		},
+	},
+	{
+		Description: "resource fragment is above range",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResourceNameFragment(10, getExactAction()),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "", nodezone, nodesubzone)),
+			"ResourceNamesFragment.Element cannot be negative or larger than length",
 		},
 	},
 }
@@ -1347,6 +1412,30 @@ func getRepeatedResultPredicate2() *ResultPredicate {
 	}
 }
 
+func getRepeatedResultPredicate3() *ResultPredicate {
+	return &ResultPredicate{
+		Type: &aggregationv1.ResultPredicate_AndResult_{
+			AndResult: &aggregationv1.ResultPredicate_AndResult{
+				ResultPredicates: []*aggregationv1.ResultPredicate{
+					getResourceNameFragment(0, getExactAction()),
+					getResourceNameFragment(1, getExactAction()),
+				},
+			},
+		},
+	}
+}
+
+func getResourceNameFragment(element int, action *aggregationv1.ResultPredicate_ResultAction) *ResultPredicate {
+	return &ResultPredicate{
+		Type: &aggregationv1.ResultPredicate_ResourceNamesFragment_{
+			ResourceNamesFragment: &aggregationv1.ResultPredicate_ResourceNamesFragment{
+				Element: int32(element),
+				Action:  action,
+			},
+		},
+	}
+}
+
 func getResultRequestNodeFragment(
 	field aggregationv1.NodeFieldType,
 	action *aggregationv1.ResultPredicate_ResultAction) *ResultPredicate {
@@ -1387,7 +1476,7 @@ func getDiscoveryRequestWithNode(node *core.Node) v2.DiscoveryRequest {
 	return v2.DiscoveryRequest{
 		Node:          node,
 		VersionInfo:   "version",
-		ResourceNames: []string{},
+		ResourceNames: []string{resource1, resource2},
 		TypeUrl:       clusterTypeURL,
 	}
 }
