@@ -1,4 +1,4 @@
-package integrationtests
+package integration
 
 import (
 	"fmt"
@@ -38,7 +38,7 @@ var testCases = []TableEntry{
 	{
 		Description: "a positive test",
 		Parameters: []interface{}{
-			"./integration-tests/testdata/keyer_configuration_request_type_match_string_fragment.yaml",
+			"./integration/testdata/keyer_configuration_request_type_match_string_fragment.yaml",
 			false,
 			"",
 		},
@@ -46,7 +46,7 @@ var testCases = []TableEntry{
 	{
 		Description: "a negative test",
 		Parameters: []interface{}{
-			"./integration-tests/testdata/keyer_configuration_missing_match_predicate.yaml",
+			"./integration/testdata/keyer_configuration_missing_match_predicate.yaml",
 			true,
 			"invalid KeyerConfiguration.Fragments[0]: embedded message failed validation | caused by: " +
 				"invalid KeyerConfiguration_Fragment.Rules[0]: embedded message failed " +
