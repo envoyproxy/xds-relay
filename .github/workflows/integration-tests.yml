@@ -3,9 +3,17 @@ on:
   push:
     branches:
       - master
+    paths:
+      - 'api/**'
+      - 'tools/configuration-validator/**'
+      - .github/workflows/integration-tests.yml
   pull_request:
     branches:
       - master
+    paths:
+      - 'api/**'
+      - 'tools/configuration-validator/**'
+      - .github/workflows/integration-tests.yml
 env:
   PACKAGEPATH: ${{ github.workspace }}/go/src/github.com/${{ github.repository }}
 jobs:
