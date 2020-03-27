@@ -36,9 +36,17 @@ func TestConfigurationValidatorTool(t *testing.T) {
 
 var testCases = []TableEntry{
 	{
-		Description: "a positive test",
+		Description: "a small positive test",
 		Parameters: []interface{}{
 			"./integration/testdata/keyer_configuration_request_type_match_string_fragment.yaml",
+			false,
+			"",
+		},
+	},
+	{
+		Description: "a more comprehensive positive test - copied from the tech spec",
+		Parameters: []interface{}{
+			"./integration/testdata/keyer_configuration_complete_tech_spec.yaml",
 			false,
 			"",
 		},
