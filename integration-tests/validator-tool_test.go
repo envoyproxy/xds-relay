@@ -18,7 +18,8 @@ const (
 )
 
 func TestMain(m *testing.M) {
-	// TODO I could not find a more robust way of reaching the root of the repo
+	// We rely on this simple method of finding the root of the repo to be able to run the tests, as
+	// opposed to using a more elaborate method like setting an environment variable.
 	err := os.Chdir("..")
 	if err != nil {
 		fmt.Printf("could not change dir: %v", err)
