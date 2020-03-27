@@ -1,4 +1,6 @@
-// Package zap sets up a logger using the Zap logging framework.
+// Package zap sets up a zap.Logger using the Zap logging framework.
+// This implementation contains configurable options including log levels,
+// stack trace levels, encoders, and caller skip levels.
 package zap
 
 import (
