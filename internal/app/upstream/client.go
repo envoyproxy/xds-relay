@@ -7,12 +7,12 @@ import (
 )
 
 // Client handles the requests and responses from the origin server.
-// The xds client handles each xds request on a separate stream,
+// The client handles each xds request on a separate stream,
 // e.g. 2 different cds requests happen on 2 separate streams.
-// It is the caller's responsibility to make sure there is one instance of XdsClient overall and
+// It is the caller's responsibility to make sure there is one instance of client overall and
 // Start is called per unique key.
 type Client interface {
-	// QueueRequest creates a stream with the origin server
+	// Start creates a stream with the origin server
 	//
 	// Start should be called once per aggregated key.
 	// Start uses one representative node identifier for the entire lifetime of the stream.
@@ -22,7 +22,7 @@ type Client interface {
 	//
 	// All responses from the origin server are sent back through the callback function.
 	//
-	// QueueRequest uses the retry and timeout configurations to make best effort to get the responses from origin server.
+	// Start uses the retry and timeout configurations to make best effort to get the responses from origin server.
 	// The request and response happen asynchronously on separate goroutines.
 	// If the timeouts are exhausted, receive fails or a irrecoverable error occurs, the error is sent back to the caller
 	// and ressources(stream/goroutine, etc) are released.
@@ -53,11 +53,11 @@ type Response struct {
 // The method does not block until the underlying connection is up.
 // Returns immediately and connecting the server happens in background
 // TODO: pass retry/timeout configurations
-func NewClient(ctx context.Context, url string) (XdsClient, error) {
-	return &xdsClient{}, nil
+func NewClient(ctx context.Context, url string) (Client, error) {
+	return &client{}, nil
 }
 
-func (m *xdsClient) Start(
+func (m *client) Start(
 	ctx context.Context,
 	request *v2.DiscoveryRequest,
 	responseFunc func(*Response),
