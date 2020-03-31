@@ -6,25 +6,29 @@ import (
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 )
 
-// XdsClient handles the requests and responses from the origin server.
+// Client handles the requests and responses from the origin server.
 // The xds client handles each xds request on a separate stream,
 // e.g. 2 different cds requests happen on 2 separate streams.
-// It is the caller's responsibility to make sure there is one instance of XdsClient overall.
-type XdsClient interface {
-	// QueueRequest creates a stream with the origin server
-	// All discovery requests to origin server arrive on the request channel
-	// All responses from the origin server are sent back through the response channel
-	// The caller is responsible for managing the lifetime of the channels.
-	// QueueRequest uses the retry and timeout configurations to make best effort to get the responses from origin server.
-	// If there's a new request in between retries, the retries are abandoned.
-	// The request and response happen asynchronously. Retries are scoped for sending messages to origin server.
+// It is the caller's responsibility to make sure there is one instance of Client overall.
+type Client interface {
+	// OpenStream creates a stream with the origin server
+	//
+	// OpenStream should be called once per aggregated key.
+	// OpenStream uses one representative node identifier for the entire lifetime of the stream.
+	// Therefore, it is not necessary to pass node identifiers on subsequent requests from sidecars.
+	// It follows xds protocol https://www.envoyproxy.io/docs/envoy/latest/api-docs/xds_protocol
+	// to handle the version_info, nonce and error_details and applies the response to the cache.
+	//
+	// All responses from the origin server are sent back through the callback function.
+	//
+	// OpenStream uses the retry and timeout configurations to make best effort to get the responses from origin server.
 	// If the timeouts are exhausted, receive fails or a irrecoverable error occurs, the error is sent back to the caller.
 	// It is the caller's responsibility to send a new request from the last known DiscoveryRequest.
-	// Cancellation and cleanup operations will be based on cancellation of the context and closing of channels.
-	Start(context.Context, chan *v2.DiscoveryRequest, chan *Response, string) error
+	// Cancellation of the context cleans up all outstanding streams and releases all resources.
+	OpenStream(context.Context, *v2.DiscoveryRequest, string) chan *Response
 }
 
-type xdsClient struct {
+type client struct {
 	//nolint
 	ldsClient v2.ListenerDiscoveryServiceClient
 	//nolint
@@ -52,14 +56,10 @@ type Response struct {
 // The method does not block until the underlying connection is up.
 // Returns immediately and connecting the server happens in background
 // TODO: pass retry/timeout configurations
-func NewClient(ctx context.Context, url string) (XdsClient, error) {
-	return &xdsClient{}, nil
+func NewClient(ctx context.Context, url string) (Client, error) {
+	return &client{}, nil
 }
 
-func (m *xdsClient) Start(
-	ctx context.Context,
-	requestChan chan *v2.DiscoveryRequest,
-	responseChan chan *Response,
-	typeURL string) error {
+func (m *client) OpenStream(ctx context.Context, request *v2.DiscoveryRequest, typeURL string) chan *Response {
 	return nil
 }
