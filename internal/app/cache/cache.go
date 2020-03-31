@@ -7,14 +7,16 @@ import (
 	"sync"
 	"time"
 
+	gcp "github.com/envoyproxy/go-control-plane/pkg/cache"
 	"github.com/golang/groupcache/lru"
+	"github.com/golang/protobuf/ptypes/any"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 )
 
 type Cache interface {
 	// Fetch returns the cached response if it exists.
-	Fetch(key string) (*v2.DiscoveryResponse, error)
+	Fetch(key string) (*Response, error)
 
 	// SetResponse sets the cache response and returns the list of requests.
 	SetResponse(key string, resp v2.DiscoveryResponse) ([]*v2.DiscoveryRequest, error)
@@ -29,8 +31,14 @@ type cache struct {
 	ttl     time.Duration
 }
 
+// Response stores the raw Discovery Response alongside its marshaled resources.
+type Response struct {
+	raw                v2.DiscoveryResponse
+	marshaledResources []*any.Any
+}
+
 type Resource struct {
-	resp           *v2.DiscoveryResponse
+	resp           *Response
 	requests       []*v2.DiscoveryRequest
 	expirationTime time.Time
 }
@@ -64,7 +72,7 @@ func NewCache(maxEntries int, onEvicted onEvictFunc, ttl time.Duration) (Cache, 
 	}, nil
 }
 
-func (c *cache) Fetch(key string) (*v2.DiscoveryResponse, error) {
+func (c *cache) Fetch(key string) (*Response, error) {
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
 	value, found := c.cache.Get(key)
@@ -86,10 +94,18 @@ func (c *cache) Fetch(key string) (*v2.DiscoveryResponse, error) {
 func (c *cache) SetResponse(key string, resp v2.DiscoveryResponse) ([]*v2.DiscoveryRequest, error) {
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
+	marshaledResources, err := marshalResources(resp.Resources)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal resources for key: %s, err %v", key, err)
+	}
+	response := &Response{
+		raw:                resp,
+		marshaledResources: marshaledResources,
+	}
 	value, found := c.cache.Get(key)
 	if !found {
 		resource := Resource{
-			resp:           &resp,
+			resp:           response,
 			expirationTime: c.getExpirationTime(time.Now()),
 		}
 		c.cache.Add(key, resource)
@@ -99,7 +115,7 @@ func (c *cache) SetResponse(key string, resp v2.DiscoveryResponse) ([]*v2.Discov
 	if !ok {
 		return nil, fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
-	resource.resp = &resp
+	resource.resp = response
 	resource.expirationTime = c.getExpirationTime(time.Now())
 	c.cache.Add(key, resource)
 	// TODO: Add logic that allows for notifying of watches.
@@ -140,4 +156,20 @@ func (c *cache) getExpirationTime(currentTime time.Time) time.Time {
 		return currentTime.Add(c.ttl)
 	}
 	return time.Time{}
+}
+
+func marshalResources(resources []*any.Any) ([]*any.Any, error) {
+	var marshaledResources []*any.Any
+	for _, resource := range resources {
+		marshaledResource, err := gcp.MarshalResource(resource)
+		if err != nil {
+			return nil, err
+		}
+
+		marshaledResources = append(marshaledResources, &any.Any{
+			TypeUrl: resource.TypeUrl,
+			Value:   marshaledResource,
+		})
+	}
+	return marshaledResources, nil
 }
