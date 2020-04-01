@@ -2,8 +2,20 @@ package upstream
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+)
+
+const (
+	listenerTypeURL = "type.googleapis.com/envoy.api.v2.Listener"
+	clusterTypeURL  = "type.googleapis.com/envoy.api.v2.Cluster"
+	endpointTypeURL = "ype.googleapis.com/envoy.api.v2.ClusterLoadAssignment"
+	routeTypeURL    = "type.googleapis.com/envoy.api.v2.RouteConfiguration"
 )
 
 // Client handles the requests and responses from the origin server.
@@ -25,28 +37,32 @@ type Client interface {
 	// If the timeouts are exhausted, receive fails or a irrecoverable error occurs, the error is sent back to the caller.
 	// It is the caller's responsibility to send a new request from the last known DiscoveryRequest.
 	// Cancellation of the context cleans up all outstanding streams and releases all resources.
-	OpenStream(context.Context, *v2.DiscoveryRequest, string) chan *Response
+	OpenStream(context.Context, *v2.DiscoveryRequest) (chan *Response, error)
 }
 
 type client struct {
-	//nolint
 	ldsClient v2.ListenerDiscoveryServiceClient
-	//nolint
 	rdsClient v2.RouteDiscoveryServiceClient
-	//nolint
 	edsClient v2.EndpointDiscoveryServiceClient
-	//nolint
 	cdsClient v2.ClusterDiscoveryServiceClient
+	callOptions CallOptions
 }
 
 // Response struct is a holder for the result from a single request.
 // A request can result in a response from origin server or an error
 // Only one of the fields is valid at any time. If the error is set, the response will be ignored.
 type Response struct {
-	//nolint
-	response v2.DiscoveryResponse
-	//nolint
-	err error
+	Response *v2.DiscoveryResponse
+	Err      error
+}
+
+type CallOptions {
+	Timeout time.Duration
+}
+
+type version struct {
+	version string
+	nonce   string
 }
 
 // NewClient creates a grpc connection with an upstream origin server.
@@ -56,10 +72,111 @@ type Response struct {
 // The method does not block until the underlying connection is up.
 // Returns immediately and connecting the server happens in background
 // TODO: pass retry/timeout configurations
-func NewClient(ctx context.Context, url string) (Client, error) {
-	return &client{}, nil
+func NewClient(ctx context.Context, url string, callOptions ...CallOptions) (Client, error) {
+	conn, err := grpc.Dial(url, grpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+
+	ldsClient := v2.NewListenerDiscoveryServiceClient(conn)
+	rdsClient := v2.NewRouteDiscoveryServiceClient(conn)
+	edsClient := v2.NewEndpointDiscoveryServiceClient(conn)
+	cdsClient := v2.NewClusterDiscoveryServiceClient(conn)
+
+	go shutDown(ctx, conn)
+
+	return &client{
+		ldsClient: ldsClient,
+		rdsClient: rdsClient,
+		edsClient: edsClient,
+		cdsClient: cdsClient,
+		callOptions: callOptions,
+	}, nil
 }
 
-func (m *client) OpenStream(ctx context.Context, request *v2.DiscoveryRequest, typeURL string) chan *Response {
-	return nil
+func (m *client) OpenStream(ctx context.Context, request *v2.DiscoveryRequest) (chan *Response, error) {
+	var stream grpc.ClientStream
+	var err error
+	switch request.GetTypeUrl() {
+	case listenerTypeURL:
+		stream, err = m.ldsClient.StreamListeners(ctx)
+	case clusterTypeURL:
+		stream, err = m.cdsClient.StreamClusters(ctx)
+	case routeTypeURL:
+		stream, err = m.rdsClient.StreamRoutes(ctx)
+	case endpointTypeURL:
+		stream, err = m.edsClient.StreamEndpoints(ctx)
+	default:
+		return nil, fmt.Errorf("Unsupported request type")
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	signal := make(chan *version)
+	signal <- &version{}
+	response := make(chan *Response)
+
+	go send(ctx, request, response, stream, signal, m.callOptions)
+	go recv(ctx, response, stream, signal, m.callOptions)
+}
+
+func send(ctx context.Context, request *v2.DiscoveryRequest, response chan *Response, stream grpc.ClientStream, signal chan *version, callOptions CallOptions) {
+	for {
+		select {
+		case sig := <-signal:
+			request.ResponseNonce = sig.nonce
+			request.VersionInfo = sig.version
+			err := doWithTimeout(func() error { return stream.SendMsg(request) }, callOptions.Timeout)
+			if err != nil {
+				response <- &Response{Err: err}
+			}
+		case <-ctx.Done():
+			stream.CloseSend()
+			return
+		}
+	}
+}
+
+func recv(ctx context.Context, response chan *Response, stream grpc.ClientStream, signal chan *version, callOptions CallOptions) {
+	for {
+		resp := new(v2.DiscoveryResponse)
+		if err := stream.RecvMsg(resp); err != nil {
+			response <- &Response{Err: err}
+			return
+		}
+		response <- &Response{Response: resp}
+		signal <- &version{version: resp.GetVersionInfo(), nonce: resp.GetNonce()}
+	}
+}
+
+func shutDown(ctx context.Context, conn *grpc.ClientConn) {
+	for {
+		select {
+		case <-ctx.Done():
+			conn.Close()
+		}
+	}
+}
+
+// DoWithTimeout runs f and returns its error.  If the deadline d elapses first,
+// it returns a grpc DeadlineExceeded error instead.
+// Ref: https://github.com/grpc/grpc-go/issues/1229#issuecomment-302755717s
+func doWithTimeout(f func() error, d time.Duration) error {
+	errChan := make(chan error, 1)
+	go func() {
+		errChan <- f()
+		close(errChan)
+	}()
+	timer := time.NewTimer(d)
+	select {
+	case <-timer.C:
+		return status.Errorf(codes.DeadlineExceeded, "too slow")
+	case err := <-errChan:
+		if !timer.Stop() {
+			<-timer.C
+		}
+		return err
+	}
 }
