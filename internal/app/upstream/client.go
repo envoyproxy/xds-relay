@@ -41,10 +41,10 @@ type Client interface {
 }
 
 type client struct {
-	ldsClient v2.ListenerDiscoveryServiceClient
-	rdsClient v2.RouteDiscoveryServiceClient
-	edsClient v2.EndpointDiscoveryServiceClient
-	cdsClient v2.ClusterDiscoveryServiceClient
+	ldsClient   v2.ListenerDiscoveryServiceClient
+	rdsClient   v2.RouteDiscoveryServiceClient
+	edsClient   v2.EndpointDiscoveryServiceClient
+	cdsClient   v2.ClusterDiscoveryServiceClient
 	callOptions CallOptions
 }
 
@@ -56,7 +56,9 @@ type Response struct {
 	Err      error
 }
 
-type CallOptions {
+// CallOptions contains grpc client call options
+type CallOptions struct {
+	// Timeout is the time to wait on a blocking grpc SendMsg.
 	Timeout time.Duration
 }
 
@@ -72,7 +74,7 @@ type version struct {
 // The method does not block until the underlying connection is up.
 // Returns immediately and connecting the server happens in background
 // TODO: pass retry/timeout configurations
-func NewClient(ctx context.Context, url string, callOptions ...CallOptions) (Client, error) {
+func NewClient(ctx context.Context, url string, callOptions CallOptions) (Client, error) {
 	conn, err := grpc.Dial(url, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
@@ -86,10 +88,10 @@ func NewClient(ctx context.Context, url string, callOptions ...CallOptions) (Cli
 	go shutDown(ctx, conn)
 
 	return &client{
-		ldsClient: ldsClient,
-		rdsClient: rdsClient,
-		edsClient: edsClient,
-		cdsClient: cdsClient,
+		ldsClient:   ldsClient,
+		rdsClient:   rdsClient,
+		edsClient:   edsClient,
+		cdsClient:   cdsClient,
 		callOptions: callOptions,
 	}, nil
 }
@@ -119,10 +121,18 @@ func (m *client) OpenStream(ctx context.Context, request *v2.DiscoveryRequest) (
 	response := make(chan *Response)
 
 	go send(ctx, request, response, stream, signal, m.callOptions)
-	go recv(ctx, response, stream, signal, m.callOptions)
+	go recv(response, stream, signal)
+
+	return response, nil
 }
 
-func send(ctx context.Context, request *v2.DiscoveryRequest, response chan *Response, stream grpc.ClientStream, signal chan *version, callOptions CallOptions) {
+func send(
+	ctx context.Context,
+	request *v2.DiscoveryRequest,
+	response chan *Response,
+	stream grpc.ClientStream,
+	signal chan *version,
+	callOptions CallOptions) {
 	for {
 		select {
 		case sig := <-signal:
@@ -133,13 +143,16 @@ func send(ctx context.Context, request *v2.DiscoveryRequest, response chan *Resp
 				response <- &Response{Err: err}
 			}
 		case <-ctx.Done():
-			stream.CloseSend()
+			_ = stream.CloseSend()
 			return
 		}
 	}
 }
 
-func recv(ctx context.Context, response chan *Response, stream grpc.ClientStream, signal chan *version, callOptions CallOptions) {
+func recv(
+	response chan *Response,
+	stream grpc.ClientStream,
+	signal chan *version) {
 	for {
 		resp := new(v2.DiscoveryResponse)
 		if err := stream.RecvMsg(resp); err != nil {
@@ -152,12 +165,8 @@ func recv(ctx context.Context, response chan *Response, stream grpc.ClientStream
 }
 
 func shutDown(ctx context.Context, conn *grpc.ClientConn) {
-	for {
-		select {
-		case <-ctx.Done():
-			conn.Close()
-		}
-	}
+	<-ctx.Done()
+	conn.Close()
 }
 
 // DoWithTimeout runs f and returns its error.  If the deadline d elapses first,
