@@ -4,13 +4,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/onsi/gomega"
-
-	"github.com/golang/groupcache/lru"
-
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	"github.com/golang/groupcache/lru"
 	"github.com/golang/protobuf/ptypes/any"
+	"github.com/onsi/gomega"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -42,14 +40,27 @@ var testRequest = v2.DiscoveryRequest{
 	ResponseNonce: "nonce_A",
 }
 
-var testResponse = v2.DiscoveryResponse{
+var testDiscoveryResponse = v2.DiscoveryResponse{
 	VersionInfo: "version_A",
-	Resources:   []*any.Any{},
-	Canary:      false,
-	TypeUrl:     "typeURL_A",
-	Nonce:       "nonce_A",
+	Resources: []*any.Any{
+		{
+			Value: []byte("test"),
+		},
+	},
+	Canary:  false,
+	TypeUrl: "typeURL_A",
+	Nonce:   "nonce_A",
 	ControlPlane: &core.ControlPlane{
 		Identifier: "identifier_A",
+	},
+}
+
+var testResponse = Response{
+	raw: testDiscoveryResponse,
+	marshaledResources: []*any.Any{
+		{
+			Value: []byte("\x12\x04test"),
+		},
 	},
 }
 
@@ -78,7 +89,7 @@ func TestSetResponseAndFetch(t *testing.T) {
 	assert.EqualError(t, err, "no value found for key: key_A")
 	assert.Nil(t, response)
 
-	requests, err := cache.SetResponse(testKeyA, testResponse)
+	requests, err := cache.SetResponse(testKeyA, testDiscoveryResponse)
 	assert.NoError(t, err)
 	assert.Nil(t, requests)
 
@@ -97,7 +108,7 @@ func TestAddRequestAndSetResponse(t *testing.T) {
 	err = cache.AddRequest(testKeyA, testRequest)
 	assert.NoError(t, err)
 
-	requests, err := cache.SetResponse(testKeyA, testResponse)
+	requests, err := cache.SetResponse(testKeyA, testDiscoveryResponse)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(requests))
 	assert.Equal(t, testRequest, *requests[0])
@@ -112,7 +123,7 @@ func TestMaxEntries(t *testing.T) {
 	cache, err := NewCache(1, testOnEvict, time.Second*60)
 	assert.NoError(t, err)
 
-	_, err = cache.SetResponse(testKeyA, testResponse)
+	_, err = cache.SetResponse(testKeyA, testDiscoveryResponse)
 	assert.NoError(t, err)
 
 	response, err := cache.Fetch(testKeyA)
@@ -140,7 +151,7 @@ func TestTTL_Enabled(t *testing.T) {
 	cache, err := NewCache(1, testOnEvict, time.Millisecond*10)
 	assert.NoError(t, err)
 
-	_, err = cache.SetResponse(testKeyA, testResponse)
+	_, err = cache.SetResponse(testKeyA, testDiscoveryResponse)
 	assert.NoError(t, err)
 
 	response, err := cache.Fetch(testKeyA)
@@ -167,14 +178,14 @@ func TestTTL_Disabled(t *testing.T) {
 	cache, err := NewCache(1, testOnEvict, 0)
 	assert.NoError(t, err)
 
-	_, err = cache.SetResponse(testKeyA, testResponse)
+	_, err = cache.SetResponse(testKeyA, testDiscoveryResponse)
 	assert.NoError(t, err)
 
 	response, err := cache.Fetch(testKeyA)
 	assert.NoError(t, err)
 	assert.Equal(t, testResponse, *response)
 
-	gomega.Consistently(func() (*v2.DiscoveryResponse, error) {
+	gomega.Consistently(func() (*Response, error) {
 		return cache.Fetch(testKeyA)
 	}).Should(gomega.Equal(&testResponse))
 }
