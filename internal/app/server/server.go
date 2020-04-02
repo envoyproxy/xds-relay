@@ -7,8 +7,8 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 
 	api "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	"github.com/envoyproxy/go-control-plane/pkg/cache"
-	gcp "github.com/envoyproxy/go-control-plane/pkg/server"
+	cache "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
+	gcp "github.com/envoyproxy/go-control-plane/pkg/server/v2"
 	"google.golang.org/grpc"
 )
 
