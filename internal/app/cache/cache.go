@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	gcp "github.com/envoyproxy/go-control-plane/pkg/cache"
+	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	"github.com/golang/groupcache/lru"
 	"github.com/golang/protobuf/ptypes/any"
 
