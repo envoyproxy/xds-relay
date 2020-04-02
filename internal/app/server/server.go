@@ -4,10 +4,10 @@ import (
 	"context"
 	"net"
 
+	"github.com/envoyproxy/xds-relay/internal/app/orchestrator"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 
 	api "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	cache "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	gcp "github.com/envoyproxy/go-control-plane/pkg/server/v2"
 	"google.golang.org/grpc"
 )
@@ -24,8 +24,8 @@ func Run() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	snapshotCache := cache.NewSnapshotCache(false, cache.IDHash{}, nil)
-	gcpServer := gcp.NewServer(ctx, snapshotCache, nil)
+	orchestrator := orchestrator.New(ctx, logger)
+	gcpServer := gcp.NewServer(ctx, orchestrator, nil)
 	server := grpc.NewServer()
 	listener, err := net.Listen("tcp", ":8080") // #nosec
 	if err != nil {
