@@ -65,19 +65,19 @@ func New(ctx context.Context, l log.Logger) Orchestrator {
 
 	cache, err := cache.NewCache(cacheMaxEntries, orchestrator.onCacheEvicted, cacheTTL)
 	if err != nil {
-		orchestrator.logger.Panic(ctx, "failed to initialize cache")
+		orchestrator.logger.With("error", err).Panic(ctx, "failed to initialize cache")
 	}
 
 	upstreamClient, err := upstream.NewClient(ctx, upstreamClientURL)
 	if err != nil {
-		orchestrator.logger.Panic(ctx, "failed to initialize upstream client")
+		orchestrator.logger.With("error", err).Panic(ctx, "failed to initialize upstream client")
 	}
 
 	var config aggregationv1.KeyerConfiguration
 	err = yamlproto.FromYAMLToKeyerConfiguration(aggregationRules, &config)
 	if err != nil {
 		// TODO Panic when https://github.com/envoyproxy/xds-relay/issues/41 is implemented.
-		orchestrator.logger.Warn(ctx, "failed to translate aggregation rules")
+		orchestrator.logger.With("error", err).Warn(ctx, "failed to translate aggregation rules")
 	}
 
 	orchestrator.mapper = mapper.NewMapper(&config)
