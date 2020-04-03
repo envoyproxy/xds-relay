@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package bootstrap;
+option go_package = "bootstrap/v1;bootstrapv1";
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/wrappers.proto";
+import "validate/validate.proto";
+
+
+// [#next-free-field: 4]
+message Bootstrap {
+    // xds-relay server settings.
+    Server server = 1;
+
+    // Configuration information about the control plane/upstream server.
+    Cluster control_plane_cluster = 2;
+
+    // Logging settings.
+    Logging logging = 3;
+
+    // Request/response cache settings.
+    Cache cache = 4;
+}
+
+// [#next-free-field: 2]
+message Server {
+    // The TCP address that the xds-relay server will listen on.
+    SocketAddress address = 1;
+}
+
+// [#next-free-field: 2]
+message Cluster {
+    // The address for the cluster.
+    SocketAddress address = 1;
+}
+
+// [#next-free-field: 3]
+message Logging {
+    // Filepath where logs are emitted. If no filepath is specified, logs will be written to `/dev/null`.
+    string path = 1;
+
+    // The logging level. If no logging level is set, the default is `info`.
+    string level = 2;
+}
+
+// [#next-free-field: 3]
+message Cache {
+    // Duration before which a key is evicted from the request/response cache. Zero means no expiration time.
+    google.protobuf.Duration ttl = 1;
+
+    // The maximum number of keys allowed in the request/response cache.
+    google.protobuf.Int32Value max_entries = 2;
+}
+
+// [#next-free-field: 4]
+message SocketAddress {
+    // The address for this socket. Listeners will bind
+    // to the address. An empty address is not allowed.
+    string address = 1 [(validate.rules).string = {min_bytes: 1}];
+
+    uint32 port_value = 2 [(validate.rules).uint32 = {lte: 65535}];
+}
