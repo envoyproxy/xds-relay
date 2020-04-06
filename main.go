@@ -39,8 +39,7 @@ var (
 				log.Fatal(err)
 			}
 
-			// TODO: Hand off values to the server/orchestrator creation process (includes config parsing)
-			server.Run()
+			server.Run(&bootstrapConfig, logLevel)
 		},
 	}
 )
@@ -48,7 +47,7 @@ var (
 func main() {
 	bootstrapCmd.Flags().StringVarP(&cfgFile, "config-file", "c", "", "path to bootstrap configuration file")
 	bootstrapCmd.Flags().StringVarP(&aggregationRules, "aggregation-rules", "a", "", "path to aggregation rules file")
-	bootstrapCmd.Flags().StringVarP(&logLevel, "log-level", "l", "info", "the logging level")
+	bootstrapCmd.Flags().StringVarP(&logLevel, "log-level", "l", "", "the logging level")
 	if err := bootstrapCmd.MarkFlagRequired("config-file"); err != nil {
 		log.Fatal("Could not mark the config-file flag as required: ", err)
 	}

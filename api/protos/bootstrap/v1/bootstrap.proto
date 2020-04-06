@@ -10,11 +10,11 @@ import "validate/validate.proto";
 
 // [#next-free-field: 4]
 message Bootstrap {
-    // xds-relay server settings.
+    // xds-relay server configuration. If not specified, the xds-relay server will not start.
     Server server = 1;
 
-    // Configuration information about the control plane/upstream server.
-    Cluster control_plane_cluster = 2;
+    // Configuration information about the origin server.
+    Upstream origin_server = 2;
 
     // Logging settings.
     Logging logging = 3;
@@ -25,13 +25,13 @@ message Bootstrap {
 
 // [#next-free-field: 2]
 message Server {
-    // The TCP address that the xds-relay server will listen on.
+    // The TCP address that the xds-relay server will listen on. If not specified, the xds-relay server will not start.
     SocketAddress address = 1;
 }
 
 // [#next-free-field: 2]
-message Cluster {
-    // The address for the cluster.
+message Upstream {
+    // The address for the upstream cluster.
     SocketAddress address = 1;
 }
 
@@ -40,8 +40,14 @@ message Logging {
     // Filepath where logs are emitted. If no filepath is specified, logs will be written to `/dev/null`.
     string path = 1;
 
-    // The logging level. If no logging level is set, the default is `info`.
-    string level = 2;
+    // The logging level. If no logging level is set, the default is INFO.
+    enum Level {
+        INFO = 0;
+        DEBUG = 1;
+        WARN = 2;
+        ERROR = 3;
+    }
+    Level level = 2;
 }
 
 // [#next-free-field: 3]

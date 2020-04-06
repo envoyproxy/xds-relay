@@ -53,10 +53,10 @@ func (m *Bootstrap) Validate() error {
 		}
 	}
 
-	if v, ok := interface{}(m.GetControlPlaneCluster()).(interface{ Validate() error }); ok {
+	if v, ok := interface{}(m.GetOriginServer()).(interface{ Validate() error }); ok {
 		if err := v.Validate(); err != nil {
 			return BootstrapValidationError{
-				field:  "ControlPlaneCluster",
+				field:  "OriginServer",
 				reason: "embedded message failed validation",
 				cause:  err,
 			}
@@ -214,16 +214,16 @@ var _ interface {
 	ErrorName() string
 } = ServerValidationError{}
 
-// Validate checks the field values on Cluster with the rules defined in the
+// Validate checks the field values on Upstream with the rules defined in the
 // proto definition for this message. If any rules are violated, an error is returned.
-func (m *Cluster) Validate() error {
+func (m *Upstream) Validate() error {
 	if m == nil {
 		return nil
 	}
 
 	if v, ok := interface{}(m.GetAddress()).(interface{ Validate() error }); ok {
 		if err := v.Validate(); err != nil {
-			return ClusterValidationError{
+			return UpstreamValidationError{
 				field:  "Address",
 				reason: "embedded message failed validation",
 				cause:  err,
@@ -234,9 +234,9 @@ func (m *Cluster) Validate() error {
 	return nil
 }
 
-// ClusterValidationError is the validation error returned by Cluster.Validate
-// if the designated constraints aren't met.
-type ClusterValidationError struct {
+// UpstreamValidationError is the validation error returned by
+// Upstream.Validate if the designated constraints aren't met.
+type UpstreamValidationError struct {
 	field  string
 	reason string
 	cause  error
@@ -244,22 +244,22 @@ type ClusterValidationError struct {
 }
 
 // Field function returns field value.
-func (e ClusterValidationError) Field() string { return e.field }
+func (e UpstreamValidationError) Field() string { return e.field }
 
 // Reason function returns reason value.
-func (e ClusterValidationError) Reason() string { return e.reason }
+func (e UpstreamValidationError) Reason() string { return e.reason }
 
 // Cause function returns cause value.
-func (e ClusterValidationError) Cause() error { return e.cause }
+func (e UpstreamValidationError) Cause() error { return e.cause }
 
 // Key function returns key value.
-func (e ClusterValidationError) Key() bool { return e.key }
+func (e UpstreamValidationError) Key() bool { return e.key }
 
 // ErrorName returns error name.
-func (e ClusterValidationError) ErrorName() string { return "ClusterValidationError" }
+func (e UpstreamValidationError) ErrorName() string { return "UpstreamValidationError" }
 
 // Error satisfies the builtin error interface
-func (e ClusterValidationError) Error() string {
+func (e UpstreamValidationError) Error() string {
 	cause := ""
 	if e.cause != nil {
 		cause = fmt.Sprintf(" | caused by: %v", e.cause)
@@ -271,14 +271,14 @@ func (e ClusterValidationError) Error() string {
 	}
 
 	return fmt.Sprintf(
-		"invalid %sCluster.%s: %s%s",
+		"invalid %sUpstream.%s: %s%s",
 		key,
 		e.field,
 		e.reason,
 		cause)
 }
 
-var _ error = ClusterValidationError{}
+var _ error = UpstreamValidationError{}
 
 var _ interface {
 	Field() string
@@ -286,7 +286,7 @@ var _ interface {
 	Key() bool
 	Cause() error
 	ErrorName() string
-} = ClusterValidationError{}
+} = UpstreamValidationError{}
 
 // Validate checks the field values on Logging with the rules defined in the
 // proto definition for this message. If any rules are violated, an error is returned.
