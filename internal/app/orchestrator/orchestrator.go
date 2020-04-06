@@ -15,8 +15,6 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
-	yamlproto "github.com/envoyproxy/xds-relay/internal/pkg/util"
-	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
 
 	discovery "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
@@ -26,10 +24,8 @@ const (
 	component = "orchestrator"
 
 	// TODO (https://github.com/envoyproxy/xds-relay/issues/41) load from configured defaults.
-	aggregationRules  = ""
-	cacheMaxEntries   = 1000
-	cacheTTL          = 60 * time.Minute
-	upstreamClientURL = "localhost:8080"
+	cacheMaxEntries = 1000
+	cacheTTL        = 60 * time.Minute
 )
 
 // Orchestrator has the following responsibilities:
@@ -58,31 +54,18 @@ type orchestrator struct {
 // New instantiates the mapper, cache, upstream client components necessary for
 // the orchestrator to operate and returns an instance of the instantiated
 // orchestrator.
-func New(ctx context.Context, l log.Logger) Orchestrator {
+func New(ctx context.Context, l log.Logger, mapper mapper.Mapper, upstreamClient upstream.Client) Orchestrator {
 	orchestrator := &orchestrator{
-		logger: l.Named(component),
+		logger:         l.Named(component),
+		mapper:         mapper,
+		upstreamClient: upstreamClient,
 	}
 
 	cache, err := cache.NewCache(cacheMaxEntries, orchestrator.onCacheEvicted, cacheTTL)
 	if err != nil {
 		orchestrator.logger.With("error", err).Panic(ctx, "failed to initialize cache")
 	}
-
-	upstreamClient, err := upstream.NewClient(ctx, upstreamClientURL)
-	if err != nil {
-		orchestrator.logger.With("error", err).Panic(ctx, "failed to initialize upstream client")
-	}
-
-	var config aggregationv1.KeyerConfiguration
-	err = yamlproto.FromYAMLToKeyerConfiguration(aggregationRules, &config)
-	if err != nil {
-		// TODO Panic when https://github.com/envoyproxy/xds-relay/issues/41 is implemented.
-		orchestrator.logger.With("error", err).Warn(ctx, "failed to translate aggregation rules")
-	}
-
-	orchestrator.mapper = mapper.NewMapper(&config)
 	orchestrator.cache = cache
-	orchestrator.upstreamClient = upstreamClient
 
 	return orchestrator
 }
