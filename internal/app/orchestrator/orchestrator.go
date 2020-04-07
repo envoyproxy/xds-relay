@@ -39,6 +39,15 @@ const (
 // 4. When new responses are available upstream, orchestrator relays and fans
 //    out the response back on the streams associated with the xDS clients.
 // 5. Updates the xds-relay cache with the latest state of the world.
+//
+// Orchestrator will be using go-control-plane's gRPC server implementation to
+// maintain the fanout to downstream clients. go-control-plane keeps an open
+// connection with each downstream xDS client. When orchestrator receives an
+// upstream response from the forwarded sample request (via a long lived
+// channel), Orchestrator will cache the response, and fanout to the
+// downstreams by supplying responses to the individual channels corresponding
+// to each downstream connection (watcher). See the CreateWatch function for
+// more details.
 type Orchestrator interface {
 	gcp.Cache
 }
