@@ -8,9 +8,8 @@ setup:
 	mkdir -p ./bin
 
 .PHONY: compile
-compile: setup  ## Compiles the binary and installs it into /usr/local/bin
-	go build -o ./bin/${SERVICE_NAME} && \
-	  cp ./bin/${SERVICE_NAME} /usr/local/bin/${SERVICE_NAME}
+compile: setup  ## Compiles the binary
+	go build -o ./bin/${SERVICE_NAME}
 
 .PHONY: install
 install: ## Installs dependencies
