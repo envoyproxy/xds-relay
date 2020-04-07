@@ -73,9 +73,9 @@ func NewCache(maxEntries int, onEvicted onEvictFunc, ttl time.Duration) (Cache, 
 }
 
 func (c *cache) Fetch(key string) (*Response, error) {
-	c.cacheMu.Lock()
-	defer c.cacheMu.Unlock()
+	c.cacheMu.RLock()
 	value, found := c.cache.Get(key)
+	c.cacheMu.RUnlock()
 	if !found {
 		return nil, fmt.Errorf("no value found for key: %s", key)
 	}
@@ -85,8 +85,23 @@ func (c *cache) Fetch(key string) (*Response, error) {
 	}
 	// Lazy eviction based on TTL occurs here. Fetch does not increase the lifespan of the key.
 	if resource.isExpired(time.Now()) {
-		c.cache.Remove(key)
-		return nil, nil
+		c.cacheMu.Lock()
+		defer c.cacheMu.Unlock()
+		value, found = c.cache.Get(key)
+		if !found {
+			// The entry was already evicted.
+			return nil, nil
+		}
+		resource, ok = value.(Resource)
+		if !ok {
+			return nil, fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
+		}
+		if resource.isExpired(time.Now()) {
+			c.cache.Remove(key)
+			return nil, nil
+		}
+		// The entry should no longer be evicted.
+		return resource.resp, nil
 	}
 	return resource.resp, nil
 }
