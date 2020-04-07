@@ -96,12 +96,13 @@ func (c *cache) Fetch(key string) (*Response, error) {
 		if !ok {
 			return nil, fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 		}
+		// This second check for expiration is required in case a recent SetResponse call was made to the same key
+		// from another goroutine, extending the deadline for eviction. Without it, a key that was recently refreshed
+		// may be prematurely removed by the goroutine calling Fetch.
 		if resource.isExpired(time.Now()) {
 			c.cache.Remove(key)
 			return nil, nil
 		}
-		// The entry should no longer be evicted.
-		return resource.resp, nil
 	}
 	return resource.resp, nil
 }
