@@ -73,9 +73,9 @@ func NewCache(maxEntries int, onEvicted OnEvictFunc, ttl time.Duration) (Cache, 
 }
 
 func (c *cache) Fetch(key string) (*Response, error) {
-	c.cacheMu.Lock()
-	defer c.cacheMu.Unlock()
+	c.cacheMu.RLock()
 	value, found := c.cache.Get(key)
+	c.cacheMu.RUnlock()
 	if !found {
 		return nil, fmt.Errorf("no value found for key: %s", key)
 	}
@@ -85,8 +85,24 @@ func (c *cache) Fetch(key string) (*Response, error) {
 	}
 	// Lazy eviction based on TTL occurs here. Fetch does not increase the lifespan of the key.
 	if resource.isExpired(time.Now()) {
-		c.cache.Remove(key)
-		return nil, nil
+		c.cacheMu.Lock()
+		defer c.cacheMu.Unlock()
+		value, found = c.cache.Get(key)
+		if !found {
+			// The entry was already evicted.
+			return nil, nil
+		}
+		resource, ok = value.(Resource)
+		if !ok {
+			return nil, fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
+		}
+		// This second check for expiration is required in case a recent SetResponse call was made to the same key
+		// from another goroutine, extending the deadline for eviction. Without it, a key that was recently refreshed
+		// may be prematurely removed by the goroutine calling Fetch.
+		if resource.isExpired(time.Now()) {
+			c.cache.Remove(key)
+			return nil, nil
+		}
 	}
 	return resource.resp, nil
 }
