@@ -46,7 +46,8 @@ var (
 
 func main() {
 	bootstrapCmd.Flags().StringVarP(&bootstrapConfigFile, "config-file", "c", "", "path to bootstrap configuration file")
-	bootstrapCmd.Flags().StringVarP(&aggregationRulesConfigFile, "aggregation-rules", "a", "", "path to aggregation rules file")
+	bootstrapCmd.Flags().StringVarP(&aggregationRulesConfigFile,
+		"aggregation-rules", "a", "", "path to aggregation rules file")
 	bootstrapCmd.Flags().StringVarP(&logLevel, "log-level", "l", "", "the logging level")
 	if err := bootstrapCmd.MarkFlagRequired("config-file"); err != nil {
 		log.Fatal("Could not mark the config-file flag as required: ", err)

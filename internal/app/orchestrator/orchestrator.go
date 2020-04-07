@@ -9,8 +9,9 @@ package orchestrator
 import (
 	"context"
 	"fmt"
-	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
 	"time"
+
+	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
 
 	"github.com/envoyproxy/xds-relay/internal/app/cache"
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
@@ -60,7 +61,11 @@ type orchestrator struct {
 // New instantiates the mapper, cache, upstream client components necessary for
 // the orchestrator to operate and returns an instance of the instantiated
 // orchestrator.
-func New(ctx context.Context, l log.Logger, mapper mapper.Mapper, upstreamClient upstream.Client, cacheConfig *bootstrapv1.Cache) Orchestrator {
+func New(ctx context.Context,
+	l log.Logger,
+	mapper mapper.Mapper,
+	upstreamClient upstream.Client,
+	cacheConfig *bootstrapv1.Cache) Orchestrator {
 	orchestrator := &orchestrator{
 		logger:         l.Named(component),
 		mapper:         mapper,
@@ -68,7 +73,9 @@ func New(ctx context.Context, l log.Logger, mapper mapper.Mapper, upstreamClient
 	}
 
 	// Initialize cache.
-	cache, err := cache.NewCache(int(cacheConfig.MaxEntries), orchestrator.onCacheEvicted, time.Duration(cacheConfig.Ttl.Nanos)*time.Nanosecond)
+	cache, err := cache.NewCache(int(cacheConfig.MaxEntries),
+		orchestrator.onCacheEvicted,
+		time.Duration(cacheConfig.Ttl.Nanos)*time.Nanosecond)
 	if err != nil {
 		orchestrator.logger.With("error", err).Panic(ctx, "failed to initialize cache")
 	}

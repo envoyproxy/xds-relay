@@ -19,7 +19,9 @@ import (
 )
 
 // Run instantiates a running gRPC server for accepting incoming xDS-based requests.
-func Run(bootstrapConfig *bootstrapv1.Bootstrap, aggregationRulesConfig *aggregationv1.KeyerConfiguration, logLevel string) {
+func Run(bootstrapConfig *bootstrapv1.Bootstrap,
+	aggregationRulesConfig *aggregationv1.KeyerConfiguration,
+	logLevel string) {
 	// Initialize logger. The command line input for the log level overrides the log level set in the bootstrap config.
 	// If no log level is set in the config, the default is INFO.
 	var logger log.Logger
