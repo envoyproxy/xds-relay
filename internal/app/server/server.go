@@ -18,7 +18,7 @@ import (
 
 const (
 	// TODO (https://github.com/envoyproxy/xds-relay/issues/41) load from configured defaults.
-	defaultLogLevel   = "info" // TODO make configurable
+	defaultLogLevel   = "info"
 	aggregationRules  = ""
 	upstreamClientURL = "localhost:8080"
 )
@@ -28,16 +28,17 @@ const (
 func Run() {
 	logger := log.New(defaultLogLevel)
 
-	// Cursory implementation of go-control-plane's server.
 	// TODO cancel should be invoked by shutdown handlers.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// Initialize upstream client.
 	upstreamClient, err := upstream.NewClient(ctx, upstreamClientURL)
 	if err != nil {
 		logger.With("error", err).Panic(ctx, "failed to initialize upstream client")
 	}
 
+	// Initialize request aggregation mapper component.
 	var config aggregationv1.KeyerConfiguration
 	err = yamlproto.FromYAMLToKeyerConfiguration(aggregationRules, &config)
 	if err != nil {
@@ -46,7 +47,10 @@ func Run() {
 	}
 	requestMapper := mapper.NewMapper(&config)
 
+	// Initialize orchestrator.
 	orchestrator := orchestrator.New(ctx, logger, requestMapper, upstreamClient)
+
+	// Start server.
 	gcpServer := gcp.NewServer(ctx, orchestrator, nil)
 	server := grpc.NewServer()
 	listener, err := net.Listen("tcp", ":8080") // #nosec
