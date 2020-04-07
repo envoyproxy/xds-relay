@@ -43,6 +43,13 @@ func (m *Bootstrap) Validate() error {
 		return nil
 	}
 
+	if m.GetServer() == nil {
+		return BootstrapValidationError{
+			field:  "Server",
+			reason: "value is required",
+		}
+	}
+
 	if v, ok := interface{}(m.GetServer()).(interface{ Validate() error }); ok {
 		if err := v.Validate(); err != nil {
 			return BootstrapValidationError{
@@ -50,6 +57,13 @@ func (m *Bootstrap) Validate() error {
 				reason: "embedded message failed validation",
 				cause:  err,
 			}
+		}
+	}
+
+	if m.GetOriginServer() == nil {
+		return BootstrapValidationError{
+			field:  "OriginServer",
+			reason: "value is required",
 		}
 	}
 
@@ -63,6 +77,13 @@ func (m *Bootstrap) Validate() error {
 		}
 	}
 
+	if m.GetLogging() == nil {
+		return BootstrapValidationError{
+			field:  "Logging",
+			reason: "value is required",
+		}
+	}
+
 	if v, ok := interface{}(m.GetLogging()).(interface{ Validate() error }); ok {
 		if err := v.Validate(); err != nil {
 			return BootstrapValidationError{
@@ -70,6 +91,13 @@ func (m *Bootstrap) Validate() error {
 				reason: "embedded message failed validation",
 				cause:  err,
 			}
+		}
+	}
+
+	if m.GetCache() == nil {
+		return BootstrapValidationError{
+			field:  "Cache",
+			reason: "value is required",
 		}
 	}
 
@@ -147,6 +175,13 @@ func (m *Server) Validate() error {
 		return nil
 	}
 
+	if m.GetAddress() == nil {
+		return ServerValidationError{
+			field:  "Address",
+			reason: "value is required",
+		}
+	}
+
 	if v, ok := interface{}(m.GetAddress()).(interface{ Validate() error }); ok {
 		if err := v.Validate(); err != nil {
 			return ServerValidationError{
@@ -219,6 +254,13 @@ var _ interface {
 func (m *Upstream) Validate() error {
 	if m == nil {
 		return nil
+	}
+
+	if m.GetAddress() == nil {
+		return UpstreamValidationError{
+			field:  "Address",
+			reason: "value is required",
+		}
 	}
 
 	if v, ok := interface{}(m.GetAddress()).(interface{ Validate() error }); ok {
@@ -297,7 +339,12 @@ func (m *Logging) Validate() error {
 
 	// no validation rules for Path
 
-	// no validation rules for Level
+	if _, ok := Logging_Level_name[int32(m.GetLevel())]; !ok {
+		return LoggingValidationError{
+			field:  "Level",
+			reason: "value must be one of the defined enum values",
+		}
+	}
 
 	return nil
 }
@@ -363,25 +410,35 @@ func (m *Cache) Validate() error {
 		return nil
 	}
 
-	if v, ok := interface{}(m.GetTtl()).(interface{ Validate() error }); ok {
-		if err := v.Validate(); err != nil {
-			return CacheValidationError{
-				field:  "Ttl",
-				reason: "embedded message failed validation",
-				cause:  err,
-			}
+	if m.GetTtl() == nil {
+		return CacheValidationError{
+			field:  "Ttl",
+			reason: "value is required",
 		}
 	}
 
-	if v, ok := interface{}(m.GetMaxEntries()).(interface{ Validate() error }); ok {
-		if err := v.Validate(); err != nil {
+	if d := m.GetTtl(); d != nil {
+		dur, err := ptypes.Duration(d)
+		if err != nil {
 			return CacheValidationError{
-				field:  "MaxEntries",
-				reason: "embedded message failed validation",
+				field:  "Ttl",
+				reason: "value is not a valid duration",
 				cause:  err,
 			}
 		}
+
+		gte := time.Duration(0*time.Second + 0*time.Nanosecond)
+
+		if dur < gte {
+			return CacheValidationError{
+				field:  "Ttl",
+				reason: "value must be greater than or equal to 0s",
+			}
+		}
+
 	}
+
+	// no validation rules for MaxEntries
 
 	return nil
 }

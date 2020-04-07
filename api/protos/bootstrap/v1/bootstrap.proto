@@ -10,29 +10,29 @@ import "validate/validate.proto";
 
 // [#next-free-field: 4]
 message Bootstrap {
-    // xds-relay server configuration. If not specified, the xds-relay server will not start.
-    Server server = 1;
+    // xds-relay server configuration.
+    Server server = 1 [(validate.rules).message.required = true];
 
     // Configuration information about the origin server.
-    Upstream origin_server = 2;
+    Upstream origin_server = 2 [(validate.rules).message.required = true];
 
     // Logging settings.
-    Logging logging = 3;
+    Logging logging = 3 [(validate.rules).message.required = true];
 
     // Request/response cache settings.
-    Cache cache = 4;
+    Cache cache = 4 [(validate.rules).message.required = true];
 }
 
 // [#next-free-field: 2]
 message Server {
-    // The TCP address that the xds-relay server will listen on. If not specified, the xds-relay server will not start.
-    SocketAddress address = 1;
+    // The TCP address that the xds-relay server will listen on.
+    SocketAddress address = 1 [(validate.rules).message.required = true];
 }
 
 // [#next-free-field: 2]
 message Upstream {
     // The address for the upstream cluster.
-    SocketAddress address = 1;
+    SocketAddress address = 1 [(validate.rules).message.required = true];
 }
 
 // [#next-free-field: 3]
@@ -47,22 +47,21 @@ message Logging {
         WARN = 2;
         ERROR = 3;
     }
-    Level level = 2;
+    Level level = 2 [(validate.rules).enum.defined_only = true];
 }
 
 // [#next-free-field: 3]
 message Cache {
     // Duration before which a key is evicted from the request/response cache. Zero means no expiration time.
-    google.protobuf.Duration ttl = 1;
+    google.protobuf.Duration ttl = 1 [(validate.rules).duration = {required: true, gte: {nanos: 0}}];
 
-    // The maximum number of keys allowed in the request/response cache.
-    google.protobuf.Int32Value max_entries = 2;
+    // The maximum number of keys allowed in the request/response cache. If unset, no maximum number will be enforced.
+    int32 max_entries = 2;
 }
 
 // [#next-free-field: 4]
 message SocketAddress {
-    // The address for this socket. Listeners will bind
-    // to the address. An empty address is not allowed.
+    // The address for this socket. Listeners will bind to the address.
     string address = 1 [(validate.rules).string = {min_bytes: 1}];
 
     uint32 port_value = 2 [(validate.rules).uint32 = {lte: 65535}];

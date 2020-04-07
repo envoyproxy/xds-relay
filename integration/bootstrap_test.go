@@ -22,13 +22,13 @@ func TestBootstrap(t *testing.T) {
 
 var bootstrapTestCases = []TableEntry{
 	{
-		Description: "positive test",
+		Description: "negative test: negative cache TTL",
 		Parameters: []interface{}{
-			"./integration/testdata/bootstrap_configuration_complete_tech_spec.yaml",
+			"./integration/testdata/bootstrap_configuration_negative_cache_ttl.yaml",
 			"./integration/testdata/keyer_configuration_complete_tech_spec.yaml",
 			"debug",
-			false,
-			"",
+			true,
+			"invalid Cache.Ttl: value must be greater than or equal to 0s",
 		},
 	},
 }
