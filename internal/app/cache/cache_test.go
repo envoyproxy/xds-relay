@@ -56,28 +56,30 @@ var testDiscoveryResponse = v2.DiscoveryResponse{
 }
 
 var testResponse = Response{
-	raw: testDiscoveryResponse,
-	marshaledResources: []*any.Any{
-		{
-			Value: []byte("\x12\x04test"),
-		},
+	Raw: testDiscoveryResponse,
+	MarshaledResources: [][]byte{
+		[]byte("\x12\x04test"),
 	},
+}
+
+var testResource = Resource{
+	Resp: &testResponse,
 }
 
 func TestAddRequestAndFetch(t *testing.T) {
 	cache, err := NewCache(1, testOnEvict, time.Second*60)
 	assert.NoError(t, err)
 
-	response, err := cache.Fetch(testKeyA)
+	resource, err := cache.Fetch(testKeyA)
 	assert.EqualError(t, err, "no value found for key: key_A")
-	assert.Nil(t, response)
+	assert.Nil(t, resource)
 
 	err = cache.AddRequest(testKeyA, testRequest)
 	assert.NoError(t, err)
 
-	response, err = cache.Fetch(testKeyA)
+	resource, err = cache.Fetch(testKeyA)
 	assert.NoError(t, err)
-	assert.Nil(t, response)
+	assert.Nil(t, resource.Resp)
 }
 
 func TestSetResponseAndFetch(t *testing.T) {
@@ -85,17 +87,17 @@ func TestSetResponseAndFetch(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Simulate cache miss and setting of new response.
-	response, err := cache.Fetch(testKeyA)
+	resource, err := cache.Fetch(testKeyA)
 	assert.EqualError(t, err, "no value found for key: key_A")
-	assert.Nil(t, response)
+	assert.Nil(t, resource)
 
 	requests, err := cache.SetResponse(testKeyA, testDiscoveryResponse)
 	assert.NoError(t, err)
 	assert.Nil(t, requests)
 
-	response, err = cache.Fetch(testKeyA)
+	resource, err = cache.Fetch(testKeyA)
 	assert.NoError(t, err)
-	assert.Equal(t, testResponse, *response)
+	assert.Equal(t, testResponse, *resource.Resp)
 }
 
 func TestAddRequestAndSetResponse(t *testing.T) {
@@ -114,9 +116,9 @@ func TestAddRequestAndSetResponse(t *testing.T) {
 	assert.Equal(t, testRequest, *requests[0])
 	assert.Equal(t, testRequest, *requests[1])
 
-	response, err := cache.Fetch(testKeyA)
+	resource, err := cache.Fetch(testKeyA)
 	assert.NoError(t, err)
-	assert.Equal(t, testResponse, *response)
+	assert.Equal(t, testResponse, *resource.Resp)
 }
 
 func TestMaxEntries(t *testing.T) {
@@ -126,9 +128,9 @@ func TestMaxEntries(t *testing.T) {
 	_, err = cache.SetResponse(testKeyA, testDiscoveryResponse)
 	assert.NoError(t, err)
 
-	response, err := cache.Fetch(testKeyA)
+	resource, err := cache.Fetch(testKeyA)
 	assert.NoError(t, err)
-	assert.Equal(t, testResponse, *response)
+	assert.Equal(t, testResponse, *resource.Resp)
 
 	assert.PanicsWithValue(t, panicValues{
 		key:    testKeyA,
@@ -138,13 +140,13 @@ func TestMaxEntries(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	response, err = cache.Fetch(testKeyA)
+	resource, err = cache.Fetch(testKeyA)
 	assert.EqualError(t, err, "no value found for key: key_A")
-	assert.Nil(t, response)
+	assert.Nil(t, resource)
 
-	response, err = cache.Fetch(testKeyB)
+	resource, err = cache.Fetch(testKeyB)
 	assert.NoError(t, err)
-	assert.Nil(t, response)
+	assert.Nil(t, resource.Resp)
 }
 
 func TestTTL_Enabled(t *testing.T) {
@@ -154,23 +156,23 @@ func TestTTL_Enabled(t *testing.T) {
 	_, err = cache.SetResponse(testKeyA, testDiscoveryResponse)
 	assert.NoError(t, err)
 
-	response, err := cache.Fetch(testKeyA)
+	resource, err := cache.Fetch(testKeyA)
 	assert.NoError(t, err)
-	assert.Equal(t, testResponse, *response)
+	assert.Equal(t, testResponse, *resource.Resp)
 
 	time.Sleep(time.Millisecond * 10)
 	assert.PanicsWithValue(t, panicValues{
 		key:    testKeyA,
 		reason: "testOnEvict called",
 	}, func() {
-		response, err = cache.Fetch(testKeyA)
+		resource, err = cache.Fetch(testKeyA)
 		assert.NoError(t, err)
-		assert.Nil(t, response)
+		assert.Nil(t, resource)
 	})
 
-	response, err = cache.Fetch(testKeyA)
+	resource, err = cache.Fetch(testKeyA)
 	assert.EqualError(t, err, "no value found for key: key_A")
-	assert.Nil(t, response)
+	assert.Nil(t, resource)
 }
 
 func TestTTL_Disabled(t *testing.T) {
@@ -181,13 +183,13 @@ func TestTTL_Disabled(t *testing.T) {
 	_, err = cache.SetResponse(testKeyA, testDiscoveryResponse)
 	assert.NoError(t, err)
 
-	response, err := cache.Fetch(testKeyA)
+	resource, err := cache.Fetch(testKeyA)
 	assert.NoError(t, err)
-	assert.Equal(t, testResponse, *response)
+	assert.Equal(t, testResponse, *resource.Resp)
 
-	gomega.Consistently(func() (*Response, error) {
+	gomega.Consistently(func() (*Resource, error) {
 		return cache.Fetch(testKeyA)
-	}).Should(gomega.Equal(&testResponse))
+	}).Should(gomega.Equal(&testResource))
 }
 
 func TestTTL_Negative(t *testing.T) {
@@ -200,14 +202,14 @@ func TestIsExpired(t *testing.T) {
 	var resource Resource
 
 	// The expiration time is 0, meaning TTL is disabled, so the resource is not considered expired.
-	resource.expirationTime = time.Time{}
+	resource.ExpirationTime = time.Time{}
 	assert.False(t, resource.isExpired(time.Now()))
 
-	resource.expirationTime = time.Now()
+	resource.ExpirationTime = time.Now()
 	assert.False(t, resource.isExpired(time.Time{}))
 
-	resource.expirationTime = time.Now()
-	assert.True(t, resource.isExpired(resource.expirationTime.Add(1)))
+	resource.ExpirationTime = time.Now()
+	assert.True(t, resource.isExpired(resource.ExpirationTime.Add(1)))
 }
 
 func TestGetExpirationTime(t *testing.T) {
