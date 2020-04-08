@@ -7,16 +7,16 @@ import (
 	"sync"
 	"time"
 
+	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	gcp_types "github.com/envoyproxy/go-control-plane/pkg/cache/types"
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	"github.com/golang/groupcache/lru"
 	"github.com/golang/protobuf/ptypes/any"
-
-	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 )
 
 type Cache interface {
-	// Fetch returns the cached response if it exists.
-	Fetch(key string) (*Response, error)
+	// Fetch returns the cached resource if it exists.
+	Fetch(key string) (*Resource, error)
 
 	// SetResponse sets the cache response and returns the list of requests.
 	SetResponse(key string, resp v2.DiscoveryResponse) ([]*v2.DiscoveryRequest, error)
@@ -33,14 +33,14 @@ type cache struct {
 
 // Response stores the raw Discovery Response alongside its marshaled resources.
 type Response struct {
-	raw                v2.DiscoveryResponse
-	marshaledResources []*any.Any
+	Raw                v2.DiscoveryResponse
+	MarshaledResources []gcp_types.MarshaledResource
 }
 
 type Resource struct {
-	resp           *Response
-	requests       []*v2.DiscoveryRequest
-	expirationTime time.Time
+	Resp           *Response
+	Requests       []*v2.DiscoveryRequest
+	ExpirationTime time.Time
 }
 
 // OnEvictFunc is a callback function for each eviction. Receives the key and cache value when called.
@@ -72,7 +72,7 @@ func NewCache(maxEntries int, onEvicted OnEvictFunc, ttl time.Duration) (Cache, 
 	}, nil
 }
 
-func (c *cache) Fetch(key string) (*Response, error) {
+func (c *cache) Fetch(key string) (*Resource, error) {
 	c.cacheMu.RLock()
 	value, found := c.cache.Get(key)
 	c.cacheMu.RUnlock()
@@ -104,7 +104,7 @@ func (c *cache) Fetch(key string) (*Response, error) {
 			return nil, nil
 		}
 	}
-	return resource.resp, nil
+	return &resource, nil
 }
 
 func (c *cache) SetResponse(key string, resp v2.DiscoveryResponse) ([]*v2.DiscoveryRequest, error) {
@@ -115,14 +115,14 @@ func (c *cache) SetResponse(key string, resp v2.DiscoveryResponse) ([]*v2.Discov
 		return nil, fmt.Errorf("failed to marshal resources for key: %s, err %v", key, err)
 	}
 	response := &Response{
-		raw:                resp,
-		marshaledResources: marshaledResources,
+		Raw:                resp,
+		MarshaledResources: marshaledResources,
 	}
 	value, found := c.cache.Get(key)
 	if !found {
 		resource := Resource{
-			resp:           response,
-			expirationTime: c.getExpirationTime(time.Now()),
+			Resp:           response,
+			ExpirationTime: c.getExpirationTime(time.Now()),
 		}
 		c.cache.Add(key, resource)
 		return nil, nil
@@ -131,11 +131,10 @@ func (c *cache) SetResponse(key string, resp v2.DiscoveryResponse) ([]*v2.Discov
 	if !ok {
 		return nil, fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
-	resource.resp = response
-	resource.expirationTime = c.getExpirationTime(time.Now())
+	resource.Resp = response
+	resource.ExpirationTime = c.getExpirationTime(time.Now())
 	c.cache.Add(key, resource)
-	// TODO: Add logic that allows for notifying of watches.
-	return resource.requests, nil
+	return resource.Requests, nil
 }
 
 func (c *cache) AddRequest(key string, req v2.DiscoveryRequest) error {
@@ -144,8 +143,8 @@ func (c *cache) AddRequest(key string, req v2.DiscoveryRequest) error {
 	value, found := c.cache.Get(key)
 	if !found {
 		resource := Resource{
-			requests:       []*v2.DiscoveryRequest{&req},
-			expirationTime: c.getExpirationTime(time.Now()),
+			Requests:       []*v2.DiscoveryRequest{&req},
+			ExpirationTime: c.getExpirationTime(time.Now()),
 		}
 		c.cache.Add(key, resource)
 		return nil
@@ -154,17 +153,17 @@ func (c *cache) AddRequest(key string, req v2.DiscoveryRequest) error {
 	if !ok {
 		return fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
-	resource.requests = append(resource.requests, &req)
-	resource.expirationTime = c.getExpirationTime(time.Now())
+	resource.Requests = append(resource.Requests, &req)
+	resource.ExpirationTime = c.getExpirationTime(time.Now())
 	c.cache.Add(key, resource)
 	return nil
 }
 
 func (r *Resource) isExpired(currentTime time.Time) bool {
-	if r.expirationTime.IsZero() {
+	if r.ExpirationTime.IsZero() {
 		return false
 	}
-	return r.expirationTime.Before(currentTime)
+	return r.ExpirationTime.Before(currentTime)
 }
 
 func (c *cache) getExpirationTime(currentTime time.Time) time.Time {
@@ -174,18 +173,15 @@ func (c *cache) getExpirationTime(currentTime time.Time) time.Time {
 	return time.Time{}
 }
 
-func marshalResources(resources []*any.Any) ([]*any.Any, error) {
-	var marshaledResources []*any.Any
+func marshalResources(resources []*any.Any) ([]gcp_types.MarshaledResource, error) {
+	var marshaledResources []gcp_types.MarshaledResource
 	for _, resource := range resources {
 		marshaledResource, err := gcp.MarshalResource(resource)
 		if err != nil {
 			return nil, err
 		}
 
-		marshaledResources = append(marshaledResources, &any.Any{
-			TypeUrl: resource.TypeUrl,
-			Value:   marshaledResource,
-		})
+		marshaledResources = append(marshaledResources, marshaledResource)
 	}
 	return marshaledResources, nil
 }
