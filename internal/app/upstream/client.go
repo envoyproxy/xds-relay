@@ -73,7 +73,7 @@ type version struct {
 //
 // The method does not block until the underlying connection is up.
 // Returns immediately and connecting the server happens in background
-// TODO: pass retry/timeout configurations
+// TODO: pass retry configurations
 func NewClient(ctx context.Context, url string, callOptions CallOptions) (Client, error) {
 	conn, err := grpc.Dial(url, grpc.WithInsecure())
 	if err != nil {
@@ -116,12 +116,12 @@ func (m *client) OpenStream(ctx context.Context, request *v2.DiscoveryRequest) (
 		return nil, err
 	}
 
-	signal := make(chan *version)
+	signal := make(chan *version, 1)
 	signal <- &version{}
 	response := make(chan *Response)
 
 	go send(ctx, request, response, stream, signal, m.callOptions)
-	go recv(response, stream, signal)
+	go recv(ctx, response, stream, signal)
 
 	return response, nil
 }
@@ -138,29 +138,44 @@ func send(
 		case sig := <-signal:
 			request.ResponseNonce = sig.nonce
 			request.VersionInfo = sig.version
-			err := doWithTimeout(func() error { return stream.SendMsg(request) }, callOptions.Timeout)
+			err := doWithTimeout(func() error {
+				return stream.SendMsg(request)
+			}, callOptions.Timeout)
 			if err != nil {
 				response <- &Response{Err: err}
 			}
 		case <-ctx.Done():
 			_ = stream.CloseSend()
+			close(signal)
+			close(response)
 			return
 		}
 	}
 }
 
 func recv(
+	ctx context.Context,
 	response chan *Response,
 	stream grpc.ClientStream,
 	signal chan *version) {
 	for {
 		resp := new(v2.DiscoveryResponse)
 		if err := stream.RecvMsg(resp); err != nil {
-			response <- &Response{Err: err}
-			return
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				response <- &Response{Err: err}
+				return
+			}
 		}
-		response <- &Response{Response: resp}
-		signal <- &version{version: resp.GetVersionInfo(), nonce: resp.GetNonce()}
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			response <- &Response{Response: resp}
+			signal <- &version{version: resp.GetVersionInfo(), nonce: resp.GetNonce()}
+		}
 	}
 }
 
@@ -181,7 +196,7 @@ func doWithTimeout(f func() error, d time.Duration) error {
 	timer := time.NewTimer(d)
 	select {
 	case <-timer.C:
-		return status.Errorf(codes.DeadlineExceeded, "too slow")
+		return status.Errorf(codes.DeadlineExceeded, "timeout")
 	case err := <-errChan:
 		if !timer.Stop() {
 			<-timer.C
