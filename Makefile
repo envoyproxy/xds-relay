@@ -1,8 +1,5 @@
 export SERVICE_NAME=xds-relay
 
-# We exclude integration tests files because we do not want to run those in unit tests
-SOURCE_FILES?=$$(go list ./... | grep -v integration)
-
 .PHONY: setup
 setup:
 	mkdir -p ./bin
@@ -18,11 +15,11 @@ install: ## Installs dependencies
 
 .PHONY: unit
 unit: ## Run all unit tests with coverage report
-	go test -v -cover $(SOURCE_FILES)
+	go test -v -cover ./...
 
 .PHONY: integration-tests
 integration-tests:  ## Run integration tests
-	go test -v ./integration/
+	go test -tags integration -v ./integration/
 
 .PHONY: compile-protos
 compile-protos: ## Compile proto files
