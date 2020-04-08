@@ -25,7 +25,7 @@ type Client interface {
 	// If the timeouts are exhausted, receive fails or a irrecoverable error occurs, the error is sent back to the caller.
 	// It is the caller's responsibility to send a new request from the last known DiscoveryRequest.
 	// Cancellation of the context cleans up all outstanding streams and releases all resources.
-	OpenStream(context.Context, *v2.DiscoveryRequest, string) chan *Response
+	OpenStream(context.Context, *v2.DiscoveryRequest) <-chan *Response
 }
 
 type client struct {
@@ -44,9 +44,9 @@ type client struct {
 // Only one of the fields is valid at any time. If the error is set, the response will be ignored.
 type Response struct {
 	//nolint
-	response v2.DiscoveryResponse
+	Response v2.DiscoveryResponse
 	//nolint
-	err error
+	Err error
 }
 
 // NewClient creates a grpc connection with an upstream origin server.
@@ -60,6 +60,6 @@ func NewClient(ctx context.Context, url string) (Client, error) {
 	return &client{}, nil
 }
 
-func (m *client) OpenStream(ctx context.Context, request *v2.DiscoveryRequest, typeURL string) chan *Response {
+func (m *client) OpenStream(ctx context.Context, request *v2.DiscoveryRequest) <-chan *Response {
 	return nil
 }
