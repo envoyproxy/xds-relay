@@ -167,7 +167,7 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonce(t *testing
 	}
 
 	cancel()
-}*/
+}
 
 func TestOpenStreamShouldSendErrorWhenSendMsgBlocks(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
