@@ -38,7 +38,7 @@ type Client interface {
 	// If the timeouts are exhausted, receive fails or a irrecoverable error occurs, the error is sent back to the caller.
 	// It is the caller's responsibility to send a new request from the last known DiscoveryRequest.
 	// Cancellation of the context cleans up all outstanding streams and releases all resources.
-	OpenStream(context.Context, *v2.DiscoveryRequest) (chan *Response, error)
+	OpenStream(context.Context, *v2.DiscoveryRequest) (<-chan *Response, error)
 }
 
 type client struct {
@@ -114,7 +114,7 @@ func NewMockClient(
 	}
 }
 
-func (m *client) OpenStream(ctx context.Context, request *v2.DiscoveryRequest) (chan *Response, error) {
+func (m *client) OpenStream(ctx context.Context, request *v2.DiscoveryRequest) (<-chan *Response, error) {
 	var stream grpc.ClientStream
 	var err error
 	switch request.GetTypeUrl() {
