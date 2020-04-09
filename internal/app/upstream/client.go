@@ -3,6 +3,7 @@ package upstream
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
@@ -120,14 +121,23 @@ func (m *client) OpenStream(ctx context.Context, request *v2.DiscoveryRequest) (
 	signal <- &version{}
 	response := make(chan *Response)
 
-	go send(ctx, request, response, stream, signal, m.callOptions)
-	go recv(ctx, response, stream, signal)
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go send(ctx, &wg, request, response, stream, signal, m.callOptions)
+	go recv(ctx, &wg, response, stream, signal)
+
+	go func() {
+		wg.Wait()
+		closeChannel(signal, response)
+	}()
 
 	return response, nil
 }
 
 func send(
 	ctx context.Context,
+	wg *sync.WaitGroup,
 	request *v2.DiscoveryRequest,
 	response chan *Response,
 	stream grpc.ClientStream,
@@ -135,19 +145,29 @@ func send(
 	callOptions CallOptions) {
 	for {
 		select {
-		case sig := <-signal:
+		case sig, ok := <-signal:
+			if !ok {
+				return
+			}
 			request.ResponseNonce = sig.nonce
 			request.VersionInfo = sig.version
 			err := doWithTimeout(func() error {
 				return stream.SendMsg(request)
 			}, callOptions.Timeout)
 			if err != nil {
-				response <- &Response{Err: err}
+				select {
+				case <-ctx.Done():
+					wg.Done()
+					return
+				default:
+					response <- &Response{Err: err}
+					wg.Done()
+					return
+				}
 			}
 		case <-ctx.Done():
 			_ = stream.CloseSend()
-			close(signal)
-			close(response)
+			wg.Done()
 			return
 		}
 	}
@@ -155,6 +175,7 @@ func send(
 
 func recv(
 	ctx context.Context,
+	wg *sync.WaitGroup,
 	response chan *Response,
 	stream grpc.ClientStream,
 	signal chan *version) {
@@ -163,20 +184,26 @@ func recv(
 		if err := stream.RecvMsg(resp); err != nil {
 			select {
 			case <-ctx.Done():
-				return
+				wg.Done()
 			default:
 				response <- &Response{Err: err}
-				return
 			}
+			return
 		}
 		select {
 		case <-ctx.Done():
+			wg.Done()
 			return
 		default:
 			response <- &Response{Response: resp}
 			signal <- &version{version: resp.GetVersionInfo(), nonce: resp.GetNonce()}
 		}
 	}
+}
+
+func closeChannel(versionChan chan *version, responseChan chan *Response) {
+	close(versionChan)
+	close(responseChan)
 }
 
 func shutDown(ctx context.Context, conn *grpc.ClientConn) {

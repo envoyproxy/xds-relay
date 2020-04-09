@@ -96,12 +96,10 @@ func TestOpenStreamShouldSendErrorIfSendFails(t *testing.T) {
 		return sendError
 	})
 
-	resp, err := client.OpenStream(ctx, &v2.DiscoveryRequest{
+	resp, _ := client.OpenStream(ctx, &v2.DiscoveryRequest{
 		TypeUrl: listenerTypeURL,
 		Node:    &envoy_api_v2_core.Node{},
 	})
-	assert.Nil(t, err)
-	assert.NotNil(t, resp)
 	val := <-resp
 	assert.Equal(t, val.Err, sendError)
 	assert.Nil(t, val.Response)
@@ -176,7 +174,10 @@ func TestOpenStreamShouldSendErrorWhenSendMsgBlocks(t *testing.T) {
 	client := NewMockClient(ctx, CallOptions{Timeout: time.Nanosecond}, nil, responseChan, func(m interface{}) error {
 		for {
 			select {
-			case <-responseChan:
+			case _, ok := <-responseChan:
+				if !ok {
+					return nil
+				}
 			}
 		}
 	})
@@ -269,7 +270,7 @@ func (stream *mockGrpcStream) Trailer() metadata.MD {
 }
 
 func (stream *mockGrpcStream) CloseSend() error {
-	return fmt.Errorf("Not implemented")
+	return nil
 }
 
 func (stream *mockGrpcStream) Context() context.Context {
