@@ -15,8 +15,7 @@ import (
 
 func TestNew(t *testing.T) {
 	// Trivial test to ensure orchestrator instantiates.
-	upstreamClient, err := upstream.NewClient(context.Background(), "example.com")
-	assert.NoError(t, err)
+	upstreamClient := upstream.NewMockClient(context.Background(), nil, nil, nil, nil, upstream.CallOptions{})
 
 	config := aggregationv1.KeyerConfiguration{
 		Fragments: []*aggregationv1.KeyerConfiguration_Fragment{

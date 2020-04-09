@@ -33,7 +33,7 @@ func Run() {
 	defer cancel()
 
 	// Initialize upstream client.
-	upstreamClient, err := upstream.NewClient(ctx, upstreamClientURL)
+	upstreamClient, err := upstream.NewClient(ctx, upstreamClientURL, upstream.CallOptions{})
 	if err != nil {
 		logger.With("error", err).Panic(ctx, "failed to initialize upstream client")
 	}

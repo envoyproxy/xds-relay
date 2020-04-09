@@ -97,6 +97,23 @@ func NewClient(ctx context.Context, url string, callOptions CallOptions) (Client
 	}, nil
 }
 
+// NewMockClient creates a mock implementation for testing
+func NewMockClient(
+	ctx context.Context,
+	ldsClient v2.ListenerDiscoveryServiceClient,
+	rdsClient v2.RouteDiscoveryServiceClient,
+	edsClient v2.EndpointDiscoveryServiceClient,
+	cdsClient v2.ClusterDiscoveryServiceClient,
+	callOptions CallOptions) Client {
+	return &client{
+		ldsClient:   ldsClient,
+		rdsClient:   rdsClient,
+		edsClient:   edsClient,
+		cdsClient:   cdsClient,
+		callOptions: callOptions,
+	}
+}
+
 func (m *client) OpenStream(ctx context.Context, request *v2.DiscoveryRequest) (chan *Response, error) {
 	var stream grpc.ClientStream
 	var err error

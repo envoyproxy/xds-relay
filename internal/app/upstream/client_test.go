@@ -9,7 +9,7 @@ import (
 	"time"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	envoy_api_v2_core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -18,7 +18,12 @@ import (
 func TestOpenStreamShouldReturnErrorForInvalidTypeUrl(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	responseChan := make(chan *v2.DiscoveryResponse)
-	client := NewMockClient(ctx, CallOptions{Timeout: time.Nanosecond}, nil, responseChan, func(m interface{}) error { return nil })
+	client := GetMockClient(
+		ctx,
+		CallOptions{Timeout: time.Nanosecond},
+		nil,
+		responseChan,
+		func(m interface{}) error { return nil })
 
 	respCh, err := client.OpenStream(ctx, nil)
 	assert.NotNil(t, err)
@@ -34,13 +39,18 @@ func TestOpenStreamShouldReturnErrorForInvalidTypeUrl(t *testing.T) {
 func TestOpenStreamShouldResturnErrorOnStreamCreationFailure(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	responseChan := make(chan *v2.DiscoveryResponse)
-	client := NewMockClient(ctx, CallOptions{Timeout: time.Nanosecond}, fmt.Errorf("error"), responseChan, func(m interface{}) error { return nil })
+	client := GetMockClient(
+		ctx,
+		CallOptions{Timeout: time.Nanosecond},
+		fmt.Errorf("error"),
+		responseChan,
+		func(m interface{}) error { return nil })
 
 	for _, typeURL := range []string{listenerTypeURL, clusterTypeURL, routeTypeURL, endpointTypeURL} {
 		t.Run(typeURL, func(t *testing.T) {
 			respCh, err := client.OpenStream(ctx, &v2.DiscoveryRequest{
 				TypeUrl: typeURL,
-				Node:    &envoy_api_v2_core.Node{},
+				Node:    &core.Node{},
 			})
 			assert.Nil(t, respCh)
 			assert.NotNil(t, err)
@@ -53,11 +63,16 @@ func TestOpenStreamShouldResturnErrorOnStreamCreationFailure(t *testing.T) {
 func TestOpenStreamShouldReturnNonEmptyResponseChannel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	responseChan := make(chan *v2.DiscoveryResponse)
-	client := NewMockClient(ctx, CallOptions{Timeout: time.Nanosecond}, nil, responseChan, func(m interface{}) error { return nil })
+	client := GetMockClient(
+		ctx,
+		CallOptions{Timeout: time.Nanosecond},
+		nil,
+		responseChan,
+		func(m interface{}) error { return nil })
 
 	respCh, err := client.OpenStream(ctx, &v2.DiscoveryRequest{
 		TypeUrl: listenerTypeURL,
-		Node:    &envoy_api_v2_core.Node{},
+		Node:    &core.Node{},
 	})
 	assert.NotNil(t, respCh)
 	assert.Nil(t, err)
@@ -69,13 +84,13 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServer(t *testing.T) {
 	var message *v2.DiscoveryRequest
 	responseChan := make(chan *v2.DiscoveryResponse)
 	wait := make(chan bool)
-	client := NewMockClient(ctx, CallOptions{Timeout: time.Nanosecond}, nil, responseChan, func(m interface{}) error {
+	client := GetMockClient(ctx, CallOptions{Timeout: time.Nanosecond}, nil, responseChan, func(m interface{}) error {
 		message = m.(*v2.DiscoveryRequest)
 		wait <- true
 		return nil
 	})
 
-	node := &envoy_api_v2_core.Node{}
+	node := &core.Node{}
 	_, _ = client.OpenStream(ctx, &v2.DiscoveryRequest{
 		TypeUrl: listenerTypeURL,
 		Node:    node,
@@ -92,13 +107,13 @@ func TestOpenStreamShouldSendErrorIfSendFails(t *testing.T) {
 
 	responseChan := make(chan *v2.DiscoveryResponse)
 	sendError := fmt.Errorf("")
-	client := NewMockClient(ctx, CallOptions{Timeout: time.Second}, nil, responseChan, func(m interface{}) error {
+	client := GetMockClient(ctx, CallOptions{Timeout: time.Second}, nil, responseChan, func(m interface{}) error {
 		return sendError
 	})
 
 	resp, _ := client.OpenStream(ctx, &v2.DiscoveryRequest{
 		TypeUrl: listenerTypeURL,
-		Node:    &envoy_api_v2_core.Node{},
+		Node:    &core.Node{},
 	})
 	val := <-resp
 	assert.Equal(t, val.Err, sendError)
@@ -111,14 +126,14 @@ func TestOpenStreamShouldSendTheResponseOnTheChannel(t *testing.T) {
 
 	responseChan := make(chan *v2.DiscoveryResponse)
 	response := &v2.DiscoveryResponse{}
-	client := NewMockClient(ctx, CallOptions{Timeout: time.Second}, nil, responseChan, func(m interface{}) error {
+	client := GetMockClient(ctx, CallOptions{Timeout: time.Second}, nil, responseChan, func(m interface{}) error {
 		responseChan <- response
 		return nil
 	})
 
 	resp, err := client.OpenStream(ctx, &v2.DiscoveryRequest{
 		TypeUrl: listenerTypeURL,
-		Node:    &envoy_api_v2_core.Node{},
+		Node:    &core.Node{},
 	})
 	assert.Nil(t, err)
 	assert.NotNil(t, resp)
@@ -134,7 +149,7 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonce(t *testing
 	responseChan := make(chan *v2.DiscoveryResponse)
 	lastAppliedVersion := ""
 	index := 0
-	client := NewMockClient(ctx, CallOptions{Timeout: time.Second}, nil, responseChan, func(m interface{}) error {
+	client := GetMockClient(ctx, CallOptions{Timeout: time.Second}, nil, responseChan, func(m interface{}) error {
 		message := m.(*v2.DiscoveryRequest)
 
 		assert.Equal(t, message.GetVersionInfo(), lastAppliedVersion)
@@ -153,7 +168,7 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonce(t *testing
 
 	resp, err := client.OpenStream(ctx, &v2.DiscoveryRequest{
 		TypeUrl: listenerTypeURL,
-		Node:    &envoy_api_v2_core.Node{},
+		Node:    &core.Node{},
 	})
 	assert.Nil(t, err)
 	assert.NotNil(t, resp)
@@ -171,20 +186,14 @@ func TestOpenStreamShouldSendErrorWhenSendMsgBlocks(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	responseChan := make(chan *v2.DiscoveryResponse)
-	client := NewMockClient(ctx, CallOptions{Timeout: time.Nanosecond}, nil, responseChan, func(m interface{}) error {
-		for {
-			select {
-			case _, ok := <-responseChan:
-				if !ok {
-					return nil
-				}
-			}
-		}
+	client := GetMockClient(ctx, CallOptions{Timeout: time.Nanosecond}, nil, responseChan, func(m interface{}) error {
+		<-ctx.Done()
+		return nil
 	})
 
 	resp, err := client.OpenStream(ctx, &v2.DiscoveryRequest{
 		TypeUrl: listenerTypeURL,
-		Node:    &envoy_api_v2_core.Node{},
+		Node:    &core.Node{},
 	})
 	assert.Nil(t, err)
 	assert.NotNil(t, resp)
@@ -194,33 +203,51 @@ func TestOpenStreamShouldSendErrorWhenSendMsgBlocks(t *testing.T) {
 	cancel()
 }
 
-func NewMockClient(ctx context.Context, callOptions CallOptions, errorOnCreate error, receiveChan chan *v2.DiscoveryResponse, sendCb func(m interface{}) error) Client {
-	return &client{
-		ldsClient:   createMockLdsClient(errorOnCreate, receiveChan, sendCb),
-		rdsClient:   createMockRdsClient(errorOnCreate, receiveChan, sendCb),
-		edsClient:   createMockEdsClient(errorOnCreate, receiveChan, sendCb),
-		cdsClient:   createMockCdsClient(errorOnCreate, receiveChan, sendCb),
-		callOptions: callOptions,
-	}
+func GetMockClient(
+	ctx context.Context,
+	callOptions CallOptions,
+	errorOnCreate error,
+	receiveChan chan *v2.DiscoveryResponse,
+	sendCb func(m interface{}) error) Client {
+	return NewMockClient(
+		ctx,
+		createMockLdsClient(errorOnCreate, receiveChan, sendCb),
+		createMockRdsClient(errorOnCreate, receiveChan, sendCb),
+		createMockEdsClient(errorOnCreate, receiveChan, sendCb),
+		createMockCdsClient(errorOnCreate, receiveChan, sendCb),
+		callOptions,
+	)
 }
 
-func createMockLdsClient(errorOnCreate error, receiveChan chan *v2.DiscoveryResponse, sendCb func(m interface{}) error) v2.ListenerDiscoveryServiceClient {
-	return &mockLdsClient{errorOnStreamCreate: errorOnCreate, receiveChan: receiveChan, sendCb: sendCb}
+func createMockLdsClient(
+	errorOnCreate error,
+	receiveChan chan *v2.DiscoveryResponse,
+	sendCb func(m interface{}) error) v2.ListenerDiscoveryServiceClient {
+	return &mockClient{errorOnStreamCreate: errorOnCreate, receiveChan: receiveChan, sendCb: sendCb}
 }
 
-func createMockCdsClient(errorOnCreate error, receiveChan chan *v2.DiscoveryResponse, sendCb func(m interface{}) error) v2.ClusterDiscoveryServiceClient {
-	return &mockLdsClient{errorOnStreamCreate: errorOnCreate, receiveChan: receiveChan, sendCb: sendCb}
+func createMockCdsClient(
+	errorOnCreate error,
+	receiveChan chan *v2.DiscoveryResponse,
+	sendCb func(m interface{}) error) v2.ClusterDiscoveryServiceClient {
+	return &mockClient{errorOnStreamCreate: errorOnCreate, receiveChan: receiveChan, sendCb: sendCb}
 }
 
-func createMockRdsClient(errorOnCreate error, receiveChan chan *v2.DiscoveryResponse, sendCb func(m interface{}) error) v2.RouteDiscoveryServiceClient {
-	return &mockLdsClient{errorOnStreamCreate: errorOnCreate, receiveChan: receiveChan, sendCb: sendCb}
+func createMockRdsClient(
+	errorOnCreate error,
+	receiveChan chan *v2.DiscoveryResponse,
+	sendCb func(m interface{}) error) v2.RouteDiscoveryServiceClient {
+	return &mockClient{errorOnStreamCreate: errorOnCreate, receiveChan: receiveChan, sendCb: sendCb}
 }
 
-func createMockEdsClient(errorOnCreate error, receiveChan chan *v2.DiscoveryResponse, sendCb func(m interface{}) error) v2.EndpointDiscoveryServiceClient {
-	return &mockLdsClient{errorOnStreamCreate: errorOnCreate, receiveChan: receiveChan, sendCb: sendCb}
+func createMockEdsClient(
+	errorOnCreate error,
+	receiveChan chan *v2.DiscoveryResponse,
+	sendCb func(m interface{}) error) v2.EndpointDiscoveryServiceClient {
+	return &mockClient{errorOnStreamCreate: errorOnCreate, receiveChan: receiveChan, sendCb: sendCb}
 }
 
-type mockLdsClient struct {
+type mockClient struct {
 	errorOnStreamCreate error
 	receiveChan         chan *v2.DiscoveryResponse
 	sendCb              func(m interface{}) error
@@ -277,62 +304,90 @@ func (stream *mockGrpcStream) Context() context.Context {
 	return stream.ctx
 }
 
-func (ldsClient *mockLdsClient) StreamListeners(ctx context.Context, opts ...grpc.CallOption) (v2.ListenerDiscoveryService_StreamListenersClient, error) {
-	if ldsClient.errorOnStreamCreate != nil {
-		return nil, ldsClient.errorOnStreamCreate
+func (c *mockClient) StreamListeners(
+	ctx context.Context,
+	opts ...grpc.CallOption) (v2.ListenerDiscoveryService_StreamListenersClient, error) {
+	if c.errorOnStreamCreate != nil {
+		return nil, c.errorOnStreamCreate
 	}
-	return &mockGrpcStream{ctx: ctx, receiveChan: ldsClient.receiveChan, sendCb: ldsClient.sendCb}, nil
+	return &mockGrpcStream{ctx: ctx, receiveChan: c.receiveChan, sendCb: c.sendCb}, nil
 }
 
-func (ldsClient *mockLdsClient) StreamClusters(ctx context.Context, opts ...grpc.CallOption) (v2.ClusterDiscoveryService_StreamClustersClient, error) {
-	if ldsClient.errorOnStreamCreate != nil {
-		return nil, ldsClient.errorOnStreamCreate
+func (c *mockClient) StreamClusters(
+	ctx context.Context,
+	opts ...grpc.CallOption) (v2.ClusterDiscoveryService_StreamClustersClient, error) {
+	if c.errorOnStreamCreate != nil {
+		return nil, c.errorOnStreamCreate
 	}
-	return &mockGrpcStream{ctx: ctx, receiveChan: ldsClient.receiveChan, sendCb: ldsClient.sendCb}, nil
+	return &mockGrpcStream{ctx: ctx, receiveChan: c.receiveChan, sendCb: c.sendCb}, nil
 }
 
-func (ldsClient *mockLdsClient) StreamRoutes(ctx context.Context, opts ...grpc.CallOption) (v2.RouteDiscoveryService_StreamRoutesClient, error) {
-	if ldsClient.errorOnStreamCreate != nil {
-		return nil, ldsClient.errorOnStreamCreate
+func (c *mockClient) StreamRoutes(
+	ctx context.Context,
+	opts ...grpc.CallOption) (v2.RouteDiscoveryService_StreamRoutesClient, error) {
+	if c.errorOnStreamCreate != nil {
+		return nil, c.errorOnStreamCreate
 	}
-	return &mockGrpcStream{ctx: ctx, receiveChan: ldsClient.receiveChan, sendCb: ldsClient.sendCb}, nil
+	return &mockGrpcStream{ctx: ctx, receiveChan: c.receiveChan, sendCb: c.sendCb}, nil
 }
 
-func (ldsClient *mockLdsClient) StreamEndpoints(ctx context.Context, opts ...grpc.CallOption) (v2.EndpointDiscoveryService_StreamEndpointsClient, error) {
-	if ldsClient.errorOnStreamCreate != nil {
-		return nil, ldsClient.errorOnStreamCreate
+func (c *mockClient) StreamEndpoints(
+	ctx context.Context,
+	opts ...grpc.CallOption) (v2.EndpointDiscoveryService_StreamEndpointsClient, error) {
+	if c.errorOnStreamCreate != nil {
+		return nil, c.errorOnStreamCreate
 	}
-	return &mockGrpcStream{ctx: ctx, receiveChan: ldsClient.receiveChan, sendCb: ldsClient.sendCb}, nil
+	return &mockGrpcStream{ctx: ctx, receiveChan: c.receiveChan, sendCb: c.sendCb}, nil
 }
 
-func (ldsClient *mockLdsClient) DeltaListeners(ctx context.Context, opts ...grpc.CallOption) (v2.ListenerDiscoveryService_DeltaListenersClient, error) {
+func (c *mockClient) DeltaListeners(
+	ctx context.Context,
+	opts ...grpc.CallOption) (v2.ListenerDiscoveryService_DeltaListenersClient, error) {
 	return nil, fmt.Errorf("Not implemented")
 }
 
-func (ldsClient *mockLdsClient) DeltaClusters(ctx context.Context, opts ...grpc.CallOption) (v2.ClusterDiscoveryService_DeltaClustersClient, error) {
+func (c *mockClient) DeltaClusters(
+	ctx context.Context,
+	opts ...grpc.CallOption) (v2.ClusterDiscoveryService_DeltaClustersClient, error) {
 	return nil, fmt.Errorf("Not implemented")
 }
 
-func (ldsClient *mockLdsClient) DeltaRoutes(ctx context.Context, opts ...grpc.CallOption) (v2.RouteDiscoveryService_DeltaRoutesClient, error) {
+func (c *mockClient) DeltaRoutes(
+	ctx context.Context,
+	opts ...grpc.CallOption) (v2.RouteDiscoveryService_DeltaRoutesClient, error) {
 	return nil, fmt.Errorf("Not implemented")
 }
 
-func (ldsClient *mockLdsClient) DeltaEndpoints(ctx context.Context, opts ...grpc.CallOption) (v2.EndpointDiscoveryService_DeltaEndpointsClient, error) {
+func (c *mockClient) DeltaEndpoints(
+	ctx context.Context,
+	opts ...grpc.CallOption) (v2.EndpointDiscoveryService_DeltaEndpointsClient, error) {
 	return nil, fmt.Errorf("Not implemented")
 }
 
-func (ldsClient *mockLdsClient) FetchListeners(ctx context.Context, in *v2.DiscoveryRequest, opts ...grpc.CallOption) (*v2.DiscoveryResponse, error) {
+func (c *mockClient) FetchListeners(
+	ctx context.Context,
+	in *v2.DiscoveryRequest,
+	opts ...grpc.CallOption) (*v2.DiscoveryResponse, error) {
 	return nil, fmt.Errorf("Not implemented")
 }
 
-func (ldsClient *mockLdsClient) FetchClusters(ctx context.Context, in *v2.DiscoveryRequest, opts ...grpc.CallOption) (*v2.DiscoveryResponse, error) {
+func (c *mockClient) FetchClusters(
+	ctx context.Context,
+	in *v2.DiscoveryRequest,
+	opts ...grpc.CallOption) (*v2.DiscoveryResponse, error) {
 	return nil, fmt.Errorf("Not implemented")
 }
 
-func (ldsClient *mockLdsClient) FetchRoutes(ctx context.Context, in *v2.DiscoveryRequest, opts ...grpc.CallOption) (*v2.DiscoveryResponse, error) {
+func (c *mockClient) FetchRoutes(
+	ctx context.Context,
+	in *v2.DiscoveryRequest,
+	opts ...grpc.CallOption) (*v2.DiscoveryResponse, error) {
 	return nil, fmt.Errorf("Not implemented")
 }
 
-func (ldsClient *mockLdsClient) FetchEndpoints(ctx context.Context, in *v2.DiscoveryRequest, opts ...grpc.CallOption) (*v2.DiscoveryResponse, error) {
+func (c *mockClient) FetchEndpoints(
+	ctx context.Context,
+	in *v2.DiscoveryRequest,
+	opts ...grpc.CallOption) (*v2.DiscoveryResponse, error) {
 	return nil, fmt.Errorf("Not implemented")
 }
