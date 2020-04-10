@@ -200,7 +200,7 @@ func TestOpenStreamShouldSendErrorWhenSendMsgBlocks(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, resp)
 	val := <-resp
-	assert.Equal(t, val.Err.Error(), "rpc error: code = DeadlineExceeded desc = timeout")
+	assert.Equal(t, val.Err.Error(), "context deadline exceeded")
 	assert.Nil(t, val.Response)
 	cancel()
 }

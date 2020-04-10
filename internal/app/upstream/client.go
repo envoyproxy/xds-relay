@@ -8,8 +8,6 @@ import (
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 const (
@@ -80,7 +78,7 @@ type version struct {
 // The method does not block until the underlying connection is up.
 // Returns immediately and connecting the server happens in background
 func NewClient(ctx context.Context, url string, callOptions CallOptions) (Client, error) {
-	// TODO: configure grpc options.
+	// TODO: configure grpc options.https://github.com/envoyproxy/xds-relay/issues/55
 	conn, err := grpc.Dial(url, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
@@ -160,7 +158,7 @@ func send(
 			}
 			request.ResponseNonce = sig.nonce
 			request.VersionInfo = sig.version
-			err := doWithTimeout(func() error {
+			err := doWithTimeout(ctx, func() error {
 				return stream.SendMsg(request)
 			}, callOptions.Timeout)
 			if err != nil {
@@ -224,21 +222,24 @@ func shutDown(ctx context.Context, conn *grpc.ClientConn) {
 
 // DoWithTimeout runs f and returns its error.  If the deadline d elapses first,
 // it returns a grpc DeadlineExceeded error instead.
-// Ref: https://github.com/grpc/grpc-go/issues/1229#issuecomment-302755717s
-func doWithTimeout(f func() error, d time.Duration) error {
+// Ref: https://github.com/grpc/grpc-go/issues/1229#issuecomment-302755717
+func doWithTimeout(ctx context.Context, f func() error, d time.Duration) error {
+	t := time.NewTimer(d)
+	deadlineCtx, cancel := context.WithDeadline(ctx, time.Now().Add(d))
 	errChan := make(chan error, 1)
 	go func() {
 		errChan <- f()
 		close(errChan)
 	}()
-	timer := time.NewTimer(d)
 	select {
-	case <-timer.C:
-		return status.Errorf(codes.DeadlineExceeded, "timeout")
+	case <-deadlineCtx.Done():
+		cancel()
+		return deadlineCtx.Err()
 	case err := <-errChan:
-		if !timer.Stop() {
-			<-timer.C
+		if !t.Stop() {
+			<-t.C
 		}
+		cancel()
 		return err
 	}
 }
