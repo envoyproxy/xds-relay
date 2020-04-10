@@ -81,7 +81,7 @@ func (Logging_Level) EnumDescriptor() ([]byte, []int) {
 	return file_bootstrap_v1_bootstrap_proto_rawDescGZIP(), []int{3, 0}
 }
 
-// [#next-free-field: 4]
+// [#next-free-field: 5]
 type Bootstrap struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -370,7 +370,7 @@ func (x *Cache) GetMaxEntries() int32 {
 	return 0
 }
 
-// [#next-free-field: 4]
+// [#next-free-field: 3]
 type SocketAddress struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

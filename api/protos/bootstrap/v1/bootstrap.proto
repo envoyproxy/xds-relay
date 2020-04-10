@@ -8,7 +8,7 @@ import "google/protobuf/wrappers.proto";
 import "validate/validate.proto";
 
 
-// [#next-free-field: 4]
+// [#next-free-field: 5]
 message Bootstrap {
     // xds-relay server configuration.
     Server server = 1 [(validate.rules).message.required = true];
@@ -59,7 +59,7 @@ message Cache {
     int32 max_entries = 2;
 }
 
-// [#next-free-field: 4]
+// [#next-free-field: 3]
 message SocketAddress {
     // The address for this socket. Listeners will bind to the address.
     string address = 1 [(validate.rules).string = {min_bytes: 1}];
