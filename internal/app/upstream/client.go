@@ -103,6 +103,65 @@ func NewClient(ctx context.Context, url string, callOptions CallOptions) (Client
 }
 
 func (m *client) OpenStream(ctx context.Context, request *v2.DiscoveryRequest) (<-chan *Response, error) {
+	response := make(chan *Response, 1)
+	if err := validateResourceType(request); err != nil {
+		close(response)
+		return nil, err
+	}
+
+	continueChan := make(chan bool, 1)
+	continueChan <- true
+	go func() {
+		for {
+			select {
+			case <-continueChan:
+				stream, err := m.getStream(ctx, request)
+				if err != nil {
+					go func() {
+						continueChan <- true
+					}()
+					continue
+				}
+				var wg sync.WaitGroup
+				wg.Add(2)
+
+				// The xds protocol https://www.envoyproxy.io/docs/envoy/latest/api-docs/xds_protocol#ack
+				// specifies that the first request be empty nonce and empty version.
+				// The origin server will respond with the latest version.
+				signal := make(chan *version, 1)
+				signal <- &version{nonce: "", version: ""}
+
+				go send(ctx, &wg, request, stream, signal, m.callOptions, continueChan)
+				go recv(ctx, &wg, response, stream, signal, continueChan)
+
+				wg.Wait()
+				close(signal)
+				// closeChannels(signal, response)
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return response, nil
+}
+
+func validateResourceType(request *v2.DiscoveryRequest) error {
+	switch request.GetTypeUrl() {
+	case listenerTypeURL:
+		return nil
+	case clusterTypeURL:
+		return nil
+	case routeTypeURL:
+		return nil
+	case endpointTypeURL:
+		return nil
+	default:
+		return &UnsupportedResourceError{TypeURL: request.GetTypeUrl()}
+	}
+}
+
+func (m *client) getStream(ctx context.Context, request *v2.DiscoveryRequest) (grpc.ClientStream, error) {
 	var stream grpc.ClientStream
 	var err error
 	switch request.GetTypeUrl() {
@@ -117,41 +176,17 @@ func (m *client) OpenStream(ctx context.Context, request *v2.DiscoveryRequest) (
 	default:
 		return nil, &UnsupportedResourceError{TypeURL: request.GetTypeUrl()}
 	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	signal := make(chan *version, 1)
-	// The xds protocol https://www.envoyproxy.io/docs/envoy/latest/api-docs/xds_protocol#ack
-	// specifies that the first request be empty nonce and empty version.
-	// The origin server will respond with the latest version.
-	signal <- &version{nonce: "", version: ""}
-
-	response := make(chan *Response, 1)
-
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	go send(ctx, &wg, request, response, stream, signal, m.callOptions)
-	go recv(ctx, &wg, response, stream, signal)
-
-	go func() {
-		wg.Wait()
-		closeChannels(signal, response)
-	}()
-
-	return response, nil
+	return stream, err
 }
 
 func send(
 	ctx context.Context,
 	wg *sync.WaitGroup,
 	request *v2.DiscoveryRequest,
-	response chan *Response,
 	stream grpc.ClientStream,
 	signal chan *version,
-	callOptions CallOptions) {
+	callOptions CallOptions,
+	continueChan chan bool) {
 	for {
 		select {
 		case sig, ok := <-signal:
@@ -167,13 +202,13 @@ func send(
 				select {
 				case <-ctx.Done():
 				default:
-					response <- &Response{Err: err}
+					continueChan <- true
 				}
 				wg.Done()
 				return
 			}
 		case <-ctx.Done():
-			_ = stream.CloseSend()
+			stream.CloseSend()
 			wg.Done()
 			return
 		}
@@ -185,7 +220,8 @@ func recv(
 	wg *sync.WaitGroup,
 	response chan *Response,
 	stream grpc.ClientStream,
-	signal chan *version) {
+	signal chan *version,
+	continueChan chan bool) {
 	for {
 		resp := new(v2.DiscoveryResponse)
 		if err := stream.RecvMsg(resp); err != nil {
@@ -193,7 +229,7 @@ func recv(
 			case <-ctx.Done():
 				wg.Done()
 			default:
-				response <- &Response{Err: err}
+				continueChan <- true
 			}
 			return
 		}
