@@ -166,13 +166,11 @@ func send(
 			if err != nil {
 				select {
 				case <-ctx.Done():
-					return
 				default:
 					response <- &Response{Err: err}
-
-					return
 				}
 				wg.Done()
+				return
 			}
 		case <-ctx.Done():
 			_ = stream.CloseSend()

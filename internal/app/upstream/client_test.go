@@ -31,7 +31,7 @@ func TestOpenStreamShouldReturnErrorForInvalidTypeUrl(t *testing.T) {
 
 	respCh, err = client.OpenStream(ctx, &v2.DiscoveryRequest{})
 	assert.NotNil(t, err)
-	err, ok := err.(*UnsupportedResourceError)
+	_, ok := err.(*UnsupportedResourceError)
 	assert.True(t, ok)
 	assert.Nil(t, respCh)
 
