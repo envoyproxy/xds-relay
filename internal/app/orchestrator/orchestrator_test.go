@@ -7,6 +7,7 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
+	upstream_mock "github.com/envoyproxy/xds-relay/test/mocks/upstream"
 
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
 
@@ -15,7 +16,12 @@ import (
 
 func TestNew(t *testing.T) {
 	// Trivial test to ensure orchestrator instantiates.
-	upstreamClient := upstream.NewMockClient(context.Background(), nil, nil, nil, nil, upstream.CallOptions{})
+	upstreamClient := upstream_mock.NewClient(
+		context.Background(),
+		upstream.CallOptions{},
+		nil,
+		nil,
+		func(m interface{}) error { return nil })
 
 	config := aggregationv1.KeyerConfiguration{
 		Fragments: []*aggregationv1.KeyerConfiguration_Fragment{

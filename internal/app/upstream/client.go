@@ -11,10 +11,10 @@ import (
 )
 
 const (
-	listenerTypeURL = "type.googleapis.com/envoy.api.v2.Listener"
-	clusterTypeURL  = "type.googleapis.com/envoy.api.v2.Cluster"
-	endpointTypeURL = "ype.googleapis.com/envoy.api.v2.ClusterLoadAssignment"
-	routeTypeURL    = "type.googleapis.com/envoy.api.v2.RouteConfiguration"
+	ListenerTypeURL = "type.googleapis.com/envoy.api.v2.Listener"
+	ClusterTypeURL  = "type.googleapis.com/envoy.api.v2.Cluster"
+	EndpointTypeURL = "ype.googleapis.com/envoy.api.v2.ClusterLoadAssignment"
+	RouteTypeURL    = "type.googleapis.com/envoy.api.v2.RouteConfiguration"
 )
 
 // UnsupportedResourceError is a custom error for unsupported typeURL
@@ -104,13 +104,13 @@ func (m *client) OpenStream(ctx context.Context, request *v2.DiscoveryRequest) (
 	var stream grpc.ClientStream
 	var err error
 	switch request.GetTypeUrl() {
-	case listenerTypeURL:
+	case ListenerTypeURL:
 		stream, err = m.ldsClient.StreamListeners(ctx)
-	case clusterTypeURL:
+	case ClusterTypeURL:
 		stream, err = m.cdsClient.StreamClusters(ctx)
-	case routeTypeURL:
+	case RouteTypeURL:
 		stream, err = m.rdsClient.StreamRoutes(ctx)
-	case endpointTypeURL:
+	case EndpointTypeURL:
 		stream, err = m.edsClient.StreamEndpoints(ctx)
 	default:
 		return nil, &UnsupportedResourceError{TypeURL: request.GetTypeUrl()}
