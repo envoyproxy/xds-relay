@@ -221,7 +221,7 @@ func shutDown(ctx context.Context, conn *grpc.ClientConn) {
 }
 
 // DoWithTimeout runs f and returns its error.  If the deadline d elapses first,
-// it returns a grpc DeadlineExceeded error instead.
+// it returns a DeadlineExceeded error instead.
 // Ref: https://github.com/grpc/grpc-go/issues/1229#issuecomment-302755717
 func doWithTimeout(ctx context.Context, f func() error, d time.Duration) error {
 	t := time.NewTimer(d)

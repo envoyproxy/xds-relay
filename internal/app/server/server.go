@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"net"
+	"time"
 
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
 	"github.com/envoyproxy/xds-relay/internal/app/orchestrator"
@@ -34,7 +35,7 @@ func Run() {
 
 	// Initialize upstream client.
 	// TODO: configure CallOptions{} when https://github.com/envoyproxy/xds-relay/pull/49 is merged.
-	upstreamClient, err := upstream.NewClient(ctx, upstreamClientURL, upstream.CallOptions{})
+	upstreamClient, err := upstream.NewClient(ctx, upstreamClientURL, upstream.CallOptions{Timeout: time.Minute})
 	if err != nil {
 		logger.With("error", err).Panic(ctx, "failed to initialize upstream client")
 	}
