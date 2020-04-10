@@ -33,6 +33,7 @@ func Run() {
 	defer cancel()
 
 	// Initialize upstream client.
+	// TODO: configure CallOptions{} when https://github.com/envoyproxy/xds-relay/pull/49 is merged.
 	upstreamClient, err := upstream.NewClient(ctx, upstreamClientURL, upstream.CallOptions{})
 	if err != nil {
 		logger.With("error", err).Panic(ctx, "failed to initialize upstream client")

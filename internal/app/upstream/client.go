@@ -19,6 +19,11 @@ const (
 	routeTypeURL    = "type.googleapis.com/envoy.api.v2.RouteConfiguration"
 )
 
+// UnsupportedResourceError is a custom error for unsupported typeURL
+type UnsupportedResourceError struct {
+	TypeURL string
+}
+
 // Client handles the requests and responses from the origin server.
 // The xds client handles each xds request on a separate stream,
 // e.g. 2 different cds requests happen on 2 separate streams.
@@ -74,8 +79,8 @@ type version struct {
 //
 // The method does not block until the underlying connection is up.
 // Returns immediately and connecting the server happens in background
-// TODO: pass retry configurations
 func NewClient(ctx context.Context, url string, callOptions CallOptions) (Client, error) {
+	// TODO: configure grpc options.
 	conn, err := grpc.Dial(url, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
@@ -97,23 +102,6 @@ func NewClient(ctx context.Context, url string, callOptions CallOptions) (Client
 	}, nil
 }
 
-// NewMockClient creates a mock implementation for testing
-func NewMockClient(
-	ctx context.Context,
-	ldsClient v2.ListenerDiscoveryServiceClient,
-	rdsClient v2.RouteDiscoveryServiceClient,
-	edsClient v2.EndpointDiscoveryServiceClient,
-	cdsClient v2.ClusterDiscoveryServiceClient,
-	callOptions CallOptions) Client {
-	return &client{
-		ldsClient:   ldsClient,
-		rdsClient:   rdsClient,
-		edsClient:   edsClient,
-		cdsClient:   cdsClient,
-		callOptions: callOptions,
-	}
-}
-
 func (m *client) OpenStream(ctx context.Context, request *v2.DiscoveryRequest) (<-chan *Response, error) {
 	var stream grpc.ClientStream
 	var err error
@@ -127,7 +115,7 @@ func (m *client) OpenStream(ctx context.Context, request *v2.DiscoveryRequest) (
 	case endpointTypeURL:
 		stream, err = m.edsClient.StreamEndpoints(ctx)
 	default:
-		return nil, fmt.Errorf("Unsupported request type")
+		return nil, &UnsupportedResourceError{TypeURL: request.GetTypeUrl()}
 	}
 
 	if err != nil {
@@ -135,8 +123,12 @@ func (m *client) OpenStream(ctx context.Context, request *v2.DiscoveryRequest) (
 	}
 
 	signal := make(chan *version, 1)
-	signal <- &version{}
-	response := make(chan *Response)
+	// The xds protocol https://www.envoyproxy.io/docs/envoy/latest/api-docs/xds_protocol#ack
+	// specifies that the first request be empty nonce and empty version.
+	// The origin server will respond with the latest version.
+	signal <- &version{nonce: "", version: ""}
+
+	response := make(chan *Response, 1)
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -146,7 +138,7 @@ func (m *client) OpenStream(ctx context.Context, request *v2.DiscoveryRequest) (
 
 	go func() {
 		wg.Wait()
-		closeChannel(signal, response)
+		closeChannels(signal, response)
 	}()
 
 	return response, nil
@@ -174,13 +166,13 @@ func send(
 			if err != nil {
 				select {
 				case <-ctx.Done():
-					wg.Done()
 					return
 				default:
 					response <- &Response{Err: err}
-					wg.Done()
+
 					return
 				}
+				wg.Done()
 			}
 		case <-ctx.Done():
 			_ = stream.CloseSend()
@@ -218,11 +210,15 @@ func recv(
 	}
 }
 
-func closeChannel(versionChan chan *version, responseChan chan *Response) {
+// closeChannels is called whenever the context is cancelled (ctx.Done) in Send and Recv goroutines.
+// It is also called when an irrecoverable error occurs and the error is passed to the caller.
+func closeChannels(versionChan chan *version, responseChan chan *Response) {
 	close(versionChan)
 	close(responseChan)
 }
 
+// shutDown should be called in a separate goroutine.
+// This is a blocking function that closes the upstream connection on context completion.
 func shutDown(ctx context.Context, conn *grpc.ClientConn) {
 	<-ctx.Done()
 	conn.Close()
@@ -247,4 +243,8 @@ func doWithTimeout(f func() error, d time.Duration) error {
 		}
 		return err
 	}
+}
+
+func (e *UnsupportedResourceError) Error() string {
+	return fmt.Sprintf("Unsupported resource typeUrl: %s", e.TypeURL)
 }
