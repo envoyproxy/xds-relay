@@ -192,6 +192,12 @@ func TestTTL_Disabled(t *testing.T) {
 	}).Should(gomega.Equal(&testResource))
 }
 
+func TestTTL_Negative(t *testing.T) {
+	cache, err := NewCache(1, testOnEvict, -1)
+	assert.EqualError(t, err, "ttl must be nonnegative but was set to -1ns")
+	assert.Nil(t, cache)
+}
+
 func TestIsExpired(t *testing.T) {
 	var resource Resource
 

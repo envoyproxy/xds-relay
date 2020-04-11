@@ -15,6 +15,7 @@ var (
 	bootstrapConfigFile        string
 	aggregationRulesConfigFile string
 	logLevel                   string
+	mode                       string
 
 	bootstrapCmd = &cobra.Command{
 		Use: "xds-relay",
@@ -39,7 +40,12 @@ var (
 				log.Fatal("failed to translate aggregation rules: ", err)
 			}
 
-			server.Run(&bootstrapConfig, &aggregationRulesConfig, logLevel)
+			switch mode {
+			case "serve", "validate":
+				server.Run(&bootstrapConfig, &aggregationRulesConfig, logLevel, mode)
+			default:
+				log.Fatal("unrecognized mode provided: ", mode)
+			}
 		},
 	}
 )
@@ -49,6 +55,9 @@ func main() {
 	bootstrapCmd.Flags().StringVarP(&aggregationRulesConfigFile,
 		"aggregation-rules", "a", "", "path to aggregation rules file")
 	bootstrapCmd.Flags().StringVarP(&logLevel, "log-level", "l", "", "the logging level")
+	bootstrapCmd.Flags().StringVarP(&mode, "mode", "m", "serve",
+		"operating mode. Set to 'serve' by default to validate user-entered configs and start the server. "+
+			"Set to 'validate' to only validate user-entered configs.")
 	if err := bootstrapCmd.MarkFlagRequired("config-file"); err != nil {
 		log.Fatal("Could not mark the config-file flag as required: ", err)
 	}

@@ -21,7 +21,7 @@ import (
 // Run instantiates a running gRPC server for accepting incoming xDS-based requests.
 func Run(bootstrapConfig *bootstrapv1.Bootstrap,
 	aggregationRulesConfig *aggregationv1.KeyerConfiguration,
-	logLevel string) {
+	logLevel string, mode string) {
 	// Initialize logger. The command line input for the log level overrides the log level set in the bootstrap config.
 	// If no log level is set in the config, the default is INFO.
 	var logger log.Logger
@@ -64,8 +64,10 @@ func Run(bootstrapConfig *bootstrapv1.Bootstrap,
 	api.RegisterRouteDiscoveryServiceServer(server, gcpServer)
 	api.RegisterListenerDiscoveryServiceServer(server, gcpServer)
 
-	logger.With("address", listener.Addr()).Info(ctx, "Initializing server")
-	if err := server.Serve(listener); err != nil {
-		logger.With("err", err).Fatal(ctx, "failed to initialize server")
+	if mode == "serve" {
+		logger.With("address", listener.Addr()).Info(ctx, "Initializing server")
+		if err := server.Serve(listener); err != nil {
+			logger.With("err", err).Fatal(ctx, "failed to initialize server")
+		}
 	}
 }

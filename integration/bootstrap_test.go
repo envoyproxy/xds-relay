@@ -24,20 +24,86 @@ func TestBootstrap(t *testing.T) {
 
 var bootstrapTestCases = []TableEntry{
 	{
+		Description: "positive test: validate mode",
+		Parameters: []interface{}{
+			"./integration/testdata/bootstrap_configuration_complete_tech_spec.yaml",
+			"./integration/testdata/keyer_configuration_complete_tech_spec.yaml",
+			"debug",
+			"validate",
+			false,
+			"",
+		}},
+	{
+		Description: "negative test: invalid mode",
+		Parameters: []interface{}{
+			"./integration/testdata/bootstrap_configuration_complete_tech_spec.yaml",
+			"./integration/testdata/keyer_configuration_complete_tech_spec.yaml",
+			"debug",
+			"foo",
+			true,
+			"unrecognized mode provided: foo",
+		},
+	},
+	{
+		Description: "negative test: invalid config filepath",
+		Parameters: []interface{}{
+			"./integration/testdata/foo.yaml",
+			"./integration/testdata/keyer_configuration_complete_tech_spec.yaml",
+			"debug",
+			"foo",
+			true,
+			"open ./integration/testdata/foo.yaml: no such file or directory",
+		},
+	},
+	{
 		Description: "negative test: negative cache TTL",
 		Parameters: []interface{}{
 			"./integration/testdata/bootstrap_configuration_negative_cache_ttl.yaml",
 			"./integration/testdata/keyer_configuration_complete_tech_spec.yaml",
 			"debug",
+			"serve",
 			true,
 			"invalid Cache.Ttl: value must be greater than or equal to 0s",
+		},
+	},
+	{
+		Description: "negative test: missing address field in address proto",
+		Parameters: []interface{}{
+			"./integration/testdata/bootstrap_configuration_missing_address.yaml",
+			"./integration/testdata/keyer_configuration_complete_tech_spec.yaml",
+			"debug",
+			"serve",
+			true,
+			"invalid SocketAddress.Address: value length must be at least 1 bytes",
+		},
+	},
+	{
+		Description: "negative test: invalid port value",
+		Parameters: []interface{}{
+			"./integration/testdata/bootstrap_configuration_invalid_port_value.yaml",
+			"./integration/testdata/keyer_configuration_complete_tech_spec.yaml",
+			"debug",
+			"serve",
+			true,
+			"invalid SocketAddress.PortValue: value must be less than or equal to 65535",
+		},
+	},
+	{
+		Description: "negative test: invalid log level",
+		Parameters: []interface{}{
+			"./integration/testdata/bootstrap_configuration_invalid_log_level.yaml",
+			"./integration/testdata/keyer_configuration_complete_tech_spec.yaml",
+			"debug",
+			"serve",
+			true,
+			"invalid value for enum type: \"foo\"",
 		},
 	},
 }
 
 var _ = Describe("Integration tests for bootstrapping xds-relay", func() {
 	DescribeTable("table driven integration tests for bootstrapping xds-relay",
-		func(bootstrapConfigFile string, aggregationRulesFile string, logLevel string, wantErr bool, errorMessage string) {
+		func(bootstrapConfigFile string, aggregationRulesFile string, logLevel string, mode string, wantErr bool, errorMessage string) {
 			dir, err := os.Getwd()
 			Expect(err).To(BeNil())
 
@@ -45,7 +111,8 @@ var _ = Describe("Integration tests for bootstrapping xds-relay", func() {
 			cmd := exec.Command(path.Join(dir, "bin", bootstrapBinaryName),
 				"-c", bootstrapConfigFile,
 				"-a", aggregationRulesFile,
-				"-l", logLevel)
+				"-l", logLevel,
+				"-m", mode)
 			output, err := cmd.CombinedOutput()
 			if wantErr {
 				Expect(err).NotTo(BeNil())

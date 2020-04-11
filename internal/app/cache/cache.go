@@ -47,6 +47,9 @@ type Resource struct {
 type OnEvictFunc func(key string, value Resource)
 
 func NewCache(maxEntries int, onEvicted OnEvictFunc, ttl time.Duration) (Cache, error) {
+	if ttl < 0 {
+		return nil, fmt.Errorf("ttl must be nonnegative but was set to %v", ttl)
+	}
 	return &cache{
 		cache: lru.Cache{
 			// Max number of cache entries before an item is evicted. Zero means no limit.
