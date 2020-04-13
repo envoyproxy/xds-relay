@@ -123,8 +123,8 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) 
 		// propagate the response upstream without aggregation.
 		o.logger.With("err", err).With("req node", req.GetNode()).Warn(ctx, "failed to map to aggregated key")
 		// Mimic the aggregated key.
-		// TODO (insert issue) This key needs to be made more granular to
-		//      uniquely identify a request. User-specified defaults?
+		// TODO (https://github.com/envoyproxy/xds-relay/issues/56). This key
+		// needs to be made more granular to uniquely identify a request.
 		aggregatedKey = fmt.Sprintf("%s%s_%s", unaggregatedPrefix, req.GetNode().GetId(), req.GetTypeUrl())
 	}
 
@@ -261,7 +261,8 @@ func (o *orchestrator) onCacheEvicted(key string, resource cache.Resource) {
 func (o *orchestrator) onCancel(req *gcp.Request) func() {
 	return func() {
 		o.downstreamResponseMap.delete(req)
-		// TODO clean up watch from cache. Cache needs to expose a function to do so.
+		// TODO (https://github.com/envoyproxy/xds-relay/issues/57). Clean up
+		// watch from cache. Cache needs to expose a function to do so.
 	}
 }
 
