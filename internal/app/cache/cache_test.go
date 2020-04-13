@@ -74,7 +74,7 @@ func TestAddRequestAndFetch(t *testing.T) {
 	assert.EqualError(t, err, "no value found for key: key_A")
 	assert.Nil(t, resource)
 
-	err = cache.AddRequest(testKeyA, testRequest)
+	err = cache.AddRequest(testKeyA, &testRequest)
 	assert.NoError(t, err)
 
 	resource, err = cache.Fetch(testKeyA)
@@ -104,10 +104,10 @@ func TestAddRequestAndSetResponse(t *testing.T) {
 	cache, err := NewCache(1, testOnEvict, time.Second*60)
 	assert.NoError(t, err)
 
-	err = cache.AddRequest(testKeyA, testRequest)
+	err = cache.AddRequest(testKeyA, &testRequest)
 	assert.NoError(t, err)
 
-	err = cache.AddRequest(testKeyA, testRequest)
+	err = cache.AddRequest(testKeyA, &testRequest)
 	assert.NoError(t, err)
 
 	requests, err := cache.SetResponse(testKeyA, testDiscoveryResponse)
@@ -136,7 +136,7 @@ func TestMaxEntries(t *testing.T) {
 		key:    testKeyA,
 		reason: "testOnEvict called",
 	}, func() {
-		err = cache.AddRequest(testKeyB, testRequest)
+		err = cache.AddRequest(testKeyB, &testRequest)
 		assert.NoError(t, err)
 	})
 

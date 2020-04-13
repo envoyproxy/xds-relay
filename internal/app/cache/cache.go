@@ -22,7 +22,7 @@ type Cache interface {
 	SetResponse(key string, resp v2.DiscoveryResponse) ([]*v2.DiscoveryRequest, error)
 
 	// AddRequest adds the request to the cache.
-	AddRequest(key string, req v2.DiscoveryRequest) error
+	AddRequest(key string, req *v2.DiscoveryRequest) error
 }
 
 type cache struct {
@@ -110,7 +110,7 @@ func (c *cache) Fetch(key string) (*Resource, error) {
 func (c *cache) SetResponse(key string, resp v2.DiscoveryResponse) ([]*v2.DiscoveryRequest, error) {
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
-	marshaledResources, err := marshalResources(resp.Resources)
+	marshaledResources, err := MarshalResources(resp.Resources)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal resources for key: %s, err %v", key, err)
 	}
@@ -137,13 +137,13 @@ func (c *cache) SetResponse(key string, resp v2.DiscoveryResponse) ([]*v2.Discov
 	return resource.Requests, nil
 }
 
-func (c *cache) AddRequest(key string, req v2.DiscoveryRequest) error {
+func (c *cache) AddRequest(key string, req *v2.DiscoveryRequest) error {
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
 	value, found := c.cache.Get(key)
 	if !found {
 		resource := Resource{
-			Requests:       []*v2.DiscoveryRequest{&req},
+			Requests:       []*v2.DiscoveryRequest{req},
 			ExpirationTime: c.getExpirationTime(time.Now()),
 		}
 		c.cache.Add(key, resource)
@@ -153,7 +153,7 @@ func (c *cache) AddRequest(key string, req v2.DiscoveryRequest) error {
 	if !ok {
 		return fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
-	resource.Requests = append(resource.Requests, &req)
+	resource.Requests = append(resource.Requests, req)
 	resource.ExpirationTime = c.getExpirationTime(time.Now())
 	c.cache.Add(key, resource)
 	return nil
@@ -173,7 +173,9 @@ func (c *cache) getExpirationTime(currentTime time.Time) time.Time {
 	return time.Time{}
 }
 
-func marshalResources(resources []*any.Any) ([]gcp_types.MarshaledResource, error) {
+// MarshalResource converts the raw xDS discovery resources into a serialized
+// form accepted by go-control-plane.
+func MarshalResources(resources []*any.Any) ([]gcp_types.MarshaledResource, error) {
 	var marshaledResources []gcp_types.MarshaledResource
 	for _, resource := range resources {
 		marshaledResource, err := gcp.MarshalResource(resource)
