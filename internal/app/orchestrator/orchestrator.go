@@ -240,12 +240,14 @@ func (o *orchestrator) watchUpstream(
 }
 
 // fanout pushes the response to the response channels of all open downstream
-// watches.
+// watches in parallel.
 func (o *orchestrator) fanout(resp *cache.Response, watchers []*gcp.Request) {
 	for _, watch := range watchers {
-		if channel, ok := o.downstreamResponseMap.get(watch); ok {
-			channel <- convertToGcpResponse(resp, *watch)
-		}
+		go func(watch *gcp.Request) {
+			if channel, ok := o.downstreamResponseMap.get(watch); ok {
+				channel <- convertToGcpResponse(resp, *watch)
+			}
+		}(watch)
 	}
 }
 
