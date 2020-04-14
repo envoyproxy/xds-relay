@@ -167,8 +167,11 @@ func TestCachedResponse(t *testing.T) {
 	)
 	assert.NotNil(t, orchestrator)
 
+	// Test scenario with different request and response versions.
+	// Version is different, so we expect a response.
 	req := gcp.Request{
-		TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
+		VersionInfo: "0",
+		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
 	}
 
 	aggregatedKey, err := mapper.GetKey(req)
@@ -211,9 +214,25 @@ func TestCachedResponse(t *testing.T) {
 	assertEqualResources(t, gotResponse, upstreamResponse.Response, req)
 	assert.Equal(t, 1, len(orchestrator.upstreamResponseMap.responseChannel))
 
+	// Test scenario with same request and response version.
+	// We expect a watch to be open but no response.
+	req2 := gcp.Request{
+		VersionInfo: "2",
+		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
+	}
+
+	respChannel2, cancelWatch2 := orchestrator.CreateWatch(req2)
+	assert.NotNil(t, respChannel2)
+	assert.Equal(t, 2, len(orchestrator.downstreamResponseMap.responseChannel))
+	assert.Equal(t, 1, len(orchestrator.upstreamResponseMap.responseChannel))
+
+	// If we pass this point, it's safe to assume the respChannel2 is empty,
+	// otherwise the test would block and not complete.
 	orchestrator.shutdown(aggregatedKey)
 	assert.Equal(t, 0, len(orchestrator.upstreamResponseMap.responseChannel))
 	cancelWatch()
+	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.responseChannel))
+	cancelWatch2()
 	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.responseChannel))
 }
 

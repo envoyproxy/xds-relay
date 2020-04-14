@@ -146,9 +146,9 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) 
 		o.logger.With("err", err).With("key", aggregatedKey).Warn(ctx, "failed to fetch aggregated key")
 	}
 
-	if cached != nil && cached.Resp != nil {
-		// If we have a cached response, immediately push the result to the
-		// response channel.
+	if cached != nil && cached.Resp != nil && cached.Resp.Raw.GetVersionInfo() != req.GetVersionInfo() {
+		// If we have a cached response and the version is different,
+		// immediately push the result to the response channel.
 		go func() { responseChannel <- convertToGcpResponse(cached.Resp, req) }()
 	}
 
@@ -169,7 +169,7 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) 
 	}
 	o.upstreamResponseMap.mu.Unlock()
 
-	return responseChannel, o.onCancel(&req)
+	return responseChannel, o.onCancelWatch(&req)
 }
 
 // Fetch implements the polling method of the config cache using a non-empty request.
@@ -259,8 +259,8 @@ func (o *orchestrator) onCacheEvicted(key string, resource cache.Resource) {
 	o.upstreamResponseMap.delete(key)
 }
 
-// onCancel cleans up the cached watch when called.
-func (o *orchestrator) onCancel(req *gcp.Request) func() {
+// onCancelWatch cleans up the cached watch when called.
+func (o *orchestrator) onCancelWatch(req *gcp.Request) func() {
 	return func() {
 		o.downstreamResponseMap.delete(req)
 		// TODO (https://github.com/envoyproxy/xds-relay/issues/57). Clean up
@@ -268,6 +268,7 @@ func (o *orchestrator) onCancel(req *gcp.Request) func() {
 	}
 }
 
+// shutdown closes the upstream connection for the specified aggregated key.
 func (o *orchestrator) shutdown(aggregatedKey string) {
 	o.upstreamResponseMap.delete(aggregatedKey)
 }
