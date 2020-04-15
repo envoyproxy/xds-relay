@@ -64,7 +64,6 @@ func TestOpenStreamShouldResturnErrorOnStreamCreationFailure(t *testing.T) {
 }
 
 func TestOpenStreamShouldReturnNonEmptyResponseChannel(t *testing.T) {
-	done := make(chan bool, 1)
 	responseChan := make(chan *v2.DiscoveryResponse)
 	client := mock.NewClient(
 		context.Background(),
@@ -86,11 +85,17 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServer(t *testing.T) {
 	var message *v2.DiscoveryRequest
 	responseChan := make(chan *v2.DiscoveryResponse)
 	wait := make(chan bool)
-	client := mock.NewClient(context.Background(), CallOptions{Timeout: time.Nanosecond}, nil, responseChan, func(m interface{}) error {
-		message = m.(*v2.DiscoveryRequest)
-		wait <- true
-		return nil
-	})
+	client := mock.NewClient(
+		context.Background(),
+		CallOptions{Timeout: time.Nanosecond},
+		nil,
+		responseChan,
+		func(m interface{}) error {
+			message = m.(*v2.DiscoveryRequest)
+			wait <- true
+			return nil
+		},
+	)
 
 	node := &core.Node{}
 	_, done, _ := client.OpenStream(&v2.DiscoveryRequest{
@@ -107,9 +112,15 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServer(t *testing.T) {
 func TestOpenStreamShouldSendErrorIfSendFails(t *testing.T) {
 	responseChan := make(chan *v2.DiscoveryResponse)
 	sendError := fmt.Errorf("")
-	client := mock.NewClient(context.Background(), CallOptions{Timeout: time.Second}, nil, responseChan, func(m interface{}) error {
-		return sendError
-	})
+	client := mock.NewClient(
+		context.Background(),
+		CallOptions{Timeout: time.Second},
+		nil,
+		responseChan,
+		func(m interface{}) error {
+			return sendError
+		},
+	)
 
 	resp, done, _ := client.OpenStream(&v2.DiscoveryRequest{
 		TypeUrl: upstream.ListenerTypeURL,
@@ -123,10 +134,16 @@ func TestOpenStreamShouldSendErrorIfSendFails(t *testing.T) {
 func TestOpenStreamShouldSendTheResponseOnTheChannel(t *testing.T) {
 	responseChan := make(chan *v2.DiscoveryResponse)
 	response := &v2.DiscoveryResponse{}
-	client := mock.NewClient(context.Background(), CallOptions{Timeout: time.Second}, nil, responseChan, func(m interface{}) error {
-		responseChan <- response
-		return nil
-	})
+	client := mock.NewClient(
+		context.Background(),
+		CallOptions{Timeout: time.Second},
+		nil,
+		responseChan,
+		func(m interface{}) error {
+			responseChan <- response
+			return nil
+		},
+	)
 
 	resp, done, err := client.OpenStream(&v2.DiscoveryRequest{
 		TypeUrl: upstream.ListenerTypeURL,
@@ -143,22 +160,28 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonce(t *testing
 	responseChan := make(chan *v2.DiscoveryResponse)
 	lastAppliedVersion := ""
 	index := 0
-	client := mock.NewClient(context.Background(), CallOptions{Timeout: time.Second}, nil, responseChan, func(m interface{}) error {
-		message := m.(*v2.DiscoveryRequest)
+	client := mock.NewClient(
+		context.Background(),
+		CallOptions{Timeout: time.Second},
+		nil,
+		responseChan,
+		func(m interface{}) error {
+			message := m.(*v2.DiscoveryRequest)
 
-		assert.Equal(t, message.GetVersionInfo(), lastAppliedVersion)
-		assert.Equal(t, message.GetResponseNonce(), lastAppliedVersion)
+			assert.Equal(t, message.GetVersionInfo(), lastAppliedVersion)
+			assert.Equal(t, message.GetResponseNonce(), lastAppliedVersion)
 
-		response := &v2.DiscoveryResponse{
-			VersionInfo: strconv.Itoa(index),
-			Nonce:       strconv.Itoa(index),
-			TypeUrl:     upstream.ListenerTypeURL,
-		}
-		lastAppliedVersion = strconv.Itoa(index)
-		index++
-		responseChan <- response
-		return nil
-	})
+			response := &v2.DiscoveryResponse{
+				VersionInfo: strconv.Itoa(index),
+				Nonce:       strconv.Itoa(index),
+				TypeUrl:     upstream.ListenerTypeURL,
+			}
+			lastAppliedVersion = strconv.Itoa(index)
+			index++
+			responseChan <- response
+			return nil
+		},
+	)
 
 	resp, done, err := client.OpenStream(&v2.DiscoveryRequest{
 		TypeUrl: upstream.ListenerTypeURL,
@@ -178,10 +201,15 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonce(t *testing
 func TestOpenStreamShouldSendErrorWhenSendMsgBlocks(t *testing.T) {
 	responseChan := make(chan *v2.DiscoveryResponse)
 	blockedCtx, cancel := context.WithCancel(context.Background())
-	client := mock.NewClient(context.Background(), CallOptions{Timeout: time.Nanosecond}, nil, responseChan, func(m interface{}) error {
-		<-blockedCtx.Done()
-		return nil
-	})
+	client := mock.NewClient(
+		context.Background(),
+		CallOptions{Timeout: time.Nanosecond},
+		nil, responseChan,
+		func(m interface{}) error {
+			<-blockedCtx.Done()
+			return nil
+		},
+	)
 
 	resp, done, err := client.OpenStream(&v2.DiscoveryRequest{
 		TypeUrl: upstream.ListenerTypeURL,
