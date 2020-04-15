@@ -45,7 +45,7 @@ type Client interface {
 	// If the timeouts are exhausted, receive fails or a irrecoverable error occurs, the error is sent back to the caller.
 	// It is the caller's responsibility to send a new request from the last known DiscoveryRequest.
 	// Cancellation of the context cleans up all outstanding streams and releases all resources.
-	OpenStream(*v2.DiscoveryRequest) (<-chan *Response, chan bool, error)
+	OpenStream(*v2.DiscoveryRequest) (<-chan *v2.DiscoveryResponse, chan bool, error)
 }
 
 type client struct {
@@ -54,14 +54,6 @@ type client struct {
 	edsClient   v2.EndpointDiscoveryServiceClient
 	cdsClient   v2.ClusterDiscoveryServiceClient
 	callOptions CallOptions
-}
-
-// Response struct is a holder for the result from a single request.
-// A request can result in a response from origin server or an error
-// Only one of the fields is valid at any time. If the error is set, the response will be ignored.
-type Response struct {
-	Response *v2.DiscoveryResponse
-	Err      error
 }
 
 // CallOptions contains grpc client call options
@@ -104,7 +96,7 @@ func NewClient(ctx context.Context, url string, callOptions CallOptions) (Client
 	}, nil
 }
 
-func (m *client) OpenStream(request *v2.DiscoveryRequest) (<-chan *Response, chan bool, error) {
+func (m *client) OpenStream(request *v2.DiscoveryRequest) (<-chan *v2.DiscoveryResponse, chan bool, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	var stream grpc.ClientStream
 	var err error
@@ -134,7 +126,7 @@ func (m *client) OpenStream(request *v2.DiscoveryRequest) (<-chan *Response, cha
 	signal <- &version{nonce: "", version: ""}
 
 	done := make(chan bool, 1)
-	response := make(chan *Response, 1)
+	response := make(chan *v2.DiscoveryResponse, 1)
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -156,7 +148,7 @@ func send(
 	done <-chan bool,
 	wg *sync.WaitGroup,
 	request *v2.DiscoveryRequest,
-	response chan *Response,
+	response chan *v2.DiscoveryResponse,
 	stream grpc.ClientStream,
 	signal chan *version,
 	callOptions CallOptions) {
@@ -176,7 +168,7 @@ func send(
 				case <-done:
 					cancelFunc()
 				default:
-					response <- &Response{Err: err}
+					close(response)
 				}
 				wg.Done()
 				return
@@ -194,7 +186,7 @@ func recv(
 	cancelFunc context.CancelFunc,
 	done <-chan bool,
 	wg *sync.WaitGroup,
-	response chan *Response,
+	response chan *v2.DiscoveryResponse,
 	stream grpc.ClientStream,
 	signal chan *version) {
 	for {
@@ -205,7 +197,7 @@ func recv(
 				cancelFunc()
 				wg.Done()
 			default:
-				response <- &Response{Err: err}
+				close(response)
 			}
 			return
 		}
@@ -215,7 +207,7 @@ func recv(
 			wg.Done()
 			return
 		default:
-			response <- &Response{Response: resp}
+			response <- resp
 			signal <- &version{version: resp.GetVersionInfo(), nonce: resp.GetNonce()}
 		}
 	}
@@ -223,7 +215,7 @@ func recv(
 
 // closeChannels is called whenever the context is cancelled (ctx.Done) in Send and Recv goroutines.
 // It is also called when an irrecoverable error occurs and the error is passed to the caller.
-func closeChannels(versionChan chan *version, responseChan chan *Response) {
+func closeChannels(versionChan chan *version, responseChan chan *v2.DiscoveryResponse) {
 	close(versionChan)
 	close(responseChan)
 }

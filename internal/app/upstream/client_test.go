@@ -115,9 +115,8 @@ func TestOpenStreamShouldSendErrorIfSendFails(t *testing.T) {
 		TypeUrl: upstream.ListenerTypeURL,
 		Node:    &core.Node{},
 	})
-	val := <-resp
-	assert.Equal(t, val.Err, sendError)
-	assert.Nil(t, val.Response)
+	_, more := <-resp
+	assert.False(t, more)
 	close(done)
 }
 
@@ -136,8 +135,7 @@ func TestOpenStreamShouldSendTheResponseOnTheChannel(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, resp)
 	val := <-resp
-	assert.Equal(t, val.Response, response)
-	assert.Nil(t, val.Err)
+	assert.Equal(t, val, response)
 	close(done)
 }
 
@@ -170,9 +168,8 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonce(t *testing
 	assert.NotNil(t, resp)
 	for i := 0; i < 5; i++ {
 		val := <-resp
-		assert.Equal(t, val.Response.GetVersionInfo(), strconv.Itoa(i))
-		assert.Equal(t, val.Response.GetNonce(), strconv.Itoa(i))
-		assert.Nil(t, val.Err)
+		assert.Equal(t, val.GetVersionInfo(), strconv.Itoa(i))
+		assert.Equal(t, val.GetNonce(), strconv.Itoa(i))
 	}
 
 	close(done)
@@ -192,9 +189,8 @@ func TestOpenStreamShouldSendErrorWhenSendMsgBlocks(t *testing.T) {
 	})
 	assert.Nil(t, err)
 	assert.NotNil(t, resp)
-	val := <-resp
-	assert.Equal(t, val.Err.Error(), "context deadline exceeded")
-	assert.Nil(t, val.Response)
+	_, more := <-resp
+	assert.False(t, more)
 
 	close(done)
 	cancel()
