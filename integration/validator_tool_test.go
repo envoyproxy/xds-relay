@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	binaryName            = "configuration-validator"
-	aggregationSubcommand = "aggregation"
+	validatorToolBinaryName = "configuration-validator"
+	aggregationSubcommand   = "aggregation"
 )
 
 func TestMain(m *testing.M) {
@@ -36,7 +36,7 @@ func TestConfigurationValidatorTool(t *testing.T) {
 	RunSpecs(t, "configuration-validator integration tests suite")
 }
 
-var testCases = []TableEntry{
+var validatorToolTestCases = []TableEntry{
 	{
 		Description: "a small positive test",
 		Parameters: []interface{}{
@@ -81,7 +81,7 @@ var _ = Describe("Integration tests for the validator tool", func() {
 			Expect(err).To(BeNil())
 
 			// #nosec G204
-			cmd := exec.Command(path.Join(dir, "bin", binaryName), aggregationSubcommand, "--path", ymlFilename)
+			cmd := exec.Command(path.Join(dir, "bin", validatorToolBinaryName), aggregationSubcommand, "--path", ymlFilename)
 			output, err := cmd.CombinedOutput()
 			if wantErr {
 				Expect(err).NotTo(BeNil())
@@ -90,14 +90,14 @@ var _ = Describe("Integration tests for the validator tool", func() {
 			} else {
 				Expect(err).To(BeNil())
 			}
-		}, testCases...)
+		}, validatorToolTestCases...)
 
 	It("should fail if --config-file flag is missing", func() {
 		dir, err := os.Getwd()
 		Expect(err).To(BeNil())
 
 		// #nosec G204
-		cmd := exec.Command(path.Join(dir, "bin", binaryName), aggregationSubcommand)
+		cmd := exec.Command(path.Join(dir, "bin", validatorToolBinaryName), aggregationSubcommand)
 		output, _ := cmd.CombinedOutput()
 		Expect(string(output)).Should(HavePrefix("Error: required flag(s) \"path\" not set"))
 	})

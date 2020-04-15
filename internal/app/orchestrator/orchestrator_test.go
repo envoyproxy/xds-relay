@@ -7,7 +7,9 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
+	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
 	upstream_mock "github.com/envoyproxy/xds-relay/test/mocks/upstream"
+	"github.com/golang/protobuf/ptypes/duration"
 
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
 
@@ -32,6 +34,13 @@ func TestNew(t *testing.T) {
 	}
 	requestMapper := mapper.NewMapper(&config)
 
-	orchestrator := New(context.Background(), log.New("info"), requestMapper, upstreamClient)
+	cacheConfig := bootstrapv1.Cache{
+		Ttl: &duration.Duration{
+			Seconds: 10,
+		},
+		MaxEntries: 10,
+	}
+
+	orchestrator := New(context.Background(), log.New("info"), requestMapper, upstreamClient, &cacheConfig)
 	assert.NotNil(t, orchestrator)
 }
