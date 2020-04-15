@@ -4,10 +4,12 @@ import (
 	"context"
 	"io/ioutil"
 	"testing"
+	"time"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	"github.com/golang/protobuf/ptypes/any"
+	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/types/known/anypb"
 
@@ -17,6 +19,7 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 	yamlproto "github.com/envoyproxy/xds-relay/internal/pkg/util"
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
+	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
 )
 
 type mockSimpleUpstreamClient struct {
@@ -63,7 +66,7 @@ func newMockOrchestrator(t *testing.T, mapper mapper.Mapper, upstreamClient upst
 		},
 	}
 
-	cache, err := cache.NewCache(cacheMaxEntries, orchestrator.onCacheEvicted, cacheTTL)
+	cache, err := cache.NewCache(1000, orchestrator.onCacheEvicted, 10*time.Second)
 	assert.NoError(t, err)
 	orchestrator.cache = cache
 
@@ -105,7 +108,14 @@ func TestNew(t *testing.T) {
 	}
 	requestMapper := mapper.NewMapper(&config)
 
-	orchestrator := New(context.Background(), log.New("info"), requestMapper, upstreamClient)
+	cacheConfig := bootstrapv1.Cache{
+		Ttl: &duration.Duration{
+			Seconds: 10,
+		},
+		MaxEntries: 10,
+	}
+
+	orchestrator := New(context.Background(), log.New("info"), requestMapper, upstreamClient, &cacheConfig)
 	assert.NotNil(t, orchestrator)
 }
 
