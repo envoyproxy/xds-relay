@@ -232,9 +232,6 @@ func (o *orchestrator) watchUpstream(
 		case <-done:
 			// Exit when signaled that the stream has closed.
 			return
-		default:
-			// Save some processing power.
-			time.Sleep(1 * time.Second)
 		}
 	}
 }
