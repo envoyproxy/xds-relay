@@ -24,7 +24,7 @@ var (
 	aggregationCmd = &cobra.Command{
 		Use:   "aggregation",
 		Short: "A tool to help validate xds-relay aggregation key configuration files",
-		Long: `aggregation is a comand used to validate aggregation key config files.
+		Long: `aggregation is a command used to validate aggregation key config files.
 
 The aggregation key yaml file is validated against the
 [https://github.com/envoyproxy/xds-relay/blob/master/api/protos/aggregation/v1/aggregation.proto](proto file).
