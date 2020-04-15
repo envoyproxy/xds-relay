@@ -11,10 +11,14 @@ import (
 )
 
 const (
+	// ListenerTypeURL is the resource url for listener
 	ListenerTypeURL = "type.googleapis.com/envoy.api.v2.Listener"
-	ClusterTypeURL  = "type.googleapis.com/envoy.api.v2.Cluster"
-	EndpointTypeURL = "ype.googleapis.com/envoy.api.v2.ClusterLoadAssignment"
-	RouteTypeURL    = "type.googleapis.com/envoy.api.v2.RouteConfiguration"
+	// ClusterTypeURL is the resource url for cluster
+	ClusterTypeURL = "type.googleapis.com/envoy.api.v2.Cluster"
+	// EndpointTypeURL is the resource url for endpoints
+	EndpointTypeURL = "type.googleapis.com/envoy.api.v2.ClusterLoadAssignment"
+	// RouteTypeURL is the resource url for route
+	RouteTypeURL = "type.googleapis.com/envoy.api.v2.RouteConfiguration"
 )
 
 // UnsupportedResourceError is a custom error for unsupported typeURL
@@ -41,7 +45,7 @@ type Client interface {
 	// If the timeouts are exhausted, receive fails or a irrecoverable error occurs, the error is sent back to the caller.
 	// It is the caller's responsibility to send a new request from the last known DiscoveryRequest.
 	// Cancellation of the context cleans up all outstanding streams and releases all resources.
-	OpenStream(context.Context, *v2.DiscoveryRequest) (<-chan *Response, error)
+	OpenStream(*v2.DiscoveryRequest) (<-chan *Response, chan bool, error)
 }
 
 type client struct {
@@ -100,7 +104,8 @@ func NewClient(ctx context.Context, url string, callOptions CallOptions) (Client
 	}, nil
 }
 
-func (m *client) OpenStream(ctx context.Context, request *v2.DiscoveryRequest) (<-chan *Response, error) {
+func (m *client) OpenStream(request *v2.DiscoveryRequest) (<-chan *Response, chan bool, error) {
+	ctx, cancel := context.WithCancel(context.Background())
 	var stream grpc.ClientStream
 	var err error
 	switch request.GetTypeUrl() {
@@ -113,11 +118,13 @@ func (m *client) OpenStream(ctx context.Context, request *v2.DiscoveryRequest) (
 	case EndpointTypeURL:
 		stream, err = m.edsClient.StreamEndpoints(ctx)
 	default:
-		return nil, &UnsupportedResourceError{TypeURL: request.GetTypeUrl()}
+		cancel()
+		return nil, nil, &UnsupportedResourceError{TypeURL: request.GetTypeUrl()}
 	}
 
 	if err != nil {
-		return nil, err
+		cancel()
+		return nil, nil, err
 	}
 
 	signal := make(chan *version, 1)
@@ -126,24 +133,27 @@ func (m *client) OpenStream(ctx context.Context, request *v2.DiscoveryRequest) (
 	// The origin server will respond with the latest version.
 	signal <- &version{nonce: "", version: ""}
 
+	done := make(chan bool, 1)
 	response := make(chan *Response, 1)
 
 	var wg sync.WaitGroup
 	wg.Add(2)
 
-	go send(ctx, &wg, request, response, stream, signal, m.callOptions)
-	go recv(ctx, &wg, response, stream, signal)
+	go send(ctx, cancel, done, &wg, request, response, stream, signal, m.callOptions)
+	go recv(cancel, done, &wg, response, stream, signal)
 
 	go func() {
 		wg.Wait()
 		closeChannels(signal, response)
 	}()
 
-	return response, nil
+	return response, done, nil
 }
 
 func send(
 	ctx context.Context,
+	cancelFunc context.CancelFunc,
+	done <-chan bool,
 	wg *sync.WaitGroup,
 	request *v2.DiscoveryRequest,
 	response chan *Response,
@@ -163,14 +173,16 @@ func send(
 			}, callOptions.Timeout)
 			if err != nil {
 				select {
-				case <-ctx.Done():
+				case <-done:
+					cancelFunc()
 				default:
 					response <- &Response{Err: err}
 				}
 				wg.Done()
 				return
 			}
-		case <-ctx.Done():
+		case <-done:
+			cancelFunc()
 			_ = stream.CloseSend()
 			wg.Done()
 			return
@@ -179,7 +191,8 @@ func send(
 }
 
 func recv(
-	ctx context.Context,
+	cancelFunc context.CancelFunc,
+	done <-chan bool,
 	wg *sync.WaitGroup,
 	response chan *Response,
 	stream grpc.ClientStream,
@@ -188,7 +201,8 @@ func recv(
 		resp := new(v2.DiscoveryResponse)
 		if err := stream.RecvMsg(resp); err != nil {
 			select {
-			case <-ctx.Done():
+			case <-done:
+				cancelFunc()
 				wg.Done()
 			default:
 				response <- &Response{Err: err}
@@ -196,7 +210,8 @@ func recv(
 			return
 		}
 		select {
-		case <-ctx.Done():
+		case <-done:
+			cancelFunc()
 			wg.Done()
 			return
 		default:
