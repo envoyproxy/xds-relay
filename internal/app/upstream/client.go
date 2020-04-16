@@ -3,7 +3,6 @@ package upstream
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
@@ -131,16 +130,8 @@ func (m *client) OpenStream(request v2.DiscoveryRequest) (<-chan *v2.DiscoveryRe
 
 	response := make(chan *v2.DiscoveryResponse)
 
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	go send(ctx, m.logger, cancel, &wg, &request, stream, signal, m.callOptions)
-	go recv(ctx, cancel, m.logger, &wg, response, stream, signal)
-
-	go func() {
-		wg.Wait()
-		closeChannels(signal, response)
-	}()
+	go send(ctx, m.logger, cancel, &request, stream, signal, m.callOptions)
+	go recv(ctx, cancel, m.logger, response, stream, signal)
 
 	// We use context cancellation over using a separate channel for signalling stream shutdown.
 	// The reason is cancelling a context tied with the stream is straightforward to signal closure.
@@ -149,11 +140,14 @@ func (m *client) OpenStream(request v2.DiscoveryRequest) (<-chan *v2.DiscoveryRe
 	return response, func() { cancel() }, nil
 }
 
+// It is safe to assume send goroutine will not leak as long as these conditions are true:
+// - SendMsg is performed with timeout.
+// - send is a receiver for signal and exits when signal is closed by the owner.
+// - send also exits on context cancellations.
 func send(
 	ctx context.Context,
 	logger log.Logger,
 	cancelFunc context.CancelFunc,
-	wg *sync.WaitGroup,
 	request *v2.DiscoveryRequest,
 	stream grpc.ClientStream,
 	signal chan *version,
@@ -172,29 +166,26 @@ func send(
 			if err != nil {
 				select {
 				case <-ctx.Done():
-					// This situation indicates that the caller closed the channel.
-					// Hence, this is not an erroneous scenario.
+					// Context was cancelled, hence this is not an erroneous scenario.
 				default:
 					logger.Error(ctx, "Error in SendMsg: %s", err.Error())
 				}
 				cancelFunc()
-				wg.Done()
 				return
 			}
 		case <-ctx.Done():
-			cancelFunc()
 			_ = stream.CloseSend()
-			wg.Done()
 			return
 		}
 	}
 }
 
+// recv is an infinite loop which blocks on RecvMsg.
+// The only ways to exit the goroutine is by cancelling the context.
 func recv(
 	ctx context.Context,
 	cancelFunc context.CancelFunc,
 	logger log.Logger,
-	wg *sync.WaitGroup,
 	response chan *v2.DiscoveryResponse,
 	stream grpc.ClientStream,
 	signal chan *version) {
@@ -203,19 +194,17 @@ func recv(
 		if err := stream.RecvMsg(resp); err != nil {
 			select {
 			case <-ctx.Done():
-				// This situation indicates that the caller closed the channel.
-				// Hence, this is not an erroneous scenario.
+				// Context was cancelled, hence this is not an erroneous scenario.
 			default:
 				logger.Error(ctx, "Error in RecvMsg %s", err.Error())
 			}
 			cancelFunc()
-			wg.Done()
+			closeChannels(signal, response)
 			return
 		}
 		select {
 		case <-ctx.Done():
-			cancelFunc()
-			wg.Done()
+			closeChannels(signal, response)
 			return
 		default:
 			response <- resp
