@@ -39,6 +39,8 @@ func Run(bootstrapConfig *bootstrapv1.Bootstrap,
 	// Initialize upstream client.
 	upstreamPort := strconv.FormatUint(uint64(bootstrapConfig.OriginServer.Address.PortValue), 10)
 	upstreamAddress := net.JoinHostPort(bootstrapConfig.OriginServer.Address.Address, upstreamPort)
+	// TODO: configure timeout param from bootstrap config.
+	// https://github.com/envoyproxy/xds-relay/issues/55
 	upstreamClient, err := upstream.NewClient(
 		ctx,
 		upstreamAddress,
