@@ -43,10 +43,10 @@ type Client interface {
 	// All responses from the origin server are sent back through the callback function.
 	//
 	// OpenStream uses the retry and timeout configurations to make best effort to get the responses from origin server.
-	// If the timeouts are exhausted, receive fails or a irrecoverable error occurs, the error is sent back to the caller.
+	// If the timeouts are exhausted, receive fails or a irrecoverable error occurs, the response channel is closed.
 	// It is the caller's responsibility to send a new request from the last known DiscoveryRequest.
-	// Cancellation of the context cleans up all outstanding streams and releases all resources.
-	OpenStream(v2.DiscoveryRequest) (<-chan *v2.DiscoveryResponse, chan bool, error)
+	// The shutdown function should be invoked to signal stream closure.
+	OpenStream(v2.DiscoveryRequest) (<-chan *v2.DiscoveryResponse, func(), error)
 }
 
 type client struct {
@@ -99,7 +99,7 @@ func NewClient(ctx context.Context, url string, callOptions CallOptions, logger 
 	}, nil
 }
 
-func (m *client) OpenStream(request v2.DiscoveryRequest) (<-chan *v2.DiscoveryResponse, chan bool, error) {
+func (m *client) OpenStream(request v2.DiscoveryRequest) (<-chan *v2.DiscoveryResponse, func(), error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	var stream grpc.ClientStream
 	var err error
@@ -129,28 +129,30 @@ func (m *client) OpenStream(request v2.DiscoveryRequest) (<-chan *v2.DiscoveryRe
 	// The origin server will respond with the latest version.
 	signal <- &version{nonce: "", version: ""}
 
-	done := make(chan bool, 1)
 	response := make(chan *v2.DiscoveryResponse)
 
 	var wg sync.WaitGroup
 	wg.Add(2)
 
-	go send(ctx, m.logger, cancel, done, &wg, &request, stream, signal, m.callOptions)
-	go recv(ctx, cancel, m.logger, done, &wg, response, stream, signal)
+	go send(ctx, m.logger, cancel, &wg, &request, stream, signal, m.callOptions)
+	go recv(ctx, cancel, m.logger, &wg, response, stream, signal)
 
 	go func() {
 		wg.Wait()
 		closeChannels(signal, response)
 	}()
 
-	return response, done, nil
+	// We use context cancellation over using a separate channel for signalling stream shutdown.
+	// The reason is cancelling a context tied with the stream is straightforward to signal closure.
+	// Also, the shutdown function could potentially be called more than once by a caller.
+	// Closing channels is not idempotent while cancelling context is idempotent.
+	return response, func() { cancel() }, nil
 }
 
 func send(
 	ctx context.Context,
 	logger log.Logger,
 	cancelFunc context.CancelFunc,
-	done <-chan bool,
 	wg *sync.WaitGroup,
 	request *v2.DiscoveryRequest,
 	stream grpc.ClientStream,
@@ -169,7 +171,7 @@ func send(
 			}, callOptions.Timeout)
 			if err != nil {
 				select {
-				case <-done:
+				case <-ctx.Done():
 					// This situation indicates that the caller closed the channel.
 					// Hence, this is not an erroneous scenario.
 				default:
@@ -179,7 +181,7 @@ func send(
 				wg.Done()
 				return
 			}
-		case <-done:
+		case <-ctx.Done():
 			cancelFunc()
 			_ = stream.CloseSend()
 			wg.Done()
@@ -192,7 +194,6 @@ func recv(
 	ctx context.Context,
 	cancelFunc context.CancelFunc,
 	logger log.Logger,
-	done <-chan bool,
 	wg *sync.WaitGroup,
 	response chan *v2.DiscoveryResponse,
 	stream grpc.ClientStream,
@@ -201,7 +202,7 @@ func recv(
 		resp := new(v2.DiscoveryResponse)
 		if err := stream.RecvMsg(resp); err != nil {
 			select {
-			case <-done:
+			case <-ctx.Done():
 				// This situation indicates that the caller closed the channel.
 				// Hence, this is not an erroneous scenario.
 			default:
@@ -212,7 +213,7 @@ func recv(
 			return
 		}
 		select {
-		case <-done:
+		case <-ctx.Done():
 			cancelFunc()
 			wg.Done()
 			return

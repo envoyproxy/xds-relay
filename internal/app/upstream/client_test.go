@@ -74,7 +74,7 @@ func TestOpenStreamShouldReturnNonEmptyResponseChannel(t *testing.T) {
 	})
 	assert.NotNil(t, respCh)
 	assert.Nil(t, err)
-	close(done)
+	done()
 }
 
 func TestOpenStreamShouldSendTheFirstRequestToOriginServer(t *testing.T) {
@@ -102,7 +102,7 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServer(t *testing.T) {
 	assert.NotNil(t, message)
 	assert.Equal(t, message.GetNode(), node)
 	assert.Equal(t, message.TypeUrl, upstream.ListenerTypeURL)
-	close(done)
+	done()
 }
 
 func TestOpenStreamShouldSendErrorIfSendFails(t *testing.T) {
@@ -124,7 +124,7 @@ func TestOpenStreamShouldSendErrorIfSendFails(t *testing.T) {
 	})
 	_, more := <-resp
 	assert.False(t, more)
-	close(done)
+	done()
 }
 
 func TestOpenStreamShouldSendTheResponseOnTheChannel(t *testing.T) {
@@ -149,7 +149,7 @@ func TestOpenStreamShouldSendTheResponseOnTheChannel(t *testing.T) {
 	assert.NotNil(t, resp)
 	val := <-resp
 	assert.Equal(t, val, response)
-	close(done)
+	done()
 }
 
 func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonce(t *testing.T) {
@@ -191,7 +191,7 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonce(t *testing
 		assert.Equal(t, val.GetNonce(), strconv.Itoa(i))
 	}
 
-	close(done)
+	done()
 }
 
 func TestOpenStreamShouldSendErrorWhenSendMsgBlocks(t *testing.T) {
@@ -216,6 +216,6 @@ func TestOpenStreamShouldSendErrorWhenSendMsgBlocks(t *testing.T) {
 	_, more := <-resp
 	assert.False(t, more)
 
-	close(done)
+	done()
 	cancel()
 }
