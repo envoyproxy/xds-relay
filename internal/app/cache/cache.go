@@ -22,13 +22,16 @@ type Cache interface {
 	SetResponse(key string, resp v2.DiscoveryResponse) ([]*v2.DiscoveryRequest, error)
 
 	// AddRequest adds the request to the cache.
-	AddRequest(key string, req v2.DiscoveryRequest) error
+	AddRequest(key string, req *v2.DiscoveryRequest) error
+
+	// DeleteRequest removes the given request from any cache entries it's present in.
+	DeleteRequest(key string, req *v2.DiscoveryRequest) error
 }
 
 type cache struct {
-	cacheMu sync.RWMutex
-	cache   lru.Cache
-	ttl     time.Duration
+	cacheMu    sync.RWMutex
+	cache      lru.Cache
+	ttl        time.Duration
 }
 
 // Response stores the raw Discovery Response alongside its marshaled resources.
@@ -137,13 +140,13 @@ func (c *cache) SetResponse(key string, resp v2.DiscoveryResponse) ([]*v2.Discov
 	return resource.Requests, nil
 }
 
-func (c *cache) AddRequest(key string, req v2.DiscoveryRequest) error {
+func (c *cache) AddRequest(key string, req *v2.DiscoveryRequest) error {
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
 	value, found := c.cache.Get(key)
 	if !found {
 		resource := Resource{
-			Requests:       []*v2.DiscoveryRequest{&req},
+			Requests:       []*v2.DiscoveryRequest{req},
 			ExpirationTime: c.getExpirationTime(time.Now()),
 		}
 		c.cache.Add(key, resource)
@@ -153,8 +156,24 @@ func (c *cache) AddRequest(key string, req v2.DiscoveryRequest) error {
 	if !ok {
 		return fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
-	resource.Requests = append(resource.Requests, &req)
+	resource.Requests = append(resource.Requests, req)
 	resource.ExpirationTime = c.getExpirationTime(time.Now())
+	c.cache.Add(key, resource)
+	return nil
+}
+
+func (c *cache) DeleteRequest(key string, req *v2.DiscoveryRequest) error {
+	c.cacheMu.Lock()
+	defer c.cacheMu.Unlock()
+	value, found := c.cache.Get(key)
+	if !found {
+		return nil
+	}
+	resource, ok := value.(Resource)
+	if !ok {
+		return fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
+	}
+	resource.Requests = removeRequests(req, resource.Requests)
 	c.cache.Add(key, resource)
 	return nil
 }
@@ -184,4 +203,17 @@ func marshalResources(resources []*any.Any) ([]gcp_types.MarshaledResource, erro
 		marshaledResources = append(marshaledResources, marshaledResource)
 	}
 	return marshaledResources, nil
+}
+
+func removeRequests(request *v2.DiscoveryRequest, requests []*v2.DiscoveryRequest) []*v2.DiscoveryRequest {
+	requestsAfterDeletion := make([]*v2.DiscoveryRequest, len(requests))
+	i := 0
+	for _, r := range requests {
+		if r != request {
+			requestsAfterDeletion[i] = r
+			i++
+		}
+	}
+	requestsAfterDeletion = requestsAfterDeletion[:i]
+	return requestsAfterDeletion
 }
