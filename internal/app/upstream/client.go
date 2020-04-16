@@ -135,7 +135,7 @@ func (m *client) OpenStream(request v2.DiscoveryRequest) (<-chan *v2.DiscoveryRe
 	var wg sync.WaitGroup
 	wg.Add(2)
 
-	go send(ctx, m.logger, cancel, done, &wg, &request, response, stream, signal, m.callOptions)
+	go send(ctx, m.logger, cancel, done, &wg, &request, stream, signal, m.callOptions)
 	go recv(ctx, cancel, m.logger, done, &wg, response, stream, signal)
 
 	go func() {
@@ -153,7 +153,6 @@ func send(
 	done <-chan bool,
 	wg *sync.WaitGroup,
 	request *v2.DiscoveryRequest,
-	response chan *v2.DiscoveryResponse,
 	stream grpc.ClientStream,
 	signal chan *version,
 	callOptions CallOptions) {
