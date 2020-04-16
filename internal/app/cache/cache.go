@@ -29,9 +29,9 @@ type Cache interface {
 }
 
 type cache struct {
-	cacheMu    sync.RWMutex
-	cache      lru.Cache
-	ttl        time.Duration
+	cacheMu sync.RWMutex
+	cache   lru.Cache
+	ttl     time.Duration
 }
 
 // Response stores the raw Discovery Response alongside its marshaled resources.
