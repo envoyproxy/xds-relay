@@ -181,7 +181,7 @@ func send(
 }
 
 // recv is an infinite loop which blocks on RecvMsg.
-// The only ways to exit the goroutine is by cancelling the context.
+// The only ways to exit the goroutine is by cancelling the context or when an error occurs.
 func recv(
 	ctx context.Context,
 	cancelFunc context.CancelFunc,
