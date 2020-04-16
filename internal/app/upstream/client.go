@@ -7,6 +7,7 @@ import (
 	"time"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 	"google.golang.org/grpc"
 )
 
@@ -54,6 +55,7 @@ type client struct {
 	edsClient   v2.EndpointDiscoveryServiceClient
 	cdsClient   v2.ClusterDiscoveryServiceClient
 	callOptions CallOptions
+	logger      log.Logger
 }
 
 // CallOptions contains grpc client call options
@@ -73,7 +75,7 @@ type version struct {
 //
 // The method does not block until the underlying connection is up.
 // Returns immediately and connecting the server happens in background
-func NewClient(ctx context.Context, url string, callOptions CallOptions) (Client, error) {
+func NewClient(ctx context.Context, url string, callOptions CallOptions, logger log.Logger) (Client, error) {
 	// TODO: configure grpc options.https://github.com/envoyproxy/xds-relay/issues/55
 	conn, err := grpc.Dial(url, grpc.WithInsecure())
 	if err != nil {
@@ -93,6 +95,7 @@ func NewClient(ctx context.Context, url string, callOptions CallOptions) (Client
 		edsClient:   edsClient,
 		cdsClient:   cdsClient,
 		callOptions: callOptions,
+		logger:      logger,
 	}, nil
 }
 
@@ -111,6 +114,7 @@ func (m *client) OpenStream(request *v2.DiscoveryRequest) (<-chan *v2.DiscoveryR
 		stream, err = m.edsClient.StreamEndpoints(ctx)
 	default:
 		cancel()
+		m.logger.Error(ctx, "Unsupported Type Url %s", request.GetTypeUrl())
 		return nil, nil, &UnsupportedResourceError{TypeURL: request.GetTypeUrl()}
 	}
 
@@ -131,8 +135,8 @@ func (m *client) OpenStream(request *v2.DiscoveryRequest) (<-chan *v2.DiscoveryR
 	var wg sync.WaitGroup
 	wg.Add(2)
 
-	go send(ctx, cancel, done, &wg, request, response, stream, signal, m.callOptions)
-	go recv(cancel, done, &wg, response, stream, signal)
+	go send(ctx, m.logger, cancel, done, &wg, request, response, stream, signal, m.callOptions)
+	go recv(ctx, cancel, m.logger, done, &wg, response, stream, signal)
 
 	go func() {
 		wg.Wait()
@@ -144,6 +148,7 @@ func (m *client) OpenStream(request *v2.DiscoveryRequest) (<-chan *v2.DiscoveryR
 
 func send(
 	ctx context.Context,
+	logger log.Logger,
 	cancelFunc context.CancelFunc,
 	done <-chan bool,
 	wg *sync.WaitGroup,
@@ -166,8 +171,11 @@ func send(
 			if err != nil {
 				select {
 				case <-done:
+					// This situation indicates that the caller closed the channel.
+					// Hence, this is not an erroneous scenario.
 					cancelFunc()
 				default:
+					logger.Error(ctx, "Error in SendMsg: %s", err.Error())
 					close(response)
 				}
 				wg.Done()
@@ -183,7 +191,9 @@ func send(
 }
 
 func recv(
+	ctx context.Context,
 	cancelFunc context.CancelFunc,
+	logger log.Logger,
 	done <-chan bool,
 	wg *sync.WaitGroup,
 	response chan *v2.DiscoveryResponse,
@@ -194,9 +204,12 @@ func recv(
 		if err := stream.RecvMsg(resp); err != nil {
 			select {
 			case <-done:
+				// This situation indicates that the caller closed the channel.
+				// Hence, this is not an erroneous scenario.
 				cancelFunc()
 				wg.Done()
 			default:
+				logger.Error(ctx, "Error in RecvMsg %s", err.Error())
 				close(response)
 			}
 			return

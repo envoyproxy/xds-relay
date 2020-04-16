@@ -4,6 +4,7 @@ import (
 	"context"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 )
 
 // NewMockClient creates a mock implementation for testing
@@ -20,5 +21,6 @@ func NewMockClient(
 		edsClient:   edsClient,
 		cdsClient:   cdsClient,
 		callOptions: callOptions,
+		logger:      log.New("panic"),
 	}
 }

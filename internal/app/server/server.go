@@ -39,7 +39,12 @@ func Run(bootstrapConfig *bootstrapv1.Bootstrap,
 	// Initialize upstream client.
 	upstreamPort := strconv.FormatUint(uint64(bootstrapConfig.OriginServer.Address.PortValue), 10)
 	upstreamAddress := net.JoinHostPort(bootstrapConfig.OriginServer.Address.Address, upstreamPort)
-	upstreamClient, err := upstream.NewClient(ctx, upstreamAddress, upstream.CallOptions{Timeout: time.Minute})
+	upstreamClient, err := upstream.NewClient(
+		ctx,
+		upstreamAddress,
+		upstream.CallOptions{Timeout: time.Minute},
+		logger.Named("xdsclient"),
+	)
 	if err != nil {
 		logger.With("error", err).Panic(ctx, "failed to initialize upstream client")
 	}
