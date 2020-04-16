@@ -130,7 +130,7 @@ func (m *client) OpenStream(request v2.DiscoveryRequest) (<-chan *v2.DiscoveryRe
 	signal <- &version{nonce: "", version: ""}
 
 	done := make(chan bool, 1)
-	response := make(chan *v2.DiscoveryResponse, 1)
+	response := make(chan *v2.DiscoveryResponse)
 
 	var wg sync.WaitGroup
 	wg.Add(2)
