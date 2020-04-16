@@ -171,6 +171,8 @@ func send(
 			if err != nil {
 				select {
 				case <-done:
+					// This situation indicates that the caller closed the channel.
+					// Hence, this is not an erroneous scenario.
 				default:
 					logger.Error(ctx, "Error in SendMsg: %s", err.Error())
 				}
@@ -201,6 +203,8 @@ func recv(
 		if err := stream.RecvMsg(resp); err != nil {
 			select {
 			case <-done:
+				// This situation indicates that the caller closed the channel.
+				// Hence, this is not an erroneous scenario.
 			default:
 				logger.Error(ctx, "Error in RecvMsg %s", err.Error())
 			}
