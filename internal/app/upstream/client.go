@@ -231,16 +231,16 @@ func shutDown(ctx context.Context, conn *grpc.ClientConn) {
 // it returns a DeadlineExceeded error instead.
 // Ref: https://github.com/grpc/grpc-go/issues/1229#issuecomment-302755717
 func doWithTimeout(ctx context.Context, f func() error, d time.Duration) error {
-	deadlineCtx, cancel := context.WithDeadline(ctx, time.Now().Add(d))
+	timeoutCtx, cancel := context.WithTimeout(ctx, d)
 	errChan := make(chan error, 1)
 	go func() {
 		errChan <- f()
 		close(errChan)
 	}()
 	select {
-	case <-deadlineCtx.Done():
+	case <-timeoutCtx.Done():
 		cancel()
-		return deadlineCtx.Err()
+		return timeoutCtx.Err()
 	case err := <-errChan:
 		cancel()
 		return err
