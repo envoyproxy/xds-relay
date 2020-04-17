@@ -45,6 +45,9 @@ type Client interface {
 	// If the timeouts are exhausted, receive fails or a irrecoverable error occurs, the response channel is closed.
 	// It is the caller's responsibility to send a new request from the last known DiscoveryRequest.
 	// The shutdown function should be invoked to signal stream closure.
+	// The shutdown function represents the intent that a stream is supposed to be closed.
+	// All goroutines that depend on the ctx object should consider ctx.Done to be related to shutdown.
+	// All such scenarios need to exit cleanly and are not considered an erroneous situation.
 	OpenStream(v2.DiscoveryRequest) (<-chan *v2.DiscoveryResponse, func(), error)
 }
 
