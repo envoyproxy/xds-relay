@@ -202,6 +202,8 @@ func TestOpenStreamShouldSendErrorWhenSendMsgBlocks(t *testing.T) {
 		CallOptions{Timeout: time.Nanosecond},
 		nil, responseChan,
 		func(m interface{}) error {
+			// TODO: When stats are available, strengthen the test
+			// https://github.com/envoyproxy/xds-relay/issues/61
 			<-blockedCtx.Done()
 			return nil
 		},
