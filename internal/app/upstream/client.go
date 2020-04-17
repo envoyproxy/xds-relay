@@ -112,13 +112,13 @@ func (m *client) OpenStream(request v2.DiscoveryRequest) (<-chan *v2.DiscoveryRe
 	case EndpointTypeURL:
 		stream, err = m.edsClient.StreamEndpoints(ctx)
 	default:
-		cancel()
+		defer cancel()
 		m.logger.Error(ctx, "Unsupported Type Url %s", request.GetTypeUrl())
 		return nil, nil, &UnsupportedResourceError{TypeURL: request.GetTypeUrl()}
 	}
 
 	if err != nil {
-		cancel()
+		defer cancel()
 		return nil, nil, err
 	}
 
@@ -198,19 +198,18 @@ func recv(
 			default:
 				logger.Error(ctx, "Error in RecvMsg %s", err.Error())
 			}
-			cancelFunc()
-			closeChannels(signal, response)
-			return
+			defer cancelFunc()
+			break
 		}
 		select {
 		case <-ctx.Done():
-			closeChannels(signal, response)
-			return
+			break
 		default:
 			response <- resp
 			signal <- &version{version: resp.GetVersionInfo(), nonce: resp.GetNonce()}
 		}
 	}
+	closeChannels(signal, response)
 }
 
 // closeChannels is called whenever the context is cancelled (ctx.Done) in Send and Recv goroutines.
@@ -239,10 +238,10 @@ func doWithTimeout(ctx context.Context, f func() error, d time.Duration) error {
 	}()
 	select {
 	case <-timeoutCtx.Done():
-		cancel()
+		defer cancel()
 		return timeoutCtx.Err()
 	case err := <-errChan:
-		cancel()
+		defer cancel()
 		return err
 	}
 }
