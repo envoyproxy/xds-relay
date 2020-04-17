@@ -234,6 +234,7 @@ func shutDown(ctx context.Context, conn *grpc.ClientConn) {
 // Ref: https://github.com/grpc/grpc-go/issues/1229#issuecomment-302755717
 func doWithTimeout(ctx context.Context, f func() error, d time.Duration) error {
 	timeoutCtx, cancel := context.WithTimeout(ctx, d)
+	defer cancel()
 	errChan := make(chan error, 1)
 	go func() {
 		errChan <- f()
@@ -241,10 +242,8 @@ func doWithTimeout(ctx context.Context, f func() error, d time.Duration) error {
 	}()
 	select {
 	case <-timeoutCtx.Done():
-		defer cancel()
 		return timeoutCtx.Err()
 	case err := <-errChan:
-		defer cancel()
 		return err
 	}
 }
