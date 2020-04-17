@@ -6,9 +6,9 @@ import (
 
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
+	upstream_mock "github.com/envoyproxy/xds-relay/internal/app/upstream/mock"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
-	upstream_mock "github.com/envoyproxy/xds-relay/test/mocks/upstream"
 	"github.com/golang/protobuf/ptypes/duration"
 
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"

@@ -10,7 +10,7 @@ import (
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
-	mock "github.com/envoyproxy/xds-relay/test/mocks/upstream"
+	mock "github.com/envoyproxy/xds-relay/internal/app/upstream/mock"
 	"github.com/stretchr/testify/assert"
 )
 
