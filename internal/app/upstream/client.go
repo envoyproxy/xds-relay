@@ -167,13 +167,7 @@ func send(
 				return stream.SendMsg(request)
 			}, callOptions.Timeout)
 			if err != nil {
-				select {
-				case <-ctx.Done():
-					// Context was cancelled, hence this is not an erroneous scenario.
-				default:
-					logger.Error(ctx, "Error in SendMsg: %s", err.Error())
-				}
-				cancelFunc()
+				handleError(ctx, logger, "Error in SendMsg", cancelFunc, err)
 				return
 			}
 		case <-ctx.Done():
@@ -195,13 +189,7 @@ func recv(
 	for {
 		resp := new(v2.DiscoveryResponse)
 		if err := stream.RecvMsg(resp); err != nil {
-			select {
-			case <-ctx.Done():
-				// Context was cancelled, hence this is not an erroneous scenario.
-			default:
-				logger.Error(ctx, "Error in RecvMsg %s", err.Error())
-			}
-			defer cancelFunc()
+			handleError(ctx, logger, "Error in RecvMsg", cancelFunc, err)
 			break
 		}
 		select {
@@ -213,6 +201,18 @@ func recv(
 		}
 	}
 	closeChannels(signal, response)
+}
+
+func handleError(ctx context.Context, logger log.Logger, errMsg string, cancelFunc context.CancelFunc, err error) {
+	defer cancelFunc()
+	select {
+	case <-ctx.Done():
+		// Context was cancelled, hence this is not an erroneous scenario.
+		// Context is cancelled only when shutdown is called or any of the send/recv goroutines error out.
+		// The shutdown can be called by the caller in many cases, during app shutdown/ttl expiry, etc
+	default:
+		logger.Error(ctx, "%s: %s", errMsg, err.Error())
+	}
 }
 
 // closeChannels is called whenever the context is cancelled (ctx.Done) in Send and Recv goroutines.
