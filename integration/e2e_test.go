@@ -60,8 +60,9 @@ func test(t *testing.T) {
 
 	configv2 := cachev2.NewSnapshotCache(false, cachev2.IDHash{}, logger{Debug: debug})
 	configv3 := cachev3.NewSnapshotCache(false, cachev3.IDHash{}, logger{Debug: debug})
-	srv2 := serverv2.NewServer(context.Background(), configv2, cbv2)
-	srv3 := serverv3.NewServer(context.Background(), configv3, cbv3)
+	srv2 := serverv2.NewServer(ctx, configv2, cbv2)
+	// TODO: do we have to initialize srv3?
+	srv3 := serverv3.NewServer(ctx, configv3, cbv3)
 
 	// Create a test snapshot
 	snapshotv2 := resourcev2.TestSnapshot{
@@ -99,13 +100,13 @@ func test(t *testing.T) {
 
 		snapshotv2 := snapshotv2.Generate()
 		if err := snapshotv2.Consistent(); err != nil {
-			log.Printf("snapshot inconsistency: %+v\n", snapshotv2)
+			log.Printf("Snapshot inconsistency: %+v\n", snapshotv2)
 		}
 
 		// TODO: parametrize node-id in bootstrap files. Maybe adopt templates?
 		err := configv2.SetSnapshot("test-id", snapshotv2)
 		if err != nil {
-			t.Fatalf("snapshot error %q for %+v\n", err, snapshotv2)
+			t.Fatalf("Snapshot error %q for %+v\n", err, snapshotv2)
 		}
 
 		pass := false
