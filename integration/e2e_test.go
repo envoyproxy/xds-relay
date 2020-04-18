@@ -1,32 +1,192 @@
-// +build integrationdocker
+// +build end2end
 
 package integration
 
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"os/exec"
 	"testing"
 	"time"
 
+	cachev2 "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
+	cachev3 "github.com/envoyproxy/go-control-plane/pkg/cache/v3"
+	serverv2 "github.com/envoyproxy/go-control-plane/pkg/server/v2"
+	serverv3 "github.com/envoyproxy/go-control-plane/pkg/server/v3"
+	testgcp "github.com/envoyproxy/go-control-plane/pkg/test"
+	resourcev2 "github.com/envoyproxy/go-control-plane/pkg/test/resource/v2"
+	testgcpv2 "github.com/envoyproxy/go-control-plane/pkg/test/v2"
+	testgcpv3 "github.com/envoyproxy/go-control-plane/pkg/test/v3"
+	"github.com/onsi/gomega"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSetupEnvoy(t *testing.T) {
+func TestSetupDependencies(t *testing.T) {
+	gomega.RegisterTestingT(t)
 	ctx := context.Background()
 
-	log.Println("wow")
+	debug := true
+	var port uint = 18000
+	var upstreamPort uint = 18080
+	var basePort uint = 9000
+	nClusters := 3
+	nHttpListeners := 2
+	nTcpListeners := 3
+	nUpdates := 2
+	nRequests := 4
 
+	// We run a service that returns the string "Hi, there!" locally and expose it through
+	// envoy.
+	go testgcp.RunHTTP(ctx, upstreamPort)
+
+	// Create a cache
+	signal := make(chan struct{})
+	cbv2 := &testgcpv2.Callbacks{Signal: signal, Debug: debug}
+	cbv3 := &testgcpv3.Callbacks{Signal: signal, Debug: debug}
+
+	configv2 := cachev2.NewSnapshotCache(false, cachev2.IDHash{}, logger{Debug: debug})
+	configv3 := cachev3.NewSnapshotCache(false, cachev3.IDHash{}, logger{Debug: debug})
+	srv2 := serverv2.NewServer(context.Background(), configv2, cbv2)
+	srv3 := serverv3.NewServer(context.Background(), configv3, cbv3)
+
+	// Create a test snapshot
+	snapshotv2 := resourcev2.TestSnapshot{
+		Xds:              "xds",
+		UpstreamPort:     uint32(upstreamPort),
+		BasePort:         uint32(basePort),
+		NumClusters:      nClusters,
+		NumHTTPListeners: nHttpListeners,
+		NumTCPListeners:  nTcpListeners,
+	}
+
+	// Start the xDS server
+	go testgcp.RunManagementServer(ctx, srv2, srv3, port)
+
+	// TODO: parametrize bootstrap file
 	envoyCmd := exec.CommandContext(ctx, "envoy", "-c", "./testdata/bootstrap.yaml", "--log-level", "debug")
 	var b bytes.Buffer
 	envoyCmd.Stdout = &b
 	envoyCmd.Stderr = &b
 	envoyCmd.Start()
 
-	time.Sleep(time.Second * 1)
+	log.Println("waiting for the first request...")
+	select {
+	case <-signal:
+		break
+	case <-time.After(1 * time.Minute):
+		log.Printf("Envoy logs: \n%s", b.String())
+		t.Fatalf("timeout waiting for the first request")
+	}
 
-	defer log.Printf("Envoy logs: \n%s", b.String())
+	for i := 0; i < nUpdates; i++ {
+		snapshotv2.Version = fmt.Sprintf("v%d", i)
+		log.Printf("Update snapshot %v\n", snapshotv2.Version)
+
+		snapshotv2 := snapshotv2.Generate()
+		if err := snapshotv2.Consistent(); err != nil {
+			log.Printf("snapshot inconsistency: %+v\n", snapshotv2)
+		}
+
+		// TODO: parametrize node-id in bootstrap files. Maybe adopt templates?
+		err := configv2.SetSnapshot("test-id", snapshotv2)
+		if err != nil {
+			t.Fatalf("snapshot error %q for %+v\n", err, snapshotv2)
+		}
+
+		pass := false
+		for j := 0; j < nRequests; j++ {
+			ok, failed := callLocalService(basePort, nHttpListeners, nTcpListeners)
+			if failed == 0 && !pass {
+				pass = true
+			}
+			log.Printf("request batch %d, ok %v, failed %v, pass %v\n", j, ok, failed, pass)
+
+			select {
+			case <-time.After(1 * time.Second):
+			case <-ctx.Done():
+				return
+			}
+		}
+
+		cbv2.Report()
+
+		if !pass {
+			log.Printf("Envoy logs: \n%s", b.String())
+			t.Fatalf("Failed all requests in a run")
+		}
+	}
 
 	assert.Equal(t, 1, 1)
+}
+
+func callLocalService(basePort uint, nHttpListeners int, nTcpListeners int) (int, int) {
+	total := nHttpListeners + nTcpListeners
+	ok, failed := 0, 0
+	ch := make(chan error, total)
+
+	// spawn requests
+	for i := 0; i < total; i++ {
+		go func(i int) {
+			client := http.Client{
+				Timeout:   100 * time.Millisecond,
+				Transport: &http.Transport{},
+			}
+			req, err := client.Get(fmt.Sprintf("http://127.0.0.1:%d", basePort+uint(i)))
+			if err != nil {
+				ch <- err
+				return
+			}
+			defer req.Body.Close()
+			body, err := ioutil.ReadAll(req.Body)
+			if err != nil {
+				ch <- err
+				return
+			}
+			if string(body) != testgcp.Hello {
+				ch <- fmt.Errorf("unexpected return %q", string(body))
+				return
+			}
+			ch <- nil
+		}(i)
+	}
+
+	for {
+		out := <-ch
+		if out == nil {
+			ok++
+		} else {
+			failed++
+		}
+		if ok+failed == total {
+			return ok, failed
+		}
+	}
+}
+
+type logger struct {
+	Debug bool
+}
+
+func (logger logger) Debugf(format string, args ...interface{}) {
+	if logger.Debug {
+		log.Printf(format+"\n", args...)
+	}
+}
+
+func (logger logger) Infof(format string, args ...interface{}) {
+	if logger.Debug {
+		log.Printf(format+"\n", args...)
+	}
+}
+
+func (logger logger) Warnf(format string, args ...interface{}) {
+	log.Printf(format+"\n", args...)
+}
+
+func (logger logger) Errorf(format string, args ...interface{}) {
+	log.Printf(format+"\n", args...)
 }
