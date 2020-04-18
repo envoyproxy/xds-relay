@@ -10,6 +10,8 @@ import (
 	"log"
 	"net/http"
 	"os/exec"
+	"runtime"
+	"syscall"
 	"testing"
 	"time"
 
@@ -22,12 +24,21 @@ import (
 	testgcpv2 "github.com/envoyproxy/go-control-plane/pkg/test/v2"
 	testgcpv3 "github.com/envoyproxy/go-control-plane/pkg/test/v3"
 	"github.com/onsi/gomega"
-	"github.com/stretchr/testify/assert"
 )
 
-func TestSetupDependencies(t *testing.T) {
-	gomega.RegisterTestingT(t)
-	ctx := context.Background()
+func test(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("Golang does not offer a cross-platform safe way of killing child processes, so we skip these tests if not on linux.")
+	}
+	g := gomega.NewWithT(t)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	// We cancel the context to make sure that all resources are cleaned on test completion
+	defer func() {
+		// TODO: confirm all resources were deallocated?
+		log.Printf("Called at the end?")
+		cancelFunc()
+	}()
 
 	debug := true
 	var port uint = 18000
@@ -37,7 +48,6 @@ func TestSetupDependencies(t *testing.T) {
 	nHttpListeners := 2
 	nTcpListeners := 3
 	nUpdates := 2
-	nRequests := 4
 
 	// We run a service that returns the string "Hi, there!" locally and expose it through
 	// envoy.
@@ -71,15 +81,16 @@ func TestSetupDependencies(t *testing.T) {
 	var b bytes.Buffer
 	envoyCmd.Stdout = &b
 	envoyCmd.Stderr = &b
+	envoyCmd.SysProcAttr = &syscall.SysProcAttr{Pdeathsig: syscall.SIGKILL}
 	envoyCmd.Start()
 
-	log.Println("waiting for the first request...")
+	log.Println("Waiting for the first request...")
 	select {
 	case <-signal:
 		break
 	case <-time.After(1 * time.Minute):
 		log.Printf("Envoy logs: \n%s", b.String())
-		t.Fatalf("timeout waiting for the first request")
+		t.Fatalf("Timeout waiting for the first request")
 	}
 
 	for i := 0; i < nUpdates; i++ {
