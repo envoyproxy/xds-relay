@@ -109,30 +109,19 @@ func test(t *testing.T) {
 			t.Fatalf("Snapshot error %q for %+v\n", err, snapshotv2)
 		}
 
-		pass := false
-		for j := 0; j < nRequests; j++ {
+		g.Eventually(func() (int, int) {
 			ok, failed := callLocalService(basePort, nHttpListeners, nTcpListeners)
-			if failed == 0 && !pass {
-				pass = true
-			}
-			log.Printf("request batch %d, ok %v, failed %v, pass %v\n", j, ok, failed, pass)
-
-			select {
-			case <-time.After(1 * time.Second):
-			case <-ctx.Done():
-				return
-			}
-		}
+			log.Printf("Request batch: ok %v, failed %v\n", ok, failed)
+			return ok, failed
+		}, 1*time.Second, 100*time.Millisecond).Should(gomega.Equal(nHttpListeners + nTcpListeners))
 
 		cbv2.Report()
-
-		if !pass {
-			log.Printf("Envoy logs: \n%s", b.String())
-			t.Fatalf("Failed all requests in a run")
-		}
 	}
 
-	assert.Equal(t, 1, 1)
+	// TODO: figure out a way to only only copy envoy logs in case of failures. Maybe
+	// use the github action for copying artifacts.
+	// defer log.Printf("Envoy logs: \n%s", b.String())
+}
 }
 
 func callLocalService(basePort uint, nHttpListeners int, nTcpListeners int) (int, int) {
