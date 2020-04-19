@@ -88,6 +88,9 @@ func test(t *testing.T) {
 	var b bytes.Buffer
 	envoyCmd.Stdout = &b
 	envoyCmd.Stderr = &b
+	// Golang does not offer a portable solution to kill all child processes upon parent exit, so we rely on
+	// this linuxism to send a SIGKILL to the envoy process (and its child sub-processes) when the parent (the
+	// test) exits. More information in http://man7.org/linux/man-pages/man2/prctl.2.html
 	envoyCmd.SysProcAttr = &syscall.SysProcAttr{Pdeathsig: syscall.SIGKILL}
 	envoyCmd.Start()
 
