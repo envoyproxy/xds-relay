@@ -40,7 +40,6 @@ func test(t *testing.T) {
 		cancelFunc()
 	}()
 
-	debug := true
 	var port uint = 18000
 	var upstreamPort uint = 18080
 	var basePort uint = 9000
@@ -55,11 +54,11 @@ func test(t *testing.T) {
 
 	// Create a cache
 	signal := make(chan struct{})
-	cbv2 := &testgcpv2.Callbacks{Signal: signal, Debug: debug}
-	cbv3 := &testgcpv3.Callbacks{Signal: signal, Debug: debug}
+	cbv2 := &testgcpv2.Callbacks{Signal: signal}
+	cbv3 := &testgcpv3.Callbacks{Signal: signal}
 
-	configv2 := cachev2.NewSnapshotCache(false, cachev2.IDHash{}, logger{Debug: debug})
-	configv3 := cachev3.NewSnapshotCache(false, cachev3.IDHash{}, logger{Debug: debug})
+	configv2 := cachev2.NewSnapshotCache(false, cachev2.IDHash{}, logger{})
+	configv3 := cachev3.NewSnapshotCache(false, cachev3.IDHash{}, logger{})
 	srv2 := serverv2.NewServer(ctx, configv2, cbv2)
 	// TODO: do we have to initialize srv3?
 	srv3 := serverv3.NewServer(ctx, configv3, cbv3)
@@ -175,20 +174,14 @@ func callLocalService(basePort uint, nHttpListeners int, nTcpListeners int) (int
 	}
 }
 
-type logger struct {
-	Debug bool
-}
+type logger struct{}
 
 func (logger logger) Debugf(format string, args ...interface{}) {
-	if logger.Debug {
-		log.Printf(format+"\n", args...)
-	}
+	log.Printf(format+"\n", args...)
 }
 
 func (logger logger) Infof(format string, args ...interface{}) {
-	if logger.Debug {
-		log.Printf(format+"\n", args...)
-	}
+	log.Printf(format+"\n", args...)
 }
 
 func (logger logger) Warnf(format string, args ...interface{}) {
