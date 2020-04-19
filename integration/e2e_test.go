@@ -1,4 +1,4 @@
-// +build end2end
+// +build end2end,docker
 
 package integration
 
@@ -122,6 +122,13 @@ func test(t *testing.T) {
 	// use the github action for copying artifacts.
 	// defer log.Printf("Envoy logs: \n%s", b.String())
 }
+
+func TestSnapshotCacheAndSingleEnvoy(t *testing.T) {
+	test(t)
+}
+
+func TestSnapshotCacheAndSingleEnvoy2(t *testing.T) {
+	test(t)
 }
 
 func callLocalService(basePort uint, nHttpListeners int, nTcpListeners int) (int, int) {
