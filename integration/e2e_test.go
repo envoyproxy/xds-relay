@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"os/exec"
 	"runtime"
 	"syscall"
@@ -16,13 +17,11 @@ import (
 	"time"
 
 	cachev2 "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
-	cachev3 "github.com/envoyproxy/go-control-plane/pkg/cache/v3"
 	serverv2 "github.com/envoyproxy/go-control-plane/pkg/server/v2"
 	serverv3 "github.com/envoyproxy/go-control-plane/pkg/server/v3"
 	testgcp "github.com/envoyproxy/go-control-plane/pkg/test"
 	resourcev2 "github.com/envoyproxy/go-control-plane/pkg/test/resource/v2"
 	testgcpv2 "github.com/envoyproxy/go-control-plane/pkg/test/v2"
-	testgcpv3 "github.com/envoyproxy/go-control-plane/pkg/test/v3"
 	"github.com/onsi/gomega"
 )
 
@@ -33,6 +32,7 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 	os.Exit(code)
 }
+
 func test(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("Golang does not offer a cross-platform safe way of killing child processes, so we skip these tests if not on linux.")
@@ -62,13 +62,11 @@ func test(t *testing.T) {
 	// Create a cache
 	signal := make(chan struct{})
 	cbv2 := &testgcpv2.Callbacks{Signal: signal}
-	cbv3 := &testgcpv3.Callbacks{Signal: signal}
 
 	configv2 := cachev2.NewSnapshotCache(false, cachev2.IDHash{}, logger{})
-	configv3 := cachev3.NewSnapshotCache(false, cachev3.IDHash{}, logger{})
 	srv2 := serverv2.NewServer(ctx, configv2, cbv2)
-	// TODO: do we have to initialize srv3?
-	srv3 := serverv3.NewServer(ctx, configv3, cbv3)
+	// TODO: do we have to initialize unused_srv3?
+	unused_srv3 := serverv3.NewServer(ctx, nil, nil)
 
 	// Create a test snapshot
 	snapshotv2 := resourcev2.TestSnapshot{
@@ -81,7 +79,7 @@ func test(t *testing.T) {
 	}
 
 	// Start the xDS server
-	go testgcp.RunManagementServer(ctx, srv2, srv3, port)
+	go testgcp.RunManagementServer(ctx, srv2, unused_srv3, port)
 
 	// TODO: parametrize bootstrap file
 	envoyCmd := exec.CommandContext(ctx, "envoy", "-c", "./testdata/bootstrap.yaml", "--log-level", "debug")
