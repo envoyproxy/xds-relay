@@ -6,7 +6,10 @@ import (
 
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
+	upstream_mock "github.com/envoyproxy/xds-relay/internal/app/upstream/mock"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
+	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
+	"github.com/golang/protobuf/ptypes/duration"
 
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
 
@@ -15,8 +18,12 @@ import (
 
 func TestNew(t *testing.T) {
 	// Trivial test to ensure orchestrator instantiates.
-	upstreamClient, err := upstream.NewClient(context.Background(), "example.com")
-	assert.NoError(t, err)
+	upstreamClient := upstream_mock.NewClient(
+		context.Background(),
+		upstream.CallOptions{},
+		nil,
+		nil,
+		func(m interface{}) error { return nil })
 
 	config := aggregationv1.KeyerConfiguration{
 		Fragments: []*aggregationv1.KeyerConfiguration_Fragment{
@@ -27,6 +34,13 @@ func TestNew(t *testing.T) {
 	}
 	requestMapper := mapper.NewMapper(&config)
 
-	orchestrator := New(context.Background(), log.New("info"), requestMapper, upstreamClient)
+	cacheConfig := bootstrapv1.Cache{
+		Ttl: &duration.Duration{
+			Seconds: 10,
+		},
+		MaxEntries: 10,
+	}
+
+	orchestrator := New(context.Background(), log.New("info"), requestMapper, upstreamClient, &cacheConfig)
 	assert.NotNil(t, orchestrator)
 }
