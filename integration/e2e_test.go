@@ -26,6 +26,13 @@ import (
 	"github.com/onsi/gomega"
 )
 
+func TestMain(m *testing.M) {
+	// We force a 1 second sleep before running a test to let the OS close any lingering socket from previous
+	// tests.
+	time.Sleep(1 * time.Second)
+	code := m.Run()
+	os.Exit(code)
+}
 func test(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("Golang does not offer a cross-platform safe way of killing child processes, so we skip these tests if not on linux.")
