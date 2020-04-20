@@ -18,6 +18,6 @@ jobs:
           path: ${{ env.PACKAGEPATH }}
       - name: Build image
         working-directory: ${{ env.PACKAGEPATH }}
-        run: docker build . --file Dockerfile --tag onlyfortest
+        run: docker build . --file Dockerfile --tag xdsrelay
       - name: run e2e tests inside container
-        run: docker run -v ${{ env.PACKAGEPATH }}:/xds-relay xds-relay:onlyfortest make e2e-tests
+        run: docker run -v ${{ env.PACKAGEPATH }}:/xds-relay xdsrelay:latest make e2e-tests
