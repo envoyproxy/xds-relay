@@ -20,6 +20,10 @@ unit: ## Run all unit tests with coverage report
 integration-tests:  ## Run integration tests
 	go test -tags integration -v ./integration/
 
+.PHONY: e2e-tests
+e2e-tests:  ## Run e2e tests
+	go test -parallel 1 -tags end2end,docker -v ./integration/
+
 .PHONY: compile-protos
 compile-protos: ## Compile proto files
 	./scripts/generate-api-protos.sh
