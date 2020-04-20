@@ -112,20 +112,20 @@ func TestSetResponseAndFetch(t *testing.T) {
 }
 
 func TestAddRequestAndSetResponse(t *testing.T) {
-	cache, err := NewCache(1, testOnEvict, time.Second*60)
+	cache, err := NewCache(2, testOnEvict, time.Second*60)
 	assert.NoError(t, err)
 
 	err = cache.AddRequest(testKeyA, &testRequestA)
 	assert.NoError(t, err)
 
-	err = cache.AddRequest(testKeyA, &testRequestA)
+	err = cache.AddRequest(testKeyA, &testRequestB)
 	assert.NoError(t, err)
 
 	requests, err := cache.SetResponse(testKeyA, testDiscoveryResponse)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(requests))
-	assert.Equal(t, testRequestA, *requests[0])
-	assert.Equal(t, testRequestA, *requests[1])
+	assert.Equal(t, true, requests[&testRequestA])
+	assert.Equal(t, true, requests[&testRequestB])
 
 	resource, err := cache.Fetch(testKeyA)
 	assert.NoError(t, err)
@@ -233,26 +233,6 @@ func TestGetExpirationTime(t *testing.T) {
 	currentTime := time.Date(0, 0, 0, 0, 0, 1, 0, time.UTC)
 	expirationTime := time.Date(0, 0, 0, 0, 0, 2, 0, time.UTC)
 	assert.Equal(t, expirationTime, c.getExpirationTime(currentTime))
-}
-
-func TestRemoveRequests(t *testing.T) {
-	requests := []*v2.DiscoveryRequest{&testRequestA, &testRequestB}
-	requestsAfterDeletion := removeRequests(&testRequestA, requests)
-	assert.Equal(t, 1, len(requestsAfterDeletion))
-	assert.Equal(t, &testRequestB, requestsAfterDeletion[0])
-
-	requests = []*v2.DiscoveryRequest{&testRequestA}
-	requestsAfterDeletion = removeRequests(&testRequestB, requests)
-	assert.Equal(t, requests, requestsAfterDeletion)
-
-	requests = []*v2.DiscoveryRequest{&testRequestA, &testRequestB, &testRequestA}
-	requestsAfterDeletion = removeRequests(&testRequestA, requests)
-	assert.Equal(t, 1, len(requestsAfterDeletion))
-	assert.Equal(t, &testRequestB, requestsAfterDeletion[0])
-
-	requests = []*v2.DiscoveryRequest{}
-	requestsAfterDeletion = removeRequests(&testRequestA, requests)
-	assert.Equal(t, requests, requestsAfterDeletion)
 }
 
 func TestDeleteRequest(t *testing.T) {
