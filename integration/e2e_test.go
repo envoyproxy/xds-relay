@@ -60,7 +60,8 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 
 	configv2, snapshotv2, signal := startSnapshotCache(ctx, upstreamPort, basePort, nClusters, nListeners, port)
 
-	// Start xds-relay server
+	// Start xds-relay server. Note that we are starting the server now but the envoy instance is not yet
+	// connecting to it since the orchestrator implementation is still a work in progress.
 	// TODO: parametrize configuration files
 	startXdsRelayServer(ctx, "./testdata/bootstrap_configuration_e2e.yaml", "./testdata/keyer_configuration_complete_tech_spec.yaml")
 
