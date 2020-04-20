@@ -83,6 +83,28 @@ func test(t *testing.T) {
 
 	// TODO: parametrize bootstrap file
 	envoyCmd := exec.CommandContext(ctx, "envoy", "-c", "./testdata/bootstrap.yaml", "--log-level", "debug")
+func startXdsRelayServer(ctx context.Context, bootstrapConfigFilePath string, keyerConfigurationFilePath string) {
+	bootstrapConfigFileContent, err := ioutil.ReadFile(bootstrapConfigFilePath)
+	if err != nil {
+		log.Fatal("failed to read bootstrap config file: ", err)
+	}
+	var bootstrapConfig bootstrapv1.Bootstrap
+	err = yamlproto.FromYAMLToBootstrapConfiguration(string(bootstrapConfigFileContent), &bootstrapConfig)
+	if err != nil {
+		log.Fatal("failed to translate bootstrap config: ", err)
+	}
+
+	aggregationRulesFileContent, err := ioutil.ReadFile(keyerConfigurationFilePath)
+	if err != nil {
+		log.Fatal("failed to read aggregation rules file: ", err)
+	}
+	var aggregationRulesConfig aggregationv1.KeyerConfiguration
+	err = yamlproto.FromYAMLToKeyerConfiguration(string(aggregationRulesFileContent), &aggregationRulesConfig)
+	if err != nil {
+		log.Fatal("failed to translate aggregation rules: ", err)
+	}
+	go server.RunWithContext(ctx, &bootstrapConfig, &aggregationRulesConfig, "debug", "serve")
+}
 	var b bytes.Buffer
 	envoyCmd.Stdout = &b
 	envoyCmd.Stderr = &b
