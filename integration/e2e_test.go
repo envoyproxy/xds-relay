@@ -16,12 +16,16 @@ import (
 	"testing"
 	"time"
 
-	cachev2 "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
-	serverv2 "github.com/envoyproxy/go-control-plane/pkg/server/v2"
-	serverv3 "github.com/envoyproxy/go-control-plane/pkg/server/v3"
-	testgcp "github.com/envoyproxy/go-control-plane/pkg/test"
-	resourcev2 "github.com/envoyproxy/go-control-plane/pkg/test/resource/v2"
-	testgcpv2 "github.com/envoyproxy/go-control-plane/pkg/test/v2"
+	gcpcachev2 "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
+	gcpserverv2 "github.com/envoyproxy/go-control-plane/pkg/server/v2"
+	gcpserverv3 "github.com/envoyproxy/go-control-plane/pkg/server/v3"
+	gcptest "github.com/envoyproxy/go-control-plane/pkg/test"
+	gcpresourcev2 "github.com/envoyproxy/go-control-plane/pkg/test/resource/v2"
+	gcptestv2 "github.com/envoyproxy/go-control-plane/pkg/test/v2"
+	"github.com/envoyproxy/xds-relay/internal/app/server"
+	yamlproto "github.com/envoyproxy/xds-relay/internal/pkg/util"
+	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
+	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
 	"github.com/onsi/gomega"
 )
 
@@ -33,56 +37,90 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func test(t *testing.T) {
+func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("Golang does not offer a cross-platform safe way of killing child processes, so we skip these tests if not on linux.")
 	}
+
 	g := gomega.NewWithT(t)
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
-	// We cancel the context to make sure that all resources are cleaned on test completion
-	defer func() {
-		// TODO: confirm all resources were deallocated?
-		log.Printf("Called at the end?")
-		cancelFunc()
-	}()
+	defer cancelFunc()
 
+	// Test parameters
 	var port uint = 18000
 	var upstreamPort uint = 18080
 	var basePort uint = 9000
-	nClusters := 3
-	nHttpListeners := 2
-	nTcpListeners := 3
-	nUpdates := 2
+	var nClusters = 7
+	var nListeners = 9
+	var nUpdates = 4
 
-	// We run a service that returns the string "Hi, there!" locally and expose it through
-	// envoy.
-	go testgcp.RunHTTP(ctx, upstreamPort)
+	// We run a service that returns the string "Hi, there!" locally and expose it through envoy.
+	go gcptest.RunHTTP(ctx, upstreamPort)
 
+	configv2, snapshotv2, signal := startSnapshotCache(ctx, upstreamPort, basePort, nClusters, nListeners, port)
+
+	// Start xds-relay server
+	// TODO: parametrize configuration files
+	startXdsRelayServer(ctx, "./testdata/bootstrap_configuration_e2e.yaml", "./testdata/keyer_configuration_complete_tech_spec.yaml")
+
+	// Start envoy and return a bytes buffer containing the envoy logs
+	// TODO: parametrize bootstrap file
+	// TODO: hook up envoy to the xds-relay server
+	envoyLogsBuffer := startEnvoy(ctx, "./testdata/bootstrap.yaml", signal)
+
+	for i := 0; i < nUpdates; i++ {
+		snapshotv2.Version = fmt.Sprintf("v%d", i)
+		log.Printf("Update snapshot %v\n", snapshotv2.Version)
+
+		snapshotv2 := snapshotv2.Generate()
+		if err := snapshotv2.Consistent(); err != nil {
+			log.Printf("Snapshot inconsistency: %+v\n", snapshotv2)
+		}
+
+		// TODO: parametrize node-id in bootstrap files.
+		err := configv2.SetSnapshot("test-id", snapshotv2)
+		if err != nil {
+			t.Fatalf("Snapshot error %q for %+v\n", err, snapshotv2)
+		}
+
+		g.Eventually(func() (int, int) {
+			ok, failed := callLocalService(basePort, nListeners)
+			log.Printf("Request batch: ok %v, failed %v\n", ok, failed)
+			return ok, failed
+		}, 1*time.Second, 100*time.Millisecond).Should(gomega.Equal(nListeners))
+	}
+
+	// TODO: figure out a way to only only copy envoy logs in case of failures. Maybe
+	// use the github action for copying artifacts (and not dump envoy logs to stdout).
+	log.Printf("Envoy logs: \n%s", envoyLogsBuffer.String())
+}
+
+func startSnapshotCache(ctx context.Context, upstreamPort uint, basePort uint, nClusters int, nListeners int, port uint) (gcpcachev2.SnapshotCache, gcpresourcev2.TestSnapshot, chan struct{}) {
 	// Create a cache
 	signal := make(chan struct{})
-	cbv2 := &testgcpv2.Callbacks{Signal: signal}
+	cbv2 := &gcptestv2.Callbacks{Signal: signal}
 
-	configv2 := cachev2.NewSnapshotCache(false, cachev2.IDHash{}, logger{})
-	srv2 := serverv2.NewServer(ctx, configv2, cbv2)
+	configv2 := gcpcachev2.NewSnapshotCache(false, gcpcachev2.IDHash{}, logger{})
+	srv2 := gcpserverv2.NewServer(ctx, configv2, cbv2)
 	// TODO: do we have to initialize unused_srv3?
-	unused_srv3 := serverv3.NewServer(ctx, nil, nil)
+	unused_srv3 := gcpserverv3.NewServer(ctx, nil, nil)
 
 	// Create a test snapshot
-	snapshotv2 := resourcev2.TestSnapshot{
+	snapshotv2 := gcpresourcev2.TestSnapshot{
 		Xds:              "xds",
 		UpstreamPort:     uint32(upstreamPort),
 		BasePort:         uint32(basePort),
 		NumClusters:      nClusters,
-		NumHTTPListeners: nHttpListeners,
-		NumTCPListeners:  nTcpListeners,
+		NumHTTPListeners: nListeners,
 	}
 
 	// Start the xDS server
-	go testgcp.RunManagementServer(ctx, srv2, unused_srv3, port)
+	go gcptest.RunManagementServer(ctx, srv2, unused_srv3, port)
 
-	// TODO: parametrize bootstrap file
-	envoyCmd := exec.CommandContext(ctx, "envoy", "-c", "./testdata/bootstrap.yaml", "--log-level", "debug")
+	return configv2, snapshotv2, signal
+}
+
 func startXdsRelayServer(ctx context.Context, bootstrapConfigFilePath string, keyerConfigurationFilePath string) {
 	bootstrapConfigFileContent, err := ioutil.ReadFile(bootstrapConfigFilePath)
 	if err != nil {
@@ -105,6 +143,9 @@ func startXdsRelayServer(ctx context.Context, bootstrapConfigFilePath string, ke
 	}
 	go server.RunWithContext(ctx, &bootstrapConfig, &aggregationRulesConfig, "debug", "serve")
 }
+
+func startEnvoy(ctx context.Context, bootstrapFilePath string, signal chan struct{}) bytes.Buffer {
+	envoyCmd := exec.CommandContext(ctx, "envoy", "-c", bootstrapFilePath, "--log-level", "debug")
 	var b bytes.Buffer
 	envoyCmd.Stdout = &b
 	envoyCmd.Stderr = &b
@@ -120,53 +161,18 @@ func startXdsRelayServer(ctx context.Context, bootstrapConfigFilePath string, ke
 		break
 	case <-time.After(1 * time.Minute):
 		log.Printf("Envoy logs: \n%s", b.String())
-		t.Fatalf("Timeout waiting for the first request")
+		log.Fatalf("Timeout waiting for the first request")
 	}
 
-	for i := 0; i < nUpdates; i++ {
-		snapshotv2.Version = fmt.Sprintf("v%d", i)
-		log.Printf("Update snapshot %v\n", snapshotv2.Version)
-
-		snapshotv2 := snapshotv2.Generate()
-		if err := snapshotv2.Consistent(); err != nil {
-			log.Printf("Snapshot inconsistency: %+v\n", snapshotv2)
-		}
-
-		// TODO: parametrize node-id in bootstrap files. Maybe adopt templates?
-		err := configv2.SetSnapshot("test-id", snapshotv2)
-		if err != nil {
-			t.Fatalf("Snapshot error %q for %+v\n", err, snapshotv2)
-		}
-
-		g.Eventually(func() (int, int) {
-			ok, failed := callLocalService(basePort, nHttpListeners, nTcpListeners)
-			log.Printf("Request batch: ok %v, failed %v\n", ok, failed)
-			return ok, failed
-		}, 1*time.Second, 100*time.Millisecond).Should(gomega.Equal(nHttpListeners + nTcpListeners))
-
-		cbv2.Report()
-	}
-
-	// TODO: figure out a way to only only copy envoy logs in case of failures. Maybe
-	// use the github action for copying artifacts.
-	// defer log.Printf("Envoy logs: \n%s", b.String())
+	return b
 }
 
-func TestSnapshotCacheAndSingleEnvoy(t *testing.T) {
-	test(t)
-}
-
-func TestSnapshotCacheAndSingleEnvoy2(t *testing.T) {
-	test(t)
-}
-
-func callLocalService(basePort uint, nHttpListeners int, nTcpListeners int) (int, int) {
-	total := nHttpListeners + nTcpListeners
+func callLocalService(basePort uint, nListeners int) (int, int) {
 	ok, failed := 0, 0
-	ch := make(chan error, total)
+	ch := make(chan error, nListeners)
 
 	// spawn requests
-	for i := 0; i < total; i++ {
+	for i := 0; i < nListeners; i++ {
 		go func(i int) {
 			client := http.Client{
 				Timeout:   100 * time.Millisecond,
@@ -183,7 +189,7 @@ func callLocalService(basePort uint, nHttpListeners int, nTcpListeners int) (int
 				ch <- err
 				return
 			}
-			if string(body) != testgcp.Hello {
+			if string(body) != gcptest.Hello {
 				ch <- fmt.Errorf("unexpected return %q", string(body))
 				return
 			}
@@ -198,7 +204,7 @@ func callLocalService(basePort uint, nHttpListeners int, nTcpListeners int) (int
 		} else {
 			failed++
 		}
-		if ok+failed == total {
+		if ok+failed == nListeners {
 			return ok, failed
 		}
 	}
