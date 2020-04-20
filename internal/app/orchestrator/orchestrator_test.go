@@ -6,6 +6,7 @@ import (
 
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
+	upstream_mock "github.com/envoyproxy/xds-relay/internal/app/upstream/mock"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
 	"github.com/golang/protobuf/ptypes/duration"
@@ -17,8 +18,12 @@ import (
 
 func TestNew(t *testing.T) {
 	// Trivial test to ensure orchestrator instantiates.
-	upstreamClient, err := upstream.NewClient(context.Background(), "example.com")
-	assert.NoError(t, err)
+	upstreamClient := upstream_mock.NewClient(
+		context.Background(),
+		upstream.CallOptions{},
+		nil,
+		nil,
+		func(m interface{}) error { return nil })
 
 	config := aggregationv1.KeyerConfiguration{
 		Fragments: []*aggregationv1.KeyerConfiguration_Fragment{
