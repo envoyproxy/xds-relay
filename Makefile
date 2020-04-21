@@ -32,6 +32,10 @@ compile-protos: ## Compile proto files
 compile-validator-tool: setup  ## Compiles configuration validator tool
 	go build -o ./bin/configuration-validator $$(go list ./tools/configuration-validator)
 
+.PHONY: build-docker-image
+build-docker-image: ## Build docker image for use in e2e tests
+	docker build . --file Dockerfile --tag xds-relay
+
 .PHONY: lint
 lint: ## Run golangci-lint
 	golangci-lint run
