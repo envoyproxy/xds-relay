@@ -68,7 +68,7 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 	// Start envoy and return a bytes buffer containing the envoy logs
 	// TODO: parametrize bootstrap file
 	// TODO: hook up envoy to the xds-relay server
-	envoyLogsBuffer := startEnvoy(ctx, "./testdata/bootstrap.yaml", signal)
+	envoyLogsBuffer := startEnvoy(ctx, "./testdata/envoy_bootstrap.yaml", signal)
 
 	for i := 0; i < nUpdates; i++ {
 		snapshotv2.Version = fmt.Sprintf("v%d", i)
