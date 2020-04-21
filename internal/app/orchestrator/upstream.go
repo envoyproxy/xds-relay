@@ -3,7 +3,7 @@ package orchestrator
 import (
 	"sync"
 
-	"github.com/envoyproxy/xds-relay/internal/app/upstream"
+	discovery "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 )
 
 // upstream is the map of aggregate key to the receive-only upstream
@@ -14,7 +14,7 @@ type upstreamResponseMap struct {
 }
 
 type upstreamResponseChannel struct {
-	response <-chan *upstream.Response
+	response <-chan *discovery.DiscoveryResponse
 	done     chan bool
 }
 
@@ -24,7 +24,7 @@ type upstreamResponseChannel struct {
 // Expects orchestrator to manage the lock since this is called simultaneously
 // with stream open.
 func (u *upstreamResponseMap) add(aggregatedKey string,
-	responseChannel <-chan *upstream.Response) upstreamResponseChannel {
+	responseChannel <-chan *discovery.DiscoveryResponse) upstreamResponseChannel {
 	channel := upstreamResponseChannel{
 		response: responseChannel,
 		done:     make(chan bool, 1),

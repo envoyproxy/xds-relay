@@ -154,7 +154,6 @@ func (c *cache) AddRequest(key string, req *v2.DiscoveryRequest) error {
 		return fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
 	resource.Requests = append(resource.Requests, req)
-	resource.ExpirationTime = c.getExpirationTime(time.Now())
 	c.cache.Add(key, resource)
 	return nil
 }

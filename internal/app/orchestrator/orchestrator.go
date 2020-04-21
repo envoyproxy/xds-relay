@@ -165,7 +165,7 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) 
 	// streams.
 	o.upstreamResponseMap.mu.Lock()
 	if _, ok := o.upstreamResponseMap.responseChannel[aggregatedKey]; !ok {
-		upstreamResponseChan := o.upstreamClient.OpenStream(ctx, &req)
+		upstreamResponseChan, _, _ := o.upstreamClient.OpenStream(req)
 		respChannel := o.upstreamResponseMap.add(aggregatedKey, upstreamResponseChan)
 		// Spin up a go routine to watch for upstream responses.
 		// One routine is opened per aggregate key.
@@ -187,24 +187,24 @@ func (o *orchestrator) Fetch(context.Context, discovery.DiscoveryRequest) (*gcp.
 func (o *orchestrator) watchUpstream(
 	ctx context.Context,
 	aggregatedKey string,
-	responseChannel <-chan *upstream.Response,
+	responseChannel <-chan *discovery.DiscoveryResponse,
 	done <-chan bool,
 ) {
 	for {
 		select {
-		case x := <-responseChannel:
-			if x.Err != nil {
+		case x, more := <-responseChannel:
+			if !more {
 				// A problem occurred fetching the response upstream, log and
 				// return the most recent cached response, so that the
 				// downstream will reissue the discovery request.
-				o.logger.With("err", x.Err).With("key", aggregatedKey).Error(ctx, "upstream error")
+				o.logger.With("key", aggregatedKey).Error(ctx, "upstream error")
 			} else {
 				// Cache the response.
-				_, err := o.cache.SetResponse(aggregatedKey, x.Response)
+				_, err := o.cache.SetResponse(aggregatedKey, *x)
 				if err != nil {
 					// If we fail to cache the new response, log and return the old one.
 					o.logger.With("err", err).With("key", aggregatedKey).
-						With("resp", x.Response).Error(ctx, "Failed to cache the response")
+						Error(ctx, "Failed to cache the response")
 				}
 			}
 
@@ -220,7 +220,7 @@ func (o *orchestrator) watchUpstream(
 			} else {
 				if cached == nil || cached.Resp == nil {
 					// If cache is empty, there is nothing to fan out.
-					if x.Err != nil {
+					if !more {
 						// Warn. Benefit of the doubt that this is the first request.
 						o.logger.With("key", aggregatedKey).
 							Warn(ctx, "attempted to fan out with no cached response")

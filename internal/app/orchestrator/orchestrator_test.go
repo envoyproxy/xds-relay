@@ -16,6 +16,7 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/app/cache"
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
+	upstream_mock "github.com/envoyproxy/xds-relay/internal/app/upstream/mock"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 	yamlproto "github.com/envoyproxy/xds-relay/internal/pkg/util"
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
@@ -23,34 +24,33 @@ import (
 )
 
 type mockSimpleUpstreamClient struct {
-	responseChan <-chan *upstream.Response
+	responseChan <-chan *v2.DiscoveryResponse
 }
 
-func (m mockSimpleUpstreamClient) OpenStream(ctx context.Context, req *v2.DiscoveryRequest) <-chan *upstream.Response {
-	return m.responseChan
+func (m mockSimpleUpstreamClient) OpenStream(req v2.DiscoveryRequest) (<-chan *v2.DiscoveryResponse, func(), error) {
+	return m.responseChan, func() {}, nil
 }
 
 type mockMultiStreamUpstreamClient struct {
-	ldsResponseChan <-chan *upstream.Response
-	cdsResponseChan <-chan *upstream.Response
+	ldsResponseChan <-chan *v2.DiscoveryResponse
+	cdsResponseChan <-chan *v2.DiscoveryResponse
 
 	t      *testing.T
 	mapper mapper.Mapper
 }
 
-func (m mockMultiStreamUpstreamClient) OpenStream(ctx context.Context,
-	req *v2.DiscoveryRequest) <-chan *upstream.Response {
-	aggregatedKey, err := m.mapper.GetKey(*req)
+func (m mockMultiStreamUpstreamClient) OpenStream(req v2.DiscoveryRequest) (<-chan *v2.DiscoveryResponse, func(), error) {
+	aggregatedKey, err := m.mapper.GetKey(req)
 	assert.NoError(m.t, err)
 
 	if aggregatedKey == "lds" {
-		return m.ldsResponseChan
+		return m.ldsResponseChan, func() {}, nil
 	} else if aggregatedKey == "cds" {
-		return m.cdsResponseChan
+		return m.cdsResponseChan, func() {}, nil
 	}
 
 	m.t.Errorf("Unsupported aggregated key, %s", aggregatedKey)
-	return nil
+	return nil, func() {}, nil
 }
 
 func newMockOrchestrator(t *testing.T, mapper mapper.Mapper, upstreamClient upstream.Client) *orchestrator {
@@ -96,8 +96,12 @@ func assertEqualResources(t *testing.T, got gcp.Response, expected v2.DiscoveryR
 
 func TestNew(t *testing.T) {
 	// Trivial test to ensure orchestrator instantiates.
-	upstreamClient, err := upstream.NewClient(context.Background(), "example.com")
-	assert.NoError(t, err)
+	upstreamClient := upstream_mock.NewClient(
+		context.Background(),
+		upstream.CallOptions{},
+		nil,
+		nil,
+		func(m interface{}) error { return nil })
 
 	config := aggregationv1.KeyerConfiguration{
 		Fragments: []*aggregationv1.KeyerConfiguration_Fragment{
@@ -120,7 +124,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestGoldenPath(t *testing.T) {
-	upstreamResponseChannel := make(chan *upstream.Response)
+	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
 	mapper := newMockMapper(t)
 	orchestrator := newMockOrchestrator(
 		t,
@@ -140,21 +144,19 @@ func TestGoldenPath(t *testing.T) {
 	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.responseChannel))
 	assert.Equal(t, 1, len(orchestrator.upstreamResponseMap.responseChannel))
 
-	upstreamResponse := upstream.Response{
-		Response: v2.DiscoveryResponse{
-			VersionInfo: "1",
-			TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
-			Resources: []*any.Any{
-				&anypb.Any{
-					Value: []byte("lds resource"),
-				},
+	resp := v2.DiscoveryResponse{
+		VersionInfo: "1",
+		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
+		Resources: []*any.Any{
+			&anypb.Any{
+				Value: []byte("lds resource"),
 			},
 		},
 	}
-	upstreamResponseChannel <- &upstreamResponse
+	upstreamResponseChannel <- &resp
 
 	gotResponse := <-respChannel
-	assertEqualResources(t, gotResponse, upstreamResponse.Response, req)
+	assertEqualResources(t, gotResponse, resp, req)
 
 	aggregatedKey, err := mapper.GetKey(req)
 	assert.NoError(t, err)
@@ -166,7 +168,7 @@ func TestGoldenPath(t *testing.T) {
 }
 
 func TestCachedResponse(t *testing.T) {
-	upstreamResponseChannel := make(chan *upstream.Response)
+	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
 	mapper := newMockMapper(t)
 	orchestrator := newMockOrchestrator(
 		t,
@@ -208,20 +210,19 @@ func TestCachedResponse(t *testing.T) {
 	assertEqualResources(t, gotResponse, mockResponse, req)
 
 	// Attempt pushing a more recent response from upstream.
-	upstreamResponse := upstream.Response{
-		Response: v2.DiscoveryResponse{
-			VersionInfo: "2",
-			TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
-			Resources: []*any.Any{
-				&anypb.Any{
-					Value: []byte("some other lds resource"),
-				},
+	resp := v2.DiscoveryResponse{
+		VersionInfo: "2",
+		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
+		Resources: []*any.Any{
+			&anypb.Any{
+				Value: []byte("some other lds resource"),
 			},
 		},
 	}
-	upstreamResponseChannel <- &upstreamResponse
+
+	upstreamResponseChannel <- &resp
 	gotResponse = <-respChannel
-	assertEqualResources(t, gotResponse, upstreamResponse.Response, req)
+	assertEqualResources(t, gotResponse, resp, req)
 	assert.Equal(t, 1, len(orchestrator.upstreamResponseMap.responseChannel))
 
 	// Test scenario with same request and response version.
@@ -247,8 +248,8 @@ func TestCachedResponse(t *testing.T) {
 }
 
 func TestMultipleWatchesAndUpstreams(t *testing.T) {
-	upstreamResponseChannelLDS := make(chan *upstream.Response)
-	upstreamResponseChannelCDS := make(chan *upstream.Response)
+	upstreamResponseChannelLDS := make(chan *v2.DiscoveryResponse)
+	upstreamResponseChannelCDS := make(chan *v2.DiscoveryResponse)
 	mapper := newMockMapper(t)
 	orchestrator := newMockOrchestrator(
 		t,
@@ -279,25 +280,21 @@ func TestMultipleWatchesAndUpstreams(t *testing.T) {
 	respChannel3, cancelWatch3 := orchestrator.CreateWatch(req3)
 	assert.NotNil(t, respChannel3)
 
-	upstreamResponseLDS := upstream.Response{
-		Response: v2.DiscoveryResponse{
-			VersionInfo: "1",
-			TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
-			Resources: []*any.Any{
-				&anypb.Any{
-					Value: []byte("lds resource"),
-				},
+	upstreamResponseLDS := v2.DiscoveryResponse{
+		VersionInfo: "1",
+		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
+		Resources: []*any.Any{
+			&anypb.Any{
+				Value: []byte("lds resource"),
 			},
 		},
 	}
-	upstreamResponseCDS := upstream.Response{
-		Response: v2.DiscoveryResponse{
-			VersionInfo: "1",
-			TypeUrl:     "type.googleapis.com/envoy.api.v2.Cluster",
-			Resources: []*any.Any{
-				&anypb.Any{
-					Value: []byte("cds resource"),
-				},
+	upstreamResponseCDS := v2.DiscoveryResponse{
+		VersionInfo: "1",
+		TypeUrl:     "type.googleapis.com/envoy.api.v2.Cluster",
+		Resources: []*any.Any{
+			&anypb.Any{
+				Value: []byte("cds resource"),
 			},
 		},
 	}
@@ -317,9 +314,9 @@ func TestMultipleWatchesAndUpstreams(t *testing.T) {
 	assert.Equal(t, 3, len(orchestrator.downstreamResponseMap.responseChannel))
 	assert.Equal(t, 2, len(orchestrator.upstreamResponseMap.responseChannel))
 
-	assertEqualResources(t, gotResponseFromChannel1, upstreamResponseLDS.Response, req1)
-	assertEqualResources(t, gotResponseFromChannel2, upstreamResponseLDS.Response, req2)
-	assertEqualResources(t, gotResponseFromChannel3, upstreamResponseCDS.Response, req3)
+	assertEqualResources(t, gotResponseFromChannel1, upstreamResponseLDS, req1)
+	assertEqualResources(t, gotResponseFromChannel2, upstreamResponseLDS, req2)
+	assertEqualResources(t, gotResponseFromChannel3, upstreamResponseCDS, req3)
 
 	orchestrator.shutdown(aggregatedKeyLDS)
 	orchestrator.shutdown(aggregatedKeyCDS)
