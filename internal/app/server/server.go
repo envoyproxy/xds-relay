@@ -92,7 +92,7 @@ func registerShutdownHandler(server *grpc.Server) {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-sigs
-		util.DoWithTimeout(context.Background(), func() error {
+		_ = util.DoWithTimeout(context.Background(), func() error {
 			server.GracefulStop()
 			return nil
 		}, time.Second*30)
