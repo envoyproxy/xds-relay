@@ -3,7 +3,10 @@ package server
 import (
 	"context"
 	"net"
+	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
@@ -72,10 +75,22 @@ func Run(bootstrapConfig *bootstrapv1.Bootstrap,
 	api.RegisterRouteDiscoveryServiceServer(server, gcpServer)
 	api.RegisterListenerDiscoveryServiceServer(server, gcpServer)
 
-	if mode == "serve" {
-		logger.With("address", listener.Addr()).Info(ctx, "Initializing server")
-		if err := server.Serve(listener); err != nil {
-			logger.With("err", err).Fatal(ctx, "failed to initialize server")
-		}
+	if mode != "serve" {
+		return
 	}
+
+	registerShutdownHandler(server)
+	logger.With("address", listener.Addr()).Info(ctx, "Initializing server")
+	if err := server.Serve(listener); err != nil {
+		logger.With("err", err).Fatal(ctx, "failed to initialize server")
+	}
+}
+
+func registerShutdownHandler(server *grpc.Server) {
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigs
+		server.GracefulStop()
+	}()
 }
