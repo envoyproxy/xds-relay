@@ -84,7 +84,7 @@ func TestXdsClientShutdownShouldCloseTheResponseChannel(t *testing.T) {
 	defer cancel()
 	testLogger := log.New(loglevel)
 
-	snapshotsv2, configv2 := createSnapshotCache(updates)
+	snapshotsv2, configv2 := createSnapshotCache(updates, testLogger)
 	cb := gcptestv2.Callbacks{Signal: make(chan struct{})}
 	respCh, shutdown, err := setup(ctx, testLogger, snapshotsv2, configv2, &cb)
 	if err != nil {
@@ -113,11 +113,12 @@ func TestServerShutdownShouldCloseResponseChannel(t *testing.T) {
 	serverCtx, cancel := context.WithCancel(context.Background())
 	testLogger := log.New(loglevel)
 
-	snapshotsv2, configv2 := createSnapshotCache(updates)
+	snapshotsv2, configv2 := createSnapshotCache(updates, testLogger)
 	cb := gcptestv2.Callbacks{Signal: make(chan struct{})}
 	respCh, _, err := setup(serverCtx, testLogger, snapshotsv2, configv2, &cb)
 	if err != nil {
 		assert.Fail(t, "Setup failed: %s", err.Error())
+		cancel()
 		return
 	}
 
@@ -146,7 +147,7 @@ func TestClientContextCancellationShouldCloseAllResponseChannels(t *testing.T) {
 	defer cancel()
 	testLogger := log.New(loglevel)
 
-	snapshotsv2, configv2 := createSnapshotCache(updates)
+	snapshotsv2, configv2 := createSnapshotCache(updates, testLogger)
 	cb := gcptestv2.Callbacks{Signal: make(chan struct{})}
 	_, _, err := setup(serverCtx, testLogger, snapshotsv2, configv2, &cb)
 	if err != nil {
