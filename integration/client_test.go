@@ -38,7 +38,7 @@ func TestXdsClientGetsIncrementalResponsesFromUpstreamServer(t *testing.T) {
 	defer cancel()
 	testLogger := log.New(loglevel)
 
-	snapshotsv2, configv2 := createSnapshotCache(updates)
+	snapshotsv2, configv2 := createSnapshotCache(updates, testLogger)
 	cb := gcptestv2.Callbacks{Signal: make(chan struct{})}
 	respCh, _, err := setup(ctx, testLogger, snapshotsv2, configv2, &cb)
 	if err != nil {
@@ -264,26 +264,31 @@ func sendResponses(
 	}
 }
 
-func createSnapshotCache(updates int) (resourcev2.TestSnapshot, gcpcachev2.SnapshotCache) {
+func createSnapshotCache(updates int, logger log.Logger) (resourcev2.TestSnapshot, gcpcachev2.SnapshotCache) {
 	return resourcev2.TestSnapshot{
 		Xds:          "xds",
 		UpstreamPort: 18080,
 		BasePort:     9000,
 		NumClusters:  updates,
-	}, gcpcachev2.NewSnapshotCache(false, gcpcachev2.IDHash{}, gcpLogger{})
+	}, gcpcachev2.NewSnapshotCache(false, gcpcachev2.IDHash{}, gcpLogger{logger: logger})
 }
 
 type gcpLogger struct {
+	logger log.Logger
 }
 
 func (logger gcpLogger) Debugf(format string, args ...interface{}) {
+	logger.logger.Debug(context.Background(), format, args)
 }
 
 func (logger gcpLogger) Infof(format string, args ...interface{}) {
+	logger.logger.Info(context.Background(), format, args)
 }
 
 func (logger gcpLogger) Warnf(format string, args ...interface{}) {
+	logger.logger.Warn(context.Background(), format, args)
 }
 
 func (logger gcpLogger) Errorf(format string, args ...interface{}) {
+	logger.logger.Error(context.Background(), format, args)
 }
