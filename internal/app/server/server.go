@@ -13,6 +13,7 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/app/orchestrator"
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
+	"github.com/envoyproxy/xds-relay/internal/pkg/util"
 
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
@@ -91,6 +92,9 @@ func registerShutdownHandler(server *grpc.Server) {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-sigs
-		server.GracefulStop()
+		util.DoWithTimeout(context.Background(), func() error {
+			server.GracefulStop()
+			return nil
+		}, time.Second*30)
 	}()
 }
