@@ -32,11 +32,12 @@ const (
 	loglevel         = "fatal"
 )
 
+var testLogger = log.New(loglevel)
+
 func TestXdsClientGetsIncrementalResponsesFromUpstreamServer(t *testing.T) {
 	updates := 2
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	testLogger := log.New(loglevel)
 
 	snapshotsv2, configv2 := createSnapshotCache(updates, testLogger)
 	cb := gcptestv2.Callbacks{Signal: make(chan struct{})}
@@ -82,7 +83,6 @@ func TestXdsClientShutdownShouldCloseTheResponseChannel(t *testing.T) {
 	updates := 1
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	testLogger := log.New(loglevel)
 
 	snapshotsv2, configv2 := createSnapshotCache(updates, testLogger)
 	cb := gcptestv2.Callbacks{Signal: make(chan struct{})}
@@ -111,7 +111,6 @@ func TestXdsClientShutdownShouldCloseTheResponseChannel(t *testing.T) {
 func TestServerShutdownShouldCloseResponseChannel(t *testing.T) {
 	updates := 1
 	serverCtx, cancel := context.WithCancel(context.Background())
-	testLogger := log.New(loglevel)
 
 	snapshotsv2, configv2 := createSnapshotCache(updates, testLogger)
 	cb := gcptestv2.Callbacks{Signal: make(chan struct{})}
@@ -145,7 +144,6 @@ func TestClientContextCancellationShouldCloseAllResponseChannels(t *testing.T) {
 	updates := 1
 	serverCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	testLogger := log.New(loglevel)
 
 	snapshotsv2, configv2 := createSnapshotCache(updates, testLogger)
 	cb := gcptestv2.Callbacks{Signal: make(chan struct{})}
