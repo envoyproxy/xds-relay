@@ -40,6 +40,21 @@ func Run(bootstrapConfig *bootstrapv1.Bootstrap,
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// Initialize request aggregation mapper component.
+	requestMapper := mapper.NewMapper(aggregationRulesConfig)
+
+	if mode != "serve" {
+		return
+	}
+
+	server := grpc.NewServer()
+	serverPort := strconv.FormatUint(uint64(bootstrapConfig.Server.Address.PortValue), 10)
+	serverAddress := net.JoinHostPort(bootstrapConfig.Server.Address.Address, serverPort)
+	listener, err := net.Listen("tcp", serverAddress) // #nosec
+	if err != nil {
+		logger.With("err", err).Fatal(ctx, "failed to bind server to listener")
+	}
+
 	// Initialize upstream client.
 	upstreamPort := strconv.FormatUint(uint64(bootstrapConfig.OriginServer.Address.PortValue), 10)
 	upstreamAddress := net.JoinHostPort(bootstrapConfig.OriginServer.Address.Address, upstreamPort)
@@ -49,52 +64,41 @@ func Run(bootstrapConfig *bootstrapv1.Bootstrap,
 		ctx,
 		upstreamAddress,
 		upstream.CallOptions{Timeout: time.Minute},
-		logger.Named("xdsclient"),
+		logger,
 	)
 	if err != nil {
 		logger.With("error", err).Panic(ctx, "failed to initialize upstream client")
 	}
-
-	// Initialize request aggregation mapper component.
-	requestMapper := mapper.NewMapper(aggregationRulesConfig)
-
 	// Initialize orchestrator.
 	orchestrator := orchestrator.New(ctx, logger, requestMapper, upstreamClient, bootstrapConfig.Cache)
-
 	// Start server.
 	gcpServer := gcp.NewServer(ctx, orchestrator, nil)
-	server := grpc.NewServer()
-	serverPort := strconv.FormatUint(uint64(bootstrapConfig.Server.Address.PortValue), 10)
-	serverAddress := net.JoinHostPort(bootstrapConfig.Server.Address.Address, serverPort)
-	listener, err := net.Listen("tcp", serverAddress) // #nosec
-	if err != nil {
-		logger.With("err", err).Fatal(ctx, "failed to bind server to listener")
-	}
-
 	api.RegisterEndpointDiscoveryServiceServer(server, gcpServer)
 	api.RegisterClusterDiscoveryServiceServer(server, gcpServer)
 	api.RegisterRouteDiscoveryServiceServer(server, gcpServer)
 	api.RegisterListenerDiscoveryServiceServer(server, gcpServer)
 
-	if mode != "serve" {
-		return
-	}
-
-	registerShutdownHandler(server)
+	registerShutdownHandler(server, logger)
 	logger.With("address", listener.Addr()).Info(ctx, "Initializing server")
 	if err := server.Serve(listener); err != nil {
 		logger.With("err", err).Fatal(ctx, "failed to initialize server")
 	}
 }
 
-func registerShutdownHandler(server *grpc.Server) {
+func registerShutdownHandler(server *grpc.Server, logger log.Logger) {
 	sigs := make(chan os.Signal, 1)
+	ctx := context.Background()
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
-		<-sigs
-		_ = util.DoWithTimeout(context.Background(), func() error {
+		sig := <-sigs
+		logger.Info(ctx, "received interrupt signal:", sig.String())
+		err := util.DoWithTimeout(ctx, func() error {
+			logger.Debug(ctx, "initiating grpc graceful stop")
 			server.GracefulStop()
 			return nil
 		}, time.Second*30)
+		if err != nil {
+			logger.Error(ctx, "shutdown error: %s", err)
+		}
 	}()
 }
