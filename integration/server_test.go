@@ -17,7 +17,7 @@ const (
 	binaryName = "xds-relay"
 )
 
-func TestXdsClientGetsIncrementalResponsesFromUpstreamServer(t *testing.T) {
+func TestServerShutdown(t *testing.T) {
 	dir, err := os.Getwd()
 	assert.Nil(t, err)
 	cmd := exec.Command(path.Join(dir, "bin", binaryName),
