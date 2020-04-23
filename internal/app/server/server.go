@@ -43,10 +43,6 @@ func Run(bootstrapConfig *bootstrapv1.Bootstrap,
 	// Initialize request aggregation mapper component.
 	requestMapper := mapper.NewMapper(aggregationRulesConfig)
 
-	if mode != "serve" {
-		return
-	}
-
 	// Initialize upstream client.
 	upstreamPort := strconv.FormatUint(uint64(bootstrapConfig.OriginServer.Address.PortValue), 10)
 	upstreamAddress := net.JoinHostPort(bootstrapConfig.OriginServer.Address.Address, upstreamPort)
@@ -78,6 +74,10 @@ func Run(bootstrapConfig *bootstrapv1.Bootstrap,
 	api.RegisterClusterDiscoveryServiceServer(server, gcpServer)
 	api.RegisterRouteDiscoveryServiceServer(server, gcpServer)
 	api.RegisterListenerDiscoveryServiceServer(server, gcpServer)
+
+	if mode != "serve" {
+		return
+	}
 
 	registerShutdownHandler(server, logger)
 	logger.With("address", listener.Addr()).Info(ctx, "Initializing server")
