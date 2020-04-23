@@ -29,7 +29,7 @@ func testOnEvict(key string, value Resource) {
 	})
 }
 
-var testRequest = v2.DiscoveryRequest{
+var testRequestA = v2.DiscoveryRequest{
 	VersionInfo: "version_A",
 	Node: &core.Node{
 		Id:      "id_A",
@@ -38,6 +38,17 @@ var testRequest = v2.DiscoveryRequest{
 	ResourceNames: []string{"resource_A"},
 	TypeUrl:       "typeURL_A",
 	ResponseNonce: "nonce_A",
+}
+
+var testRequestB = v2.DiscoveryRequest{
+	VersionInfo: "version_B",
+	Node: &core.Node{
+		Id:      "id_B",
+		Cluster: "cluster_B",
+	},
+	ResourceNames: []string{"resource_B"},
+	TypeUrl:       "typeURL_B",
+	ResponseNonce: "nonce_B",
 }
 
 var testDiscoveryResponse = v2.DiscoveryResponse{
@@ -74,7 +85,7 @@ func TestAddRequestAndFetch(t *testing.T) {
 	assert.EqualError(t, err, "no value found for key: key_A")
 	assert.Nil(t, resource)
 
-	err = cache.AddRequest(testKeyA, &testRequest)
+	err = cache.AddRequest(testKeyA, &testRequestA)
 	assert.NoError(t, err)
 
 	resource, err = cache.Fetch(testKeyA)
@@ -101,20 +112,20 @@ func TestSetResponseAndFetch(t *testing.T) {
 }
 
 func TestAddRequestAndSetResponse(t *testing.T) {
-	cache, err := NewCache(1, testOnEvict, time.Second*60)
+	cache, err := NewCache(2, testOnEvict, time.Second*60)
 	assert.NoError(t, err)
 
-	err = cache.AddRequest(testKeyA, &testRequest)
+	err = cache.AddRequest(testKeyA, &testRequestA)
 	assert.NoError(t, err)
 
-	err = cache.AddRequest(testKeyA, &testRequest)
+	err = cache.AddRequest(testKeyA, &testRequestB)
 	assert.NoError(t, err)
 
 	requests, err := cache.SetResponse(testKeyA, testDiscoveryResponse)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(requests))
-	assert.Equal(t, testRequest, *requests[0])
-	assert.Equal(t, testRequest, *requests[1])
+	assert.Equal(t, true, requests[&testRequestA])
+	assert.Equal(t, true, requests[&testRequestB])
 
 	resource, err := cache.Fetch(testKeyA)
 	assert.NoError(t, err)
@@ -136,7 +147,7 @@ func TestMaxEntries(t *testing.T) {
 		key:    testKeyA,
 		reason: "testOnEvict called",
 	}, func() {
-		err = cache.AddRequest(testKeyB, &testRequest)
+		err = cache.AddRequest(testKeyB, &testRequestB)
 		assert.NoError(t, err)
 	})
 
@@ -222,4 +233,25 @@ func TestGetExpirationTime(t *testing.T) {
 	currentTime := time.Date(0, 0, 0, 0, 0, 1, 0, time.UTC)
 	expirationTime := time.Date(0, 0, 0, 0, 0, 2, 0, time.UTC)
 	assert.Equal(t, expirationTime, c.getExpirationTime(currentTime))
+}
+
+func TestDeleteRequest(t *testing.T) {
+	cache, err := NewCache(1, testOnEvict, time.Second*60)
+	assert.NoError(t, err)
+
+	err = cache.AddRequest(testKeyA, &testRequestA)
+	assert.NoError(t, err)
+
+	err = cache.AddRequest(testKeyA, &testRequestA)
+	assert.NoError(t, err)
+
+	err = cache.DeleteRequest(testKeyA, &testRequestA)
+	assert.NoError(t, err)
+
+	requests, err := cache.SetResponse(testKeyA, testDiscoveryResponse)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(requests))
+
+	err = cache.DeleteRequest(testKeyB, &testRequestB)
+	assert.NoError(t, err)
 }
