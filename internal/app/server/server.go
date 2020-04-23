@@ -57,6 +57,10 @@ func Run(bootstrapConfig *bootstrapv1.Bootstrap,
 	if err != nil {
 		logger.With("error", err).Panic(ctx, "failed to initialize upstream client")
 	}
+
+	// Initialize request aggregation mapper component.
+	requestMapper := mapper.NewMapper(aggregationRulesConfig)
+
 	// Initialize orchestrator.
 	orchestrator := orchestrator.New(ctx, logger, requestMapper, upstreamClient, bootstrapConfig.Cache)
 
