@@ -97,7 +97,7 @@ func registerShutdownHandler(server *grpc.Server, logger log.Logger) {
 		err := util.DoWithTimeout(ctx, func() error {
 			logger.Info(ctx, "initiating grpc graceful stop")
 			server.GracefulStop()
-			logger.Sync()
+			_ = logger.Sync()
 			return nil
 		}, time.Second*30)
 		if err != nil {
