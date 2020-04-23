@@ -30,6 +30,7 @@ const (
 	nodeID           = "node-id"
 	originServerPort = 18000
 	loglevel         = "fatal"
+	updates          = 1
 )
 
 var testLogger = log.New(loglevel)
@@ -80,7 +81,6 @@ func TestXdsClientGetsIncrementalResponsesFromUpstreamServer(t *testing.T) {
 }
 
 func TestXdsClientShutdownShouldCloseTheResponseChannel(t *testing.T) {
-	updates := 1
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -109,7 +109,6 @@ func TestXdsClientShutdownShouldCloseTheResponseChannel(t *testing.T) {
 }
 
 func TestServerShutdownShouldCloseResponseChannel(t *testing.T) {
-	updates := 1
 	serverCtx, cancel := context.WithCancel(context.Background())
 
 	snapshotsv2, configv2 := createSnapshotCache(updates, testLogger)
@@ -141,7 +140,6 @@ func TestServerShutdownShouldCloseResponseChannel(t *testing.T) {
 }
 
 func TestClientContextCancellationShouldCloseAllResponseChannels(t *testing.T) {
-	updates := 1
 	serverCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
