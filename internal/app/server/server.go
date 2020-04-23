@@ -36,7 +36,6 @@ func Run(bootstrapConfig *bootstrapv1.Bootstrap,
 		logger = log.New(bootstrapConfig.Logging.Level.String())
 	}
 
-	// TODO cancel should be invoked by shutdown handlers.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -80,16 +79,15 @@ func Run(bootstrapConfig *bootstrapv1.Bootstrap,
 		return
 	}
 
-	registerShutdownHandler(server, logger)
+	registerShutdownHandler(ctx, cancel, server, logger)
 	logger.With("address", listener.Addr()).Info(ctx, "Initializing server")
 	if err := server.Serve(listener); err != nil {
 		logger.With("err", err).Fatal(ctx, "failed to initialize server")
 	}
 }
 
-func registerShutdownHandler(server *grpc.Server, logger log.Logger) {
+func registerShutdownHandler(ctx context.Context, cancel context.CancelFunc, server *grpc.Server, logger log.Logger) {
 	sigs := make(chan os.Signal, 1)
-	ctx := context.Background()
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		sig := <-sigs
@@ -98,6 +96,7 @@ func registerShutdownHandler(server *grpc.Server, logger log.Logger) {
 			logger.Info(ctx, "initiating grpc graceful stop")
 			server.GracefulStop()
 			_ = logger.Sync()
+			cancel()
 			return nil
 		}, time.Second*30)
 		if err != nil {
