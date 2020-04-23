@@ -19,10 +19,13 @@ type Cache interface {
 	Fetch(key string) (*Resource, error)
 
 	// SetResponse sets the cache response and returns the list of requests.
-	SetResponse(key string, resp v2.DiscoveryResponse) ([]*v2.DiscoveryRequest, error)
+	SetResponse(key string, resp v2.DiscoveryResponse) (map[*v2.DiscoveryRequest]bool, error)
 
 	// AddRequest adds the request to the cache.
-	AddRequest(key string, req v2.DiscoveryRequest) error
+	AddRequest(key string, req *v2.DiscoveryRequest) error
+
+	// DeleteRequest removes the given request from any cache entries it's present in.
+	DeleteRequest(key string, req *v2.DiscoveryRequest) error
 }
 
 type cache struct {
@@ -39,7 +42,7 @@ type Response struct {
 
 type Resource struct {
 	Resp           *Response
-	Requests       []*v2.DiscoveryRequest
+	Requests       map[*v2.DiscoveryRequest]bool
 	ExpirationTime time.Time
 }
 
@@ -107,7 +110,7 @@ func (c *cache) Fetch(key string) (*Resource, error) {
 	return &resource, nil
 }
 
-func (c *cache) SetResponse(key string, resp v2.DiscoveryResponse) ([]*v2.DiscoveryRequest, error) {
+func (c *cache) SetResponse(key string, resp v2.DiscoveryResponse) (map[*v2.DiscoveryRequest]bool, error) {
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
 	marshaledResources, err := marshalResources(resp.Resources)
@@ -137,13 +140,15 @@ func (c *cache) SetResponse(key string, resp v2.DiscoveryResponse) ([]*v2.Discov
 	return resource.Requests, nil
 }
 
-func (c *cache) AddRequest(key string, req v2.DiscoveryRequest) error {
+func (c *cache) AddRequest(key string, req *v2.DiscoveryRequest) error {
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
 	value, found := c.cache.Get(key)
 	if !found {
+		requests := make(map[*v2.DiscoveryRequest]bool)
+		requests[req] = true
 		resource := Resource{
-			Requests:       []*v2.DiscoveryRequest{&req},
+			Requests:       requests,
 			ExpirationTime: c.getExpirationTime(time.Now()),
 		}
 		c.cache.Add(key, resource)
@@ -153,7 +158,23 @@ func (c *cache) AddRequest(key string, req v2.DiscoveryRequest) error {
 	if !ok {
 		return fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
-	resource.Requests = append(resource.Requests, &req)
+	resource.Requests[req] = true
+	c.cache.Add(key, resource)
+	return nil
+}
+
+func (c *cache) DeleteRequest(key string, req *v2.DiscoveryRequest) error {
+	c.cacheMu.Lock()
+	defer c.cacheMu.Unlock()
+	value, found := c.cache.Get(key)
+	if !found {
+		return nil
+	}
+	resource, ok := value.(Resource)
+	if !ok {
+		return fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
+	}
+	delete(resource.Requests, req)
 	c.cache.Add(key, resource)
 	return nil
 }
