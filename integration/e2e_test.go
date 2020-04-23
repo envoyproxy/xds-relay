@@ -70,7 +70,7 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 	startXdsRelayServer(ctx, xdsRelayBootstrap, keyerConfiguration)
 
 	// Start envoy and return a bytes buffer containing the envoy logs
-	// TODO: hook up envoy to the xds-relay server
+	// TODO(https://github.com/envoyproxy/xds-relay/issues/65): hook up envoy to the xds-relay server.
 	envoyLogsBuffer := startEnvoy(ctx, envoyBootstrap, signal)
 
 	for i := 0; i < nUpdates; i++ {
@@ -79,7 +79,7 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 
 		snapshotv2 := snapshotv2.Generate()
 		if err := snapshotv2.Consistent(); err != nil {
-			log.Printf("Snapshot inconsistency: %+v\n", snapshotv2)
+			t.Fatal("Snapshot inconsistency: %+v\n", snapshotv2)
 		}
 
 		// TODO: parametrize node-id in bootstrap files.
@@ -95,8 +95,8 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 		}, 1*time.Second, 100*time.Millisecond).Should(gomega.Equal(nListeners))
 	}
 
-	// TODO: figure out a way to only only copy envoy logs in case of failures. Maybe
-	// use the github action for copying artifacts (and not dump envoy logs to stdout).
+	// TODO(https://github.com/envoyproxy/xds-relay/issues/66): figure out a way to only only copy
+	// envoy logs in case of failures.
 	log.Printf("Envoy logs: \n%s", envoyLogsBuffer.String())
 }
 
@@ -107,8 +107,9 @@ func startSnapshotCache(ctx context.Context, upstreamPort uint, basePort uint, n
 
 	configv2 := gcpcachev2.NewSnapshotCache(false, gcpcachev2.IDHash{}, logger{})
 	srv2 := gcpserverv2.NewServer(ctx, configv2, cbv2)
-	// TODO: do we have to initialize unused_srv3?
-	unused_srv3 := gcpserverv3.NewServer(ctx, nil, nil)
+	// We don't have support for v3 yet, but this is left here in preparation for the eventual
+	// inclusion of v3 resources.
+	srv3 := gcpserverv3.NewServer(ctx, nil, nil)
 
 	// Create a test snapshot
 	snapshotv2 := gcpresourcev2.TestSnapshot{
@@ -120,7 +121,7 @@ func startSnapshotCache(ctx context.Context, upstreamPort uint, basePort uint, n
 	}
 
 	// Start the xDS server
-	go gcptest.RunManagementServer(ctx, srv2, unused_srv3, port)
+	go gcptest.RunManagementServer(ctx, srv2, srv3, port)
 
 	return configv2, snapshotv2, signal
 }
