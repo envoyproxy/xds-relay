@@ -40,9 +40,6 @@ func Run(bootstrapConfig *bootstrapv1.Bootstrap,
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Initialize request aggregation mapper component.
-	requestMapper := mapper.NewMapper(aggregationRulesConfig)
-
 	// Initialize upstream client.
 	upstreamPort := strconv.FormatUint(uint64(bootstrapConfig.OriginServer.Address.PortValue), 10)
 	upstreamAddress := net.JoinHostPort(bootstrapConfig.OriginServer.Address.Address, upstreamPort)
