@@ -48,12 +48,17 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 	defer cancelFunc()
 
 	// Test parameters
-	var port uint = 18000
-	var upstreamPort uint = 18080
-	var basePort uint = 9000
-	var nClusters = 7
-	var nListeners = 9
-	var nUpdates = 4
+	const (
+		port               uint = 18000
+		upstreamPort       uint = 18080
+		basePort           uint = 9000
+		nClusters               = 7
+		nListeners              = 9
+		nUpdates                = 4
+		keyerConfiguration      = "./testdata/keyer_configuration_complete_tech_spec.yaml"
+		xdsRelayBootstrap       = "./testdata/bootstrap_configuration_e2e.yaml"
+		envoyBootstrap          = "./testdata/envoy_bootstrap.yaml"
+	)
 
 	// We run a service that returns the string "Hi, there!" locally and expose it through envoy.
 	go gcptest.RunHTTP(ctx, upstreamPort)
@@ -62,13 +67,11 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 
 	// Start xds-relay server. Note that we are starting the server now but the envoy instance is not yet
 	// connecting to it since the orchestrator implementation is still a work in progress.
-	// TODO: parametrize configuration files
-	startXdsRelayServer(ctx, "./testdata/bootstrap_configuration_e2e.yaml", "./testdata/keyer_configuration_complete_tech_spec.yaml")
+	startXdsRelayServer(ctx, xdsRelayBootstrap, keyerConfiguration)
 
 	// Start envoy and return a bytes buffer containing the envoy logs
-	// TODO: parametrize bootstrap file
 	// TODO: hook up envoy to the xds-relay server
-	envoyLogsBuffer := startEnvoy(ctx, "./testdata/envoy_bootstrap.yaml", signal)
+	envoyLogsBuffer := startEnvoy(ctx, envoyBootstrap, signal)
 
 	for i := 0; i < nUpdates; i++ {
 		snapshotv2.Version = fmt.Sprintf("v%d", i)
