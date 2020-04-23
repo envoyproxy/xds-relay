@@ -47,14 +47,6 @@ func Run(bootstrapConfig *bootstrapv1.Bootstrap,
 		return
 	}
 
-	server := grpc.NewServer()
-	serverPort := strconv.FormatUint(uint64(bootstrapConfig.Server.Address.PortValue), 10)
-	serverAddress := net.JoinHostPort(bootstrapConfig.Server.Address.Address, serverPort)
-	listener, err := net.Listen("tcp", serverAddress) // #nosec
-	if err != nil {
-		logger.With("err", err).Fatal(ctx, "failed to bind server to listener")
-	}
-
 	// Initialize upstream client.
 	upstreamPort := strconv.FormatUint(uint64(bootstrapConfig.OriginServer.Address.PortValue), 10)
 	upstreamAddress := net.JoinHostPort(bootstrapConfig.OriginServer.Address.Address, upstreamPort)
@@ -71,8 +63,17 @@ func Run(bootstrapConfig *bootstrapv1.Bootstrap,
 	}
 	// Initialize orchestrator.
 	orchestrator := orchestrator.New(ctx, logger, requestMapper, upstreamClient, bootstrapConfig.Cache)
+
 	// Start server.
 	gcpServer := gcp.NewServer(ctx, orchestrator, nil)
+	server := grpc.NewServer()
+	serverPort := strconv.FormatUint(uint64(bootstrapConfig.Server.Address.PortValue), 10)
+	serverAddress := net.JoinHostPort(bootstrapConfig.Server.Address.Address, serverPort)
+	listener, err := net.Listen("tcp", serverAddress) // #nosec
+	if err != nil {
+		logger.With("err", err).Fatal(ctx, "failed to bind server to listener")
+	}
+
 	api.RegisterEndpointDiscoveryServiceServer(server, gcpServer)
 	api.RegisterClusterDiscoveryServiceServer(server, gcpServer)
 	api.RegisterRouteDiscoveryServiceServer(server, gcpServer)
@@ -93,7 +94,7 @@ func registerShutdownHandler(server *grpc.Server, logger log.Logger) {
 		sig := <-sigs
 		logger.Info(ctx, "received interrupt signal:", sig.String())
 		err := util.DoWithTimeout(ctx, func() error {
-			logger.Debug(ctx, "initiating grpc graceful stop")
+			logger.Info(ctx, "initiating grpc graceful stop")
 			server.GracefulStop()
 			return nil
 		}, time.Second*30)
