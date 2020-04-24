@@ -30,6 +30,8 @@ import (
 	"github.com/onsi/gomega"
 )
 
+var testLogger = log.New("fatal")
+
 func TestMain(m *testing.M) {
 	// We force a 1 second sleep before running a test to let the OS close any lingering socket from previous
 	// tests.
@@ -76,7 +78,7 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 
 	for i := 0; i < nUpdates; i++ {
 		snapshotv2.Version = fmt.Sprintf("v%d", i)
-		log.Printf("Update snapshot %v\n", snapshotv2.Version)
+		testLogger.Info(ctx, "Update snapshot %v\n", snapshotv2.Version)
 
 		snapshotv2 := snapshotv2.Generate()
 		if err := snapshotv2.Consistent(); err != nil {
@@ -86,19 +88,19 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 		// TODO: parametrize node-id in bootstrap files.
 		err := configv2.SetSnapshot("test-id", snapshotv2)
 		if err != nil {
-			t.Fatalf("Snapshot error %q for %+v\n", err, snapshotv2)
+			testLogger.Error(ctx, "Snapshot error %q for %+v\n", err, snapshotv2)
 		}
 
 		g.Eventually(func() (int, int) {
 			ok, failed := callLocalService(basePort, nListeners)
-			log.Printf("Request batch: ok %v, failed %v\n", ok, failed)
+			testLogger.Info(ctx, "Request batch: ok %v, failed %v\n", ok, failed)
 			return ok, failed
 		}, 1*time.Second, 100*time.Millisecond).Should(gomega.Equal(nListeners))
 	}
 
 	// TODO(https://github.com/envoyproxy/xds-relay/issues/66): figure out a way to only only copy
 	// envoy logs in case of failures.
-	log.Printf("Envoy logs: \n%s", envoyLogsBuffer.String())
+	testLogger.Info(ctx, "Envoy logs: \n%s", envoyLogsBuffer.String())
 }
 
 func startSnapshotCache(ctx context.Context, upstreamPort uint, basePort uint, nClusters int, nListeners int, port uint) (gcpcachev2.SnapshotCache, gcpresourcev2.TestSnapshot, chan struct{}) {
@@ -131,22 +133,22 @@ func startXdsRelayServer(ctx context.Context, cancel context.CancelFunc, bootstr
 	keyerConfigurationFilePath string) {
 	bootstrapConfigFileContent, err := ioutil.ReadFile(bootstrapConfigFilePath)
 	if err != nil {
-		log.Fatal("failed to read bootstrap config file: ", err)
+		testLogger.Error(ctx, "failed to read bootstrap config file: ", err)
 	}
 	var bootstrapConfig bootstrapv1.Bootstrap
 	err = yamlproto.FromYAMLToBootstrapConfiguration(string(bootstrapConfigFileContent), &bootstrapConfig)
 	if err != nil {
-		log.Fatal("failed to translate bootstrap config: ", err)
+		testLogger.Error(ctx, "failed to translate bootstrap config: ", err)
 	}
 
 	aggregationRulesFileContent, err := ioutil.ReadFile(keyerConfigurationFilePath)
 	if err != nil {
-		log.Fatal("failed to read aggregation rules file: ", err)
+		testLogger.Error(ctx, "failed to read aggregation rules file: ", err)
 	}
 	var aggregationRulesConfig aggregationv1.KeyerConfiguration
 	err = yamlproto.FromYAMLToKeyerConfiguration(string(aggregationRulesFileContent), &aggregationRulesConfig)
 	if err != nil {
-		log.Fatal("failed to translate aggregation rules: ", err)
+		testLogger.Error(ctx, "failed to translate aggregation rules: ", err)
 	}
 	go server.RunWithContext(ctx, cancel, &bootstrapConfig, &aggregationRulesConfig, "debug", "serve")
 }
@@ -162,13 +164,13 @@ func startEnvoy(ctx context.Context, bootstrapFilePath string, signal chan struc
 	envoyCmd.SysProcAttr = &syscall.SysProcAttr{Pdeathsig: syscall.SIGKILL}
 	envoyCmd.Start()
 
-	log.Println("Waiting for the first request...")
+	testLogger.Info(ctx, "Waiting for the first request...")
 	select {
 	case <-signal:
 		break
 	case <-time.After(1 * time.Minute):
-		log.Printf("Envoy logs: \n%s", b.String())
-		log.Fatalf("Timeout waiting for the first request")
+		testLogger.Info(ctx, "Envoy logs: \n%s", b.String())
+		testLogger.Error(ctx, "Timeout waiting for the first request")
 	}
 
 	return b
