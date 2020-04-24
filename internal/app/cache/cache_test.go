@@ -74,7 +74,8 @@ var testResponse = Response{
 }
 
 var testResource = Resource{
-	Resp: &testResponse,
+	Resp:     &testResponse,
+	Requests: make(map[*v2.DiscoveryRequest]bool),
 }
 
 func TestAddRequestAndFetch(t *testing.T) {
