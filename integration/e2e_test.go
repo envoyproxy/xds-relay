@@ -88,7 +88,7 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 		// TODO: parametrize node-id in bootstrap files.
 		err := configv2.SetSnapshot("test-id", snapshotv2)
 		if err != nil {
-			testLogger.Error(ctx, "Snapshot error %q for %+v\n", err, snapshotv2)
+			testLogger.Fatal(ctx, "Snapshot error %q for %+v\n", err, snapshotv2)
 		}
 
 		g.Eventually(func() (int, int) {
@@ -133,22 +133,22 @@ func startXdsRelayServer(ctx context.Context, cancel context.CancelFunc, bootstr
 	keyerConfigurationFilePath string) {
 	bootstrapConfigFileContent, err := ioutil.ReadFile(bootstrapConfigFilePath)
 	if err != nil {
-		testLogger.Error(ctx, "failed to read bootstrap config file: ", err)
+		testLogger.Fatal(ctx, "failed to read bootstrap config file: ", err)
 	}
 	var bootstrapConfig bootstrapv1.Bootstrap
 	err = yamlproto.FromYAMLToBootstrapConfiguration(string(bootstrapConfigFileContent), &bootstrapConfig)
 	if err != nil {
-		testLogger.Error(ctx, "failed to translate bootstrap config: ", err)
+		testLogger.Fatal(ctx, "failed to translate bootstrap config: ", err)
 	}
 
 	aggregationRulesFileContent, err := ioutil.ReadFile(keyerConfigurationFilePath)
 	if err != nil {
-		testLogger.Error(ctx, "failed to read aggregation rules file: ", err)
+		testLogger.Fatal(ctx, "failed to read aggregation rules file: ", err)
 	}
 	var aggregationRulesConfig aggregationv1.KeyerConfiguration
 	err = yamlproto.FromYAMLToKeyerConfiguration(string(aggregationRulesFileContent), &aggregationRulesConfig)
 	if err != nil {
-		testLogger.Error(ctx, "failed to translate aggregation rules: ", err)
+		testLogger.Fatal(ctx, "failed to translate aggregation rules: ", err)
 	}
 	go server.RunWithContext(ctx, cancel, &bootstrapConfig, &aggregationRulesConfig, "debug", "serve")
 }
@@ -170,7 +170,7 @@ func startEnvoy(ctx context.Context, bootstrapFilePath string, signal chan struc
 		break
 	case <-time.After(1 * time.Minute):
 		testLogger.Info(ctx, "Envoy logs: \n%s", b.String())
-		testLogger.Error(ctx, "Timeout waiting for the first request")
+		testLogger.Fatal(ctx, "Timeout waiting for the first request")
 	}
 
 	return b
