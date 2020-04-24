@@ -23,7 +23,7 @@ import (
 	gcpresourcev2 "github.com/envoyproxy/go-control-plane/pkg/test/resource/v2"
 	gcptestv2 "github.com/envoyproxy/go-control-plane/pkg/test/v2"
 	"github.com/envoyproxy/xds-relay/internal/app/server"
-	yamlproto "github.com/envoyproxy/xds-relay/internal/pkg/util"
+	yamlproto "github.com/envoyproxy/xds-relay/internal/pkg/util/yamlproto"
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
 	"github.com/onsi/gomega"
@@ -67,7 +67,7 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 
 	// Start xds-relay server. Note that we are starting the server now but the envoy instance is not yet
 	// connecting to it since the orchestrator implementation is still a work in progress.
-	startXdsRelayServer(ctx, xdsRelayBootstrap, keyerConfiguration)
+	startXdsRelayServer(ctx, cancelFunc, xdsRelayBootstrap, keyerConfiguration)
 
 	// Start envoy and return a bytes buffer containing the envoy logs
 	// TODO(https://github.com/envoyproxy/xds-relay/issues/65): hook up envoy to the xds-relay server.
@@ -126,7 +126,8 @@ func startSnapshotCache(ctx context.Context, upstreamPort uint, basePort uint, n
 	return configv2, snapshotv2, signal
 }
 
-func startXdsRelayServer(ctx context.Context, bootstrapConfigFilePath string, keyerConfigurationFilePath string) {
+func startXdsRelayServer(ctx context.Context, cancel context.CancelFunc, bootstrapConfigFilePath string,
+	keyerConfigurationFilePath string) {
 	bootstrapConfigFileContent, err := ioutil.ReadFile(bootstrapConfigFilePath)
 	if err != nil {
 		log.Fatal("failed to read bootstrap config file: ", err)
@@ -146,7 +147,7 @@ func startXdsRelayServer(ctx context.Context, bootstrapConfigFilePath string, ke
 	if err != nil {
 		log.Fatal("failed to translate aggregation rules: ", err)
 	}
-	go server.RunWithContext(ctx, &bootstrapConfig, &aggregationRulesConfig, "debug", "serve")
+	go server.RunWithContext(ctx, cancel, &bootstrapConfig, &aggregationRulesConfig, "debug", "serve")
 }
 
 func startEnvoy(ctx context.Context, bootstrapFilePath string, signal chan struct{}) bytes.Buffer {
