@@ -126,6 +126,7 @@ func (c *cache) SetResponse(key string, resp v2.DiscoveryResponse) (map[*v2.Disc
 		resource := Resource{
 			Resp:           response,
 			ExpirationTime: c.getExpirationTime(time.Now()),
+			Requests:       make(map[*v2.DiscoveryRequest]bool),
 		}
 		c.cache.Add(key, resource)
 		return nil, nil

@@ -53,12 +53,9 @@ const (
 type Orchestrator interface {
 	gcp.Cache
 
-	// shutdown takes an aggregated key and shuts down the go routine watching
-	// for upstream responses.
-	//
-	// This is currently used by tests to clean up channels, but can also be
-	// used by the main shutdown handler.
-	shutdown(string)
+	// This is called by the main shutdown handler and tests to clean up
+	// open channels.
+	shutdown(ctx context.Context)
 }
 
 type orchestrator struct {
@@ -75,31 +72,33 @@ type orchestrator struct {
 // New instantiates the mapper, cache, upstream client components necessary for
 // the orchestrator to operate and returns an instance of the instantiated
 // orchestrator.
-func New(ctx context.Context,
+func New(
+	ctx context.Context,
 	l log.Logger,
 	mapper mapper.Mapper,
 	upstreamClient upstream.Client,
-	cacheConfig *bootstrapv1.Cache) Orchestrator {
+	cacheConfig *bootstrapv1.Cache,
+) Orchestrator {
 	orchestrator := &orchestrator{
-		logger:         l.Named(component),
-		mapper:         mapper,
-		upstreamClient: upstreamClient,
-		downstreamResponseMap: downstreamResponseMap{
-			responseChannel: make(map[*gcp.Request]chan gcp.Response),
-		},
-		upstreamResponseMap: upstreamResponseMap{
-			responseChannel: make(map[string]upstreamResponseChannel),
-		},
+		logger:                l.Named(component),
+		mapper:                mapper,
+		upstreamClient:        upstreamClient,
+		downstreamResponseMap: newDownstreamResponseMap(),
+		upstreamResponseMap:   newUpstreamResponseMap(),
 	}
 
 	// Initialize cache.
-	cache, err := cache.NewCache(int(cacheConfig.MaxEntries),
+	cache, err := cache.NewCache(
+		int(cacheConfig.MaxEntries),
 		orchestrator.onCacheEvicted,
-		time.Duration(cacheConfig.Ttl.Nanos)*time.Nanosecond)
+		time.Duration(cacheConfig.Ttl.Nanos)*time.Nanosecond,
+	)
 	if err != nil {
 		orchestrator.logger.With("error", err).Panic(ctx, "failed to initialize cache")
 	}
 	orchestrator.cache = cache
+
+	go orchestrator.shutdown(ctx)
 
 	return orchestrator
 }
@@ -164,17 +163,23 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) 
 	// that maps to the same aggregated key doesn't result in two upstream
 	// streams.
 	o.upstreamResponseMap.mu.Lock()
-	if _, ok := o.upstreamResponseMap.responseChannel[aggregatedKey]; !ok {
-		upstreamResponseChan, _, _ := o.upstreamClient.OpenStream(req)
-		respChannel := o.upstreamResponseMap.add(aggregatedKey, upstreamResponseChan)
-		// Spin up a go routine to watch for upstream responses.
-		// One routine is opened per aggregate key.
-		go o.watchUpstream(ctx, aggregatedKey, respChannel.response, respChannel.done)
+	if _, ok := o.upstreamResponseMap.responseChannels[aggregatedKey]; !ok {
+		upstreamResponseChan, shutdown, err := o.upstreamClient.OpenStream(req)
+		if err != nil {
+			// TODO implement retry/back-off logic on error scenario.
+			// https://github.com/envoyproxy/xds-relay/issues/68
+			o.logger.With("err", err).With("key", aggregatedKey).Error(ctx, "Failed to open stream to origin server")
+		} else {
+			respChannel := o.upstreamResponseMap.add(aggregatedKey, upstreamResponseChan)
+			// Spin up a go routine to watch for upstream responses.
+			// One routine is opened per aggregate key.
+			go o.watchUpstream(ctx, aggregatedKey, respChannel.response, respChannel.done, shutdown)
+		}
 
 	}
 	o.upstreamResponseMap.mu.Unlock()
 
-	return responseChannel, o.onCancelWatch(&req)
+	return responseChannel, o.onCancelWatch(aggregatedKey, &req)
 }
 
 // Fetch implements the polling method of the config cache using a non-empty request.
@@ -189,6 +194,7 @@ func (o *orchestrator) watchUpstream(
 	aggregatedKey string,
 	responseChannel <-chan *discovery.DiscoveryResponse,
 	done <-chan bool,
+	shutdown func(),
 ) {
 	for {
 		select {
@@ -236,6 +242,7 @@ func (o *orchestrator) watchUpstream(
 			}
 		case <-done:
 			// Exit when signaled that the stream has closed.
+			shutdown()
 			return
 		}
 	}
@@ -243,8 +250,8 @@ func (o *orchestrator) watchUpstream(
 
 // fanout pushes the response to the response channels of all open downstream
 // watches in parallel.
-func (o *orchestrator) fanout(resp *cache.Response, watchers []*gcp.Request) {
-	for _, watch := range watchers {
+func (o *orchestrator) fanout(resp *cache.Response, watchers map[*gcp.Request]bool) {
+	for watch := range watchers {
 		go func(watch *gcp.Request) {
 			if channel, ok := o.downstreamResponseMap.get(watch); ok {
 				channel <- convertToGcpResponse(resp, *watch)
@@ -262,17 +269,17 @@ func (o *orchestrator) onCacheEvicted(key string, resource cache.Resource) {
 }
 
 // onCancelWatch cleans up the cached watch when called.
-func (o *orchestrator) onCancelWatch(req *gcp.Request) func() {
+func (o *orchestrator) onCancelWatch(aggregatedKey string, req *gcp.Request) func() {
 	return func() {
 		o.downstreamResponseMap.delete(req)
-		// TODO (https://github.com/envoyproxy/xds-relay/issues/57). Clean up
-		// watch from cache. Cache needs to expose a function to do so.
+		o.cache.DeleteRequest(aggregatedKey, req)
 	}
 }
 
-// shutdown closes the upstream connection for the specified aggregated key.
-func (o *orchestrator) shutdown(aggregatedKey string) {
-	o.upstreamResponseMap.delete(aggregatedKey)
+// shutdown closes all upstream connections when ctx.Done is called.
+func (o *orchestrator) shutdown(ctx context.Context) {
+	<-ctx.Done()
+	o.upstreamResponseMap.deleteAll()
 }
 
 // convertToGcpResponse constructs the go-control-plane response from the

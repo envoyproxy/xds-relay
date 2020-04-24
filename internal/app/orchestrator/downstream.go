@@ -9,8 +9,14 @@ import (
 // downstreamResponseMap is a map of downstream xDS client requests to response
 // channels.
 type downstreamResponseMap struct {
-	mu              sync.RWMutex
-	responseChannel map[*gcp.Request]chan gcp.Response
+	mu               sync.RWMutex
+	responseChannels map[*gcp.Request]chan gcp.Response
+}
+
+func newDownstreamResponseMap() downstreamResponseMap {
+	return downstreamResponseMap{
+		responseChannels: make(map[*gcp.Request]chan gcp.Response),
+	}
 }
 
 // createChannel initializes a new channel for a request if it doesn't already
@@ -18,17 +24,17 @@ type downstreamResponseMap struct {
 func (d *downstreamResponseMap) createChannel(req *gcp.Request) chan gcp.Response {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	if _, ok := d.responseChannel[req]; !ok {
-		d.responseChannel[req] = make(chan gcp.Response)
+	if _, ok := d.responseChannels[req]; !ok {
+		d.responseChannels[req] = make(chan gcp.Response)
 	}
-	return d.responseChannel[req]
+	return d.responseChannels[req]
 }
 
 // get retrieves the channel where responses are set for the specified request.
 func (d *downstreamResponseMap) get(req *gcp.Request) (chan gcp.Response, bool) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
-	channel, ok := d.responseChannel[req]
+	channel, ok := d.responseChannels[req]
 	return channel, ok
 }
 
@@ -36,9 +42,9 @@ func (d *downstreamResponseMap) get(req *gcp.Request) (chan gcp.Response, bool) 
 func (d *downstreamResponseMap) delete(req *gcp.Request) chan gcp.Response {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	if channel, ok := d.responseChannel[req]; ok {
+	if channel, ok := d.responseChannels[req]; ok {
 		close(channel)
-		delete(d.responseChannel, req)
+		delete(d.responseChannels, req)
 		return channel
 	}
 	return nil
@@ -46,13 +52,13 @@ func (d *downstreamResponseMap) delete(req *gcp.Request) chan gcp.Response {
 
 // deleteAll closes all the response channels for the provided requests and
 // removes them from the map.
-func (d *downstreamResponseMap) deleteAll(req []*gcp.Request) {
+func (d *downstreamResponseMap) deleteAll(watches map[*gcp.Request]bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	for _, watch := range req {
-		if d.responseChannel[watch] != nil {
-			close(d.responseChannel[watch])
-			delete(d.responseChannel, watch)
+	for watch := range watches {
+		if d.responseChannels[watch] != nil {
+			close(d.responseChannels[watch])
+			delete(d.responseChannels, watch)
 		}
 	}
 }

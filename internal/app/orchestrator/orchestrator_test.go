@@ -18,7 +18,7 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
 	upstream_mock "github.com/envoyproxy/xds-relay/internal/app/upstream/mock"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
-	yamlproto "github.com/envoyproxy/xds-relay/internal/pkg/util"
+	"github.com/envoyproxy/xds-relay/internal/pkg/util/yamlproto"
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
 )
@@ -59,10 +59,10 @@ func newMockOrchestrator(t *testing.T, mapper mapper.Mapper, upstreamClient upst
 		mapper:         mapper,
 		upstreamClient: upstreamClient,
 		downstreamResponseMap: downstreamResponseMap{
-			responseChannel: make(map[*gcp.Request]chan gcp.Response),
+			responseChannels: make(map[*gcp.Request]chan gcp.Response),
 		},
 		upstreamResponseMap: upstreamResponseMap{
-			responseChannel: make(map[string]upstreamResponseChannel),
+			responseChannels: make(map[string]upstreamResponseChannel),
 		},
 	}
 
@@ -101,7 +101,8 @@ func TestNew(t *testing.T) {
 		upstream.CallOptions{},
 		nil,
 		nil,
-		func(m interface{}) error { return nil })
+		func(m interface{}) error { return nil },
+	)
 
 	config := aggregationv1.KeyerConfiguration{
 		Fragments: []*aggregationv1.KeyerConfiguration_Fragment{
@@ -141,8 +142,8 @@ func TestGoldenPath(t *testing.T) {
 
 	respChannel, cancelWatch := orchestrator.CreateWatch(req)
 	assert.NotNil(t, respChannel)
-	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.responseChannel))
-	assert.Equal(t, 1, len(orchestrator.upstreamResponseMap.responseChannel))
+	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.responseChannels))
+	assert.Equal(t, 1, len(orchestrator.upstreamResponseMap.responseChannels))
 
 	resp := v2.DiscoveryResponse{
 		VersionInfo: "1",
@@ -158,13 +159,13 @@ func TestGoldenPath(t *testing.T) {
 	gotResponse := <-respChannel
 	assertEqualResources(t, gotResponse, resp, req)
 
-	aggregatedKey, err := mapper.GetKey(req)
-	assert.NoError(t, err)
-	orchestrator.shutdown(aggregatedKey)
-	assert.Equal(t, 0, len(orchestrator.upstreamResponseMap.responseChannel))
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	orchestrator.shutdown(ctx)
+	assert.Equal(t, 0, len(orchestrator.upstreamResponseMap.responseChannels))
 
 	cancelWatch()
-	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.responseChannel))
+	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.responseChannels))
 }
 
 func TestCachedResponse(t *testing.T) {
@@ -203,8 +204,8 @@ func TestCachedResponse(t *testing.T) {
 
 	respChannel, cancelWatch := orchestrator.CreateWatch(req)
 	assert.NotNil(t, respChannel)
-	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.responseChannel))
-	assert.Equal(t, 1, len(orchestrator.upstreamResponseMap.responseChannel))
+	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.responseChannels))
+	assert.Equal(t, 1, len(orchestrator.upstreamResponseMap.responseChannels))
 
 	gotResponse := <-respChannel
 	assertEqualResources(t, gotResponse, mockResponse, req)
@@ -223,7 +224,7 @@ func TestCachedResponse(t *testing.T) {
 	upstreamResponseChannel <- &resp
 	gotResponse = <-respChannel
 	assertEqualResources(t, gotResponse, resp, req)
-	assert.Equal(t, 1, len(orchestrator.upstreamResponseMap.responseChannel))
+	assert.Equal(t, 1, len(orchestrator.upstreamResponseMap.responseChannels))
 
 	// Test scenario with same request and response version.
 	// We expect a watch to be open but no response.
@@ -234,17 +235,20 @@ func TestCachedResponse(t *testing.T) {
 
 	respChannel2, cancelWatch2 := orchestrator.CreateWatch(req2)
 	assert.NotNil(t, respChannel2)
-	assert.Equal(t, 2, len(orchestrator.downstreamResponseMap.responseChannel))
-	assert.Equal(t, 1, len(orchestrator.upstreamResponseMap.responseChannel))
+	assert.Equal(t, 2, len(orchestrator.downstreamResponseMap.responseChannels))
+	assert.Equal(t, 1, len(orchestrator.upstreamResponseMap.responseChannels))
 
 	// If we pass this point, it's safe to assume the respChannel2 is empty,
 	// otherwise the test would block and not complete.
-	orchestrator.shutdown(aggregatedKey)
-	assert.Equal(t, 0, len(orchestrator.upstreamResponseMap.responseChannel))
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	orchestrator.shutdown(ctx)
+	assert.Equal(t, 0, len(orchestrator.upstreamResponseMap.responseChannels))
+
 	cancelWatch()
-	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.responseChannel))
+	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.responseChannels))
 	cancelWatch2()
-	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.responseChannel))
+	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.responseChannels))
 }
 
 func TestMultipleWatchesAndUpstreams(t *testing.T) {
@@ -306,24 +310,20 @@ func TestMultipleWatchesAndUpstreams(t *testing.T) {
 	gotResponseFromChannel2 := <-respChannel2
 	gotResponseFromChannel3 := <-respChannel3
 
-	aggregatedKeyLDS, err := mapper.GetKey(req1)
-	assert.NoError(t, err)
-	aggregatedKeyCDS, err := mapper.GetKey(req3)
-	assert.NoError(t, err)
-
-	assert.Equal(t, 3, len(orchestrator.downstreamResponseMap.responseChannel))
-	assert.Equal(t, 2, len(orchestrator.upstreamResponseMap.responseChannel))
+	assert.Equal(t, 3, len(orchestrator.downstreamResponseMap.responseChannels))
+	assert.Equal(t, 2, len(orchestrator.upstreamResponseMap.responseChannels))
 
 	assertEqualResources(t, gotResponseFromChannel1, upstreamResponseLDS, req1)
 	assertEqualResources(t, gotResponseFromChannel2, upstreamResponseLDS, req2)
 	assertEqualResources(t, gotResponseFromChannel3, upstreamResponseCDS, req3)
 
-	orchestrator.shutdown(aggregatedKeyLDS)
-	orchestrator.shutdown(aggregatedKeyCDS)
-	assert.Equal(t, 0, len(orchestrator.upstreamResponseMap.responseChannel))
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	orchestrator.shutdown(ctx)
+	assert.Equal(t, 0, len(orchestrator.upstreamResponseMap.responseChannels))
 
 	cancelWatch1()
 	cancelWatch2()
 	cancelWatch3()
-	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.responseChannel))
+	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.responseChannels))
 }
