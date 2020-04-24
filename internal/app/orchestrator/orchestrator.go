@@ -272,7 +272,9 @@ func (o *orchestrator) onCacheEvicted(key string, resource cache.Resource) {
 func (o *orchestrator) onCancelWatch(aggregatedKey string, req *gcp.Request) func() {
 	return func() {
 		o.downstreamResponseMap.delete(req)
-		o.cache.DeleteRequest(aggregatedKey, req)
+		if err := o.cache.DeleteRequest(aggregatedKey, req); err != nil {
+			o.logger.With("key", aggregatedKey).With("err", err).Warn(context.Background(), "Failed to delete from cache")
+		}
 	}
 }
 

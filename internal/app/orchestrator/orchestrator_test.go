@@ -39,7 +39,9 @@ type mockMultiStreamUpstreamClient struct {
 	mapper mapper.Mapper
 }
 
-func (m mockMultiStreamUpstreamClient) OpenStream(req v2.DiscoveryRequest) (<-chan *v2.DiscoveryResponse, func(), error) {
+func (m mockMultiStreamUpstreamClient) OpenStream(
+	req v2.DiscoveryRequest,
+) (<-chan *v2.DiscoveryResponse, func(), error) {
 	aggregatedKey, err := m.mapper.GetKey(req)
 	assert.NoError(m.t, err)
 
