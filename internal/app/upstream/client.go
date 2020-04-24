@@ -7,6 +7,7 @@ import (
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
+	"github.com/envoyproxy/xds-relay/internal/pkg/util"
 	"google.golang.org/grpc"
 )
 
@@ -78,6 +79,7 @@ type version struct {
 // The method does not block until the underlying connection is up.
 // Returns immediately and connecting the server happens in background
 func NewClient(ctx context.Context, url string, callOptions CallOptions, logger log.Logger) (Client, error) {
+	logger.Info(ctx, "Initiating upstream connection.")
 	// TODO: configure grpc options.https://github.com/envoyproxy/xds-relay/issues/55
 	conn, err := grpc.Dial(url, grpc.WithInsecure())
 	if err != nil {
@@ -163,7 +165,9 @@ func send(
 			}
 			request.ResponseNonce = sig.nonce
 			request.VersionInfo = sig.version
-			err := doWithTimeout(ctx, func() error {
+			// Ref: https://github.com/grpc/grpc-go/issues/1229#issuecomment-302755717
+			// Call SendMsg in a timeout because it can block in some cases.
+			err := util.DoWithTimeout(ctx, func() error {
 				return stream.SendMsg(request)
 			}, callOptions.Timeout)
 			if err != nil {
@@ -227,25 +231,6 @@ func closeChannels(versionChan chan *version, responseChan chan *v2.DiscoveryRes
 func shutDown(ctx context.Context, conn *grpc.ClientConn) {
 	<-ctx.Done()
 	conn.Close()
-}
-
-// DoWithTimeout runs f and returns its error.  If the deadline d elapses first,
-// it returns a DeadlineExceeded error instead.
-// Ref: https://github.com/grpc/grpc-go/issues/1229#issuecomment-302755717
-func doWithTimeout(ctx context.Context, f func() error, d time.Duration) error {
-	timeoutCtx, cancel := context.WithTimeout(ctx, d)
-	defer cancel()
-	errChan := make(chan error, 1)
-	go func() {
-		errChan <- f()
-		close(errChan)
-	}()
-	select {
-	case <-timeoutCtx.Done():
-		return timeoutCtx.Err()
-	case err := <-errChan:
-		return err
-	}
 }
 
 func (e *UnsupportedResourceError) Error() string {
