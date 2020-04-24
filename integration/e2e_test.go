@@ -105,7 +105,7 @@ func startSnapshotCache(ctx context.Context, upstreamPort uint, basePort uint, n
 	signal := make(chan struct{})
 	cbv2 := &gcptestv2.Callbacks{Signal: signal}
 
-	configv2 := gcpcachev2.NewSnapshotCache(false, gcpcachev2.IDHash{}, logger{})
+	configv2 := gcpcachev2.NewSnapshotCache(false, gcpcachev2.IDHash{}, gcpLogger{})
 	srv2 := gcpserverv2.NewServer(ctx, configv2, cbv2)
 	// We don't have support for v3 yet, but this is left here in preparation for the eventual
 	// inclusion of v3 resources.
@@ -214,22 +214,4 @@ func callLocalService(basePort uint, nListeners int) (int, int) {
 			return ok, failed
 		}
 	}
-}
-
-type logger struct{}
-
-func (logger logger) Debugf(format string, args ...interface{}) {
-	log.Printf(format+"\n", args...)
-}
-
-func (logger logger) Infof(format string, args ...interface{}) {
-	log.Printf(format+"\n", args...)
-}
-
-func (logger logger) Warnf(format string, args ...interface{}) {
-	log.Printf(format+"\n", args...)
-}
-
-func (logger logger) Errorf(format string, args ...interface{}) {
-	log.Printf(format+"\n", args...)
 }
