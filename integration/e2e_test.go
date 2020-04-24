@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -15,6 +14,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 
 	gcpcachev2 "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	gcpserverv2 "github.com/envoyproxy/go-control-plane/pkg/server/v2"
@@ -28,6 +29,8 @@ import (
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
 	"github.com/onsi/gomega"
 )
+
+var testLogger = log.New("fatal")
 
 func TestMain(m *testing.M) {
 	// We force a 1 second sleep before running a test to let the OS close any lingering socket from previous
@@ -75,7 +78,7 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 
 	for i := 0; i < nUpdates; i++ {
 		snapshotv2.Version = fmt.Sprintf("v%d", i)
-		log.Printf("Update snapshot %v\n", snapshotv2.Version)
+		testLogger.Info(ctx, "Update snapshot %v\n", snapshotv2.Version)
 
 		snapshotv2 := snapshotv2.Generate()
 		if err := snapshotv2.Consistent(); err != nil {
@@ -85,19 +88,19 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 		// TODO: parametrize node-id in bootstrap files.
 		err := configv2.SetSnapshot("test-id", snapshotv2)
 		if err != nil {
-			t.Fatalf("Snapshot error %q for %+v\n", err, snapshotv2)
+			testLogger.Fatal(ctx, "Snapshot error %q for %+v\n", err, snapshotv2)
 		}
 
 		g.Eventually(func() (int, int) {
 			ok, failed := callLocalService(basePort, nListeners)
-			log.Printf("Request batch: ok %v, failed %v\n", ok, failed)
+			testLogger.Info(ctx, "Request batch: ok %v, failed %v\n", ok, failed)
 			return ok, failed
 		}, 1*time.Second, 100*time.Millisecond).Should(gomega.Equal(nListeners))
 	}
 
 	// TODO(https://github.com/envoyproxy/xds-relay/issues/66): figure out a way to only only copy
 	// envoy logs in case of failures.
-	log.Printf("Envoy logs: \n%s", envoyLogsBuffer.String())
+	testLogger.Info(ctx, "Envoy logs: \n%s", envoyLogsBuffer.String())
 }
 
 func startSnapshotCache(ctx context.Context, upstreamPort uint, basePort uint, nClusters int, nListeners int, port uint) (gcpcachev2.SnapshotCache, gcpresourcev2.TestSnapshot, chan struct{}) {
@@ -105,7 +108,7 @@ func startSnapshotCache(ctx context.Context, upstreamPort uint, basePort uint, n
 	signal := make(chan struct{})
 	cbv2 := &gcptestv2.Callbacks{Signal: signal}
 
-	configv2 := gcpcachev2.NewSnapshotCache(false, gcpcachev2.IDHash{}, logger{})
+	configv2 := gcpcachev2.NewSnapshotCache(false, gcpcachev2.IDHash{}, gcpLogger{logger: testLogger})
 	srv2 := gcpserverv2.NewServer(ctx, configv2, cbv2)
 	// We don't have support for v3 yet, but this is left here in preparation for the eventual
 	// inclusion of v3 resources.
@@ -130,22 +133,22 @@ func startXdsRelayServer(ctx context.Context, cancel context.CancelFunc, bootstr
 	keyerConfigurationFilePath string) {
 	bootstrapConfigFileContent, err := ioutil.ReadFile(bootstrapConfigFilePath)
 	if err != nil {
-		log.Fatal("failed to read bootstrap config file: ", err)
+		testLogger.Fatal(ctx, "failed to read bootstrap config file: ", err)
 	}
 	var bootstrapConfig bootstrapv1.Bootstrap
 	err = yamlproto.FromYAMLToBootstrapConfiguration(string(bootstrapConfigFileContent), &bootstrapConfig)
 	if err != nil {
-		log.Fatal("failed to translate bootstrap config: ", err)
+		testLogger.Fatal(ctx, "failed to translate bootstrap config: ", err)
 	}
 
 	aggregationRulesFileContent, err := ioutil.ReadFile(keyerConfigurationFilePath)
 	if err != nil {
-		log.Fatal("failed to read aggregation rules file: ", err)
+		testLogger.Fatal(ctx, "failed to read aggregation rules file: ", err)
 	}
 	var aggregationRulesConfig aggregationv1.KeyerConfiguration
 	err = yamlproto.FromYAMLToKeyerConfiguration(string(aggregationRulesFileContent), &aggregationRulesConfig)
 	if err != nil {
-		log.Fatal("failed to translate aggregation rules: ", err)
+		testLogger.Fatal(ctx, "failed to translate aggregation rules: ", err)
 	}
 	go server.RunWithContext(ctx, cancel, &bootstrapConfig, &aggregationRulesConfig, "debug", "serve")
 }
@@ -161,13 +164,13 @@ func startEnvoy(ctx context.Context, bootstrapFilePath string, signal chan struc
 	envoyCmd.SysProcAttr = &syscall.SysProcAttr{Pdeathsig: syscall.SIGKILL}
 	envoyCmd.Start()
 
-	log.Println("Waiting for the first request...")
+	testLogger.Info(ctx, "Waiting for the first request...")
 	select {
 	case <-signal:
 		break
 	case <-time.After(1 * time.Minute):
-		log.Printf("Envoy logs: \n%s", b.String())
-		log.Fatalf("Timeout waiting for the first request")
+		testLogger.Info(ctx, "Envoy logs: \n%s", b.String())
+		testLogger.Fatal(ctx, "Timeout waiting for the first request")
 	}
 
 	return b
@@ -214,22 +217,4 @@ func callLocalService(basePort uint, nListeners int) (int, int) {
 			return ok, failed
 		}
 	}
-}
-
-type logger struct{}
-
-func (logger logger) Debugf(format string, args ...interface{}) {
-	log.Printf(format+"\n", args...)
-}
-
-func (logger logger) Infof(format string, args ...interface{}) {
-	log.Printf(format+"\n", args...)
-}
-
-func (logger logger) Warnf(format string, args ...interface{}) {
-	log.Printf(format+"\n", args...)
-}
-
-func (logger logger) Errorf(format string, args ...interface{}) {
-	log.Printf(format+"\n", args...)
 }
