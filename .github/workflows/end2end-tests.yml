@@ -1,0 +1,23 @@
+name: e2e tests
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+env:
+  PACKAGEPATH: ${{ github.workspace }}/go/src/github.com/${{ github.repository }}
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          path: ${{ env.PACKAGEPATH }}
+      - name: Build image
+        working-directory: ${{ env.PACKAGEPATH }}
+        run: docker build . --file Dockerfile --tag xdsrelay
+      - name: run e2e tests inside container
+        run: docker run -v ${{ env.PACKAGEPATH }}:/xds-relay xdsrelay:latest make e2e-tests
