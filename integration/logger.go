@@ -6,6 +6,7 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 )
 
+// nolint
 type gcpLogger struct {
 	logger log.Logger
 }
