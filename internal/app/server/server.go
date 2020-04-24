@@ -27,6 +27,14 @@ import (
 func Run(bootstrapConfig *bootstrapv1.Bootstrap,
 	aggregationRulesConfig *aggregationv1.KeyerConfiguration,
 	logLevel string, mode string) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	RunWithContext(ctx, cancel, bootstrapConfig, aggregationRulesConfig, logLevel, mode)
+}
+
+func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapConfig *bootstrapv1.Bootstrap,
+	aggregationRulesConfig *aggregationv1.KeyerConfiguration, logLevel string, mode string) {
 	// Initialize logger. The command line input for the log level overrides the log level set in the bootstrap config.
 	// If no log level is set in the config, the default is INFO.
 	var logger log.Logger
@@ -35,9 +43,6 @@ func Run(bootstrapConfig *bootstrapv1.Bootstrap,
 	} else {
 		logger = log.New(bootstrapConfig.Logging.Level.String())
 	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	// Initialize upstream client.
 	upstreamPort := strconv.FormatUint(uint64(bootstrapConfig.OriginServer.Address.PortValue), 10)
