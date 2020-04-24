@@ -79,14 +79,19 @@ func Run(bootstrapConfig *bootstrapv1.Bootstrap,
 		return
 	}
 
-	registerShutdownHandler(ctx, cancel, server, logger)
+	registerShutdownHandler(ctx, cancel, server.GracefulStop, logger, time.Second*30)
 	logger.With("address", listener.Addr()).Info(ctx, "Initializing server")
 	if err := server.Serve(listener); err != nil {
 		logger.With("err", err).Fatal(ctx, "failed to initialize server")
 	}
 }
 
-func registerShutdownHandler(ctx context.Context, cancel context.CancelFunc, server *grpc.Server, logger log.Logger) {
+func registerShutdownHandler(
+	ctx context.Context,
+	cancel context.CancelFunc,
+	gracefulStop func(),
+	logger log.Logger,
+	waitTime time.Duration) {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
@@ -94,13 +99,13 @@ func registerShutdownHandler(ctx context.Context, cancel context.CancelFunc, ser
 		logger.Info(ctx, "received interrupt signal:", sig.String())
 		err := util.DoWithTimeout(ctx, func() error {
 			logger.Info(ctx, "initiating grpc graceful stop")
-			server.GracefulStop()
+			gracefulStop()
 			_ = logger.Sync()
 			cancel()
 			return nil
-		}, time.Second*30)
+		}, waitTime)
 		if err != nil {
-			logger.Error(ctx, "shutdown error: %s", err)
+			logger.Error(ctx, "shutdown error: ", err.Error())
 		}
 	}()
 }
