@@ -68,8 +68,8 @@ func TestXdsClientGetsIncrementalResponsesFromUpstreamServer(t *testing.T) {
 	sendResponses(ctx, testLogger, updates, snapshotsv2, configv2)
 	wg.Wait()
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
+	timeoutCtx, timeoutCtxCancel := context.WithTimeout(ctx, 10*time.Second)
+	defer timeoutCtxCancel()
 	select {
 	case <-timeoutCtx.Done():
 		assert.Fail(t, "request count did not match")
