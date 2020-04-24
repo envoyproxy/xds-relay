@@ -28,7 +28,7 @@ import (
 
 const (
 	nodeID           = "node-id"
-	originServerPort = 18000
+	originServerPort = 19000
 	loglevel         = "fatal"
 	updates          = 1
 )
