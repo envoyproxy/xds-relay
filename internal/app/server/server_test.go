@@ -18,7 +18,7 @@ func TestShutdown(t *testing.T) {
 	registerShutdownHandler(ctx, cancel, func() {
 		blockedCh <- true
 	}, l, time.Second*5)
-	syscall.Kill(syscall.Getpid(), syscall.SIGINT)
+	_ = syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 	<-blockedCh
 }
 
@@ -28,7 +28,7 @@ func TestShutdownTimeout(t *testing.T) {
 	registerShutdownHandler(ctx, cancel, func() {
 		<-time.After(time.Minute)
 	}, l, time.Millisecond)
-	syscall.Kill(syscall.Getpid(), syscall.SIGINT)
+	_ = syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 	<-l.blockedCh
 	assert.Equal(t, "shutdown error: context deadline exceeded", l.lastErr)
 }
