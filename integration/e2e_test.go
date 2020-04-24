@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -15,6 +14,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 
 	gcpcachev2 "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	gcpserverv2 "github.com/envoyproxy/go-control-plane/pkg/server/v2"
@@ -105,7 +106,7 @@ func startSnapshotCache(ctx context.Context, upstreamPort uint, basePort uint, n
 	signal := make(chan struct{})
 	cbv2 := &gcptestv2.Callbacks{Signal: signal}
 
-	configv2 := gcpcachev2.NewSnapshotCache(false, gcpcachev2.IDHash{}, gcpLogger{})
+	configv2 := gcpcachev2.NewSnapshotCache(false, gcpcachev2.IDHash{}, gcpLogger{logger: log.New("fatal")})
 	srv2 := gcpserverv2.NewServer(ctx, configv2, cbv2)
 	// We don't have support for v3 yet, but this is left here in preparation for the eventual
 	// inclusion of v3 resources.
