@@ -200,18 +200,23 @@ func (o *orchestrator) watchUpstream(
 		select {
 		case x, more := <-responseChannel:
 			if !more {
-				// A problem occurred fetching the response upstream, log and
-				// return the most recent cached response, so that the
-				// downstream will reissue the discovery request.
+				// A problem occurred fetching the response upstream, log retry.
+				// TODO implement retry/back-off logic on error scenario.
+				// https://github.com/envoyproxy/xds-relay/issues/68
 				o.logger.With("key", aggregatedKey).Error(ctx, "upstream error")
-			} else {
-				// Cache the response.
-				_, err := o.cache.SetResponse(aggregatedKey, *x)
-				if err != nil {
-					// If we fail to cache the new response, log and return the old one.
-					o.logger.With("err", err).With("key", aggregatedKey).
-						Error(ctx, "Failed to cache the response")
-				}
+				return
+			}
+			// Cache the response.
+			_, err := o.cache.SetResponse(aggregatedKey, *x)
+			if err != nil {
+				// TODO if set fails, we may need to retry upstream as well.
+				// Currently the fallback is to rely on a future response, but
+				// that probably isn't ideal.
+				// https://github.com/envoyproxy/xds-relay/issues/70
+				//
+				// If we fail to cache the new response, log and return the old one.
+				o.logger.With("err", err).With("key", aggregatedKey).
+					Error(ctx, "Failed to cache the response")
 			}
 
 			// Get downstream watches and fan out.
@@ -226,15 +231,10 @@ func (o *orchestrator) watchUpstream(
 			} else {
 				if cached == nil || cached.Resp == nil {
 					// If cache is empty, there is nothing to fan out.
-					if !more {
-						// Warn. Benefit of the doubt that this is the first request.
-						o.logger.With("key", aggregatedKey).
-							Warn(ctx, "attempted to fan out with no cached response")
-					} else {
-						// Error. Sanity check. Shouldn't ever reach this.
-						o.logger.With("key", aggregatedKey).
-							Error(ctx, "attempted to fan out with no cached response")
-					}
+					// Error. Sanity check. Shouldn't ever reach this since we
+					// just set the response, but it's a rare scenario that can
+					// happen if the cache TTL is set very short.
+					o.logger.With("key", aggregatedKey).Error(ctx, "attempted to fan out with no cached response")
 				} else {
 					// Goldenpath.
 					o.fanout(cached.Resp, cached.Requests)
@@ -264,6 +264,8 @@ func (o *orchestrator) fanout(resp *cache.Response, watchers map[*gcp.Request]bo
 // other reasons. When this happens, we need to clean up open streams.
 // We shut down both the downstream watches and the upstream stream.
 func (o *orchestrator) onCacheEvicted(key string, resource cache.Resource) {
+	// TODO Potential for improvements here to handle the thundering herd
+	// problem: https://github.com/envoyproxy/xds-relay/issues/71
 	o.downstreamResponseMap.deleteAll(resource.Requests)
 	o.upstreamResponseMap.delete(key)
 }
