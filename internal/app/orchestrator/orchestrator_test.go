@@ -18,6 +18,7 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
 	upstream_mock "github.com/envoyproxy/xds-relay/internal/app/upstream/mock"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
+	"github.com/envoyproxy/xds-relay/internal/pkg/util/testutils"
 	"github.com/envoyproxy/xds-relay/internal/pkg/util/yamlproto"
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
@@ -57,15 +58,11 @@ func (m mockMultiStreamUpstreamClient) OpenStream(
 
 func newMockOrchestrator(t *testing.T, mapper mapper.Mapper, upstreamClient upstream.Client) *orchestrator {
 	orchestrator := &orchestrator{
-		logger:         log.New("info"),
-		mapper:         mapper,
-		upstreamClient: upstreamClient,
-		downstreamResponseMap: downstreamResponseMap{
-			responseChannels: make(map[*gcp.Request]chan gcp.Response),
-		},
-		upstreamResponseMap: upstreamResponseMap{
-			responseChannels: make(map[string]upstreamResponseChannel),
-		},
+		logger:                log.New("info"),
+		mapper:                mapper,
+		upstreamClient:        upstreamClient,
+		downstreamResponseMap: newDownstreamResponseMap(),
+		upstreamResponseMap:   newUpstreamResponseMap(),
 	}
 
 	cache, err := cache.NewCache(1000, orchestrator.onCacheEvicted, 10*time.Second)
@@ -145,7 +142,7 @@ func TestGoldenPath(t *testing.T) {
 	respChannel, cancelWatch := orchestrator.CreateWatch(req)
 	assert.NotNil(t, respChannel)
 	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.responseChannels))
-	assert.Equal(t, 1, len(orchestrator.upstreamResponseMap.responseChannels))
+	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
 
 	resp := v2.DiscoveryResponse{
 		VersionInfo: "1",
@@ -164,7 +161,7 @@ func TestGoldenPath(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	orchestrator.shutdown(ctx)
-	assert.Equal(t, 0, len(orchestrator.upstreamResponseMap.responseChannels))
+	testutils.AssertSyncMapLen(t, 0, orchestrator.upstreamResponseMap.internal)
 
 	cancelWatch()
 	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.responseChannels))
@@ -207,7 +204,7 @@ func TestCachedResponse(t *testing.T) {
 	respChannel, cancelWatch := orchestrator.CreateWatch(req)
 	assert.NotNil(t, respChannel)
 	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.responseChannels))
-	assert.Equal(t, 1, len(orchestrator.upstreamResponseMap.responseChannels))
+	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
 
 	gotResponse := <-respChannel
 	assertEqualResources(t, gotResponse, mockResponse, req)
@@ -226,7 +223,7 @@ func TestCachedResponse(t *testing.T) {
 	upstreamResponseChannel <- &resp
 	gotResponse = <-respChannel
 	assertEqualResources(t, gotResponse, resp, req)
-	assert.Equal(t, 1, len(orchestrator.upstreamResponseMap.responseChannels))
+	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
 
 	// Test scenario with same request and response version.
 	// We expect a watch to be open but no response.
@@ -238,14 +235,14 @@ func TestCachedResponse(t *testing.T) {
 	respChannel2, cancelWatch2 := orchestrator.CreateWatch(req2)
 	assert.NotNil(t, respChannel2)
 	assert.Equal(t, 2, len(orchestrator.downstreamResponseMap.responseChannels))
-	assert.Equal(t, 1, len(orchestrator.upstreamResponseMap.responseChannels))
+	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
 
 	// If we pass this point, it's safe to assume the respChannel2 is empty,
 	// otherwise the test would block and not complete.
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	orchestrator.shutdown(ctx)
-	assert.Equal(t, 0, len(orchestrator.upstreamResponseMap.responseChannels))
+	testutils.AssertSyncMapLen(t, 0, orchestrator.upstreamResponseMap.internal)
 
 	cancelWatch()
 	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.responseChannels))
@@ -313,7 +310,7 @@ func TestMultipleWatchesAndUpstreams(t *testing.T) {
 	gotResponseFromChannel3 := <-respChannel3
 
 	assert.Equal(t, 3, len(orchestrator.downstreamResponseMap.responseChannels))
-	assert.Equal(t, 2, len(orchestrator.upstreamResponseMap.responseChannels))
+	testutils.AssertSyncMapLen(t, 2, orchestrator.upstreamResponseMap.internal)
 
 	assertEqualResources(t, gotResponseFromChannel1, upstreamResponseLDS, req1)
 	assertEqualResources(t, gotResponseFromChannel2, upstreamResponseLDS, req2)
@@ -322,7 +319,7 @@ func TestMultipleWatchesAndUpstreams(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	orchestrator.shutdown(ctx)
-	assert.Equal(t, 0, len(orchestrator.upstreamResponseMap.responseChannels))
+	testutils.AssertSyncMapLen(t, 0, orchestrator.upstreamResponseMap.internal)
 
 	cancelWatch1()
 	cancelWatch2()

@@ -158,26 +158,27 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) 
 
 	// Check if we have a upstream stream open for this aggregated key. If not,
 	// open a stream with the representative request.
-	//
-	// Locking is necessary here so that a simultaneous downstream request
-	// that maps to the same aggregated key doesn't result in two upstream
-	// streams.
-	o.upstreamResponseMap.mu.Lock()
-	if _, ok := o.upstreamResponseMap.responseChannels[aggregatedKey]; !ok {
+	if !o.upstreamResponseMap.exists(aggregatedKey) {
 		upstreamResponseChan, shutdown, err := o.upstreamClient.OpenStream(req)
 		if err != nil {
 			// TODO implement retry/back-off logic on error scenario.
 			// https://github.com/envoyproxy/xds-relay/issues/68
 			o.logger.With("err", err).With("key", aggregatedKey).Error(ctx, "Failed to open stream to origin server")
 		} else {
-			respChannel := o.upstreamResponseMap.add(aggregatedKey, upstreamResponseChan)
-			// Spin up a go routine to watch for upstream responses.
-			// One routine is opened per aggregate key.
-			go o.watchUpstream(ctx, aggregatedKey, respChannel.response, respChannel.done, shutdown)
+			respChannel, upstreamOpenedPreviously := o.upstreamResponseMap.add(aggregatedKey, upstreamResponseChan)
+			if upstreamOpenedPreviously {
+				// A stream was opened previously due to a race between
+				// concurrent downstreams for the same aggregated key, between
+				// exists and add operations. In this event, simply close the
+				// slower stream and return the existing one.
+				shutdown()
+			} else {
+				// Spin up a go routine to watch for upstream responses.
+				// One routine is opened per aggregate key.
+				go o.watchUpstream(ctx, aggregatedKey, respChannel.response, respChannel.done, shutdown)
+			}
 		}
-
 	}
-	o.upstreamResponseMap.mu.Unlock()
 
 	return responseChannel, o.onCancelWatch(aggregatedKey, &req)
 }
