@@ -9,6 +9,7 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
@@ -256,12 +257,15 @@ func (o *orchestrator) watchUpstream(
 // fanout pushes the response to the response channels of all open downstream
 // watches in parallel.
 func (o *orchestrator) fanout(resp *cache.Response, watchers map[*gcp.Request]bool, aggregatedKey string) {
+	var wg sync.WaitGroup
 	for watch := range watchers {
+		wg.Add(1)
 		go func(watch *gcp.Request) {
+			defer wg.Done()
 			if channel, ok := o.downstreamResponseMap.get(watch); ok {
 				select {
 				case channel <- convertToGcpResponse(resp, *watch):
-					return
+					break
 				case <-time.After(fanoutTimeout * time.Second):
 					o.logger.With("key", aggregatedKey).Error(
 						context.Background(), "timeout exceeded: channel blocked during fanout")
@@ -269,6 +273,8 @@ func (o *orchestrator) fanout(resp *cache.Response, watchers map[*gcp.Request]bo
 			}
 		}(watch)
 	}
+	// Wait for all fanouts to complete.
+	wg.Wait()
 }
 
 // onCacheEvicted is called when the cache evicts a response due to TTL or
