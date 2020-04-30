@@ -195,7 +195,7 @@ func (o *orchestrator) watchUpstream(
 	aggregatedKey string,
 	responseChannel <-chan *discovery.DiscoveryResponse,
 	done <-chan bool,
-	shutdown func(),
+	shutdownUpstream func(),
 ) {
 	for {
 		select {
@@ -243,7 +243,7 @@ func (o *orchestrator) watchUpstream(
 			}
 		case <-done:
 			// Exit when signaled that the stream has closed.
-			shutdown()
+			shutdownUpstream()
 			return
 		}
 	}
