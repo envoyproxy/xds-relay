@@ -57,7 +57,7 @@ func (u *upstreamResponseMap) delete(aggregatedKey string) {
 		close(channel.(upstreamResponseChannel).done)
 		// The implementation of sync.Map will already check for key existence
 		// prior to issuing the delete, so we don't need worry about deleting
-		// a non-existence key due to concurrent race conditions.
+		// a non-existent key due to concurrent race conditions.
 		u.internal.Delete(aggregatedKey)
 	}
 }

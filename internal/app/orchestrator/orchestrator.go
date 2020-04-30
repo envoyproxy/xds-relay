@@ -28,6 +28,10 @@ const (
 	// unaggregatedPrefix is the prefix used to label discovery requests that
 	// could not be successfully mapped to an aggregation rule.
 	unaggregatedPrefix = "unaggregated_"
+
+	// fanoutTimeout is the seconds that a go routine remains blocked waiting
+	// for the downstream response channel to be populated during fanout.
+	fanoutTimeout = 10
 )
 
 // Orchestrator has the following responsibilities:
@@ -238,7 +242,7 @@ func (o *orchestrator) watchUpstream(
 					o.logger.With("key", aggregatedKey).Error(ctx, "attempted to fan out with no cached response")
 				} else {
 					// Goldenpath.
-					o.fanout(cached.Resp, cached.Requests)
+					o.fanout(cached.Resp, cached.Requests, aggregatedKey)
 				}
 			}
 		case <-done:
@@ -251,11 +255,17 @@ func (o *orchestrator) watchUpstream(
 
 // fanout pushes the response to the response channels of all open downstream
 // watches in parallel.
-func (o *orchestrator) fanout(resp *cache.Response, watchers map[*gcp.Request]bool) {
+func (o *orchestrator) fanout(resp *cache.Response, watchers map[*gcp.Request]bool, aggregatedKey string) {
 	for watch := range watchers {
 		go func(watch *gcp.Request) {
 			if channel, ok := o.downstreamResponseMap.get(watch); ok {
-				channel <- convertToGcpResponse(resp, *watch)
+				select {
+				case channel <- convertToGcpResponse(resp, *watch):
+					return
+				case <-time.After(fanoutTimeout * time.Second):
+					o.logger.With("key", aggregatedKey).Error(
+						context.Background(), "timeout exceeded: channel blocked during fanout")
+				}
 			}
 		}(watch)
 	}
