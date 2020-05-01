@@ -2,7 +2,9 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
@@ -31,6 +33,48 @@ func Run(bootstrapConfig *bootstrapv1.Bootstrap,
 	defer cancel()
 
 	RunWithContext(ctx, cancel, bootstrapConfig, aggregationRulesConfig, logLevel, mode)
+}
+
+func RunAdminServer(ctx context.Context, logger log.Logger) {
+	adminServer := &http.Server{
+		//TODO(lisalu): Possibly make below address configurable.
+		Addr:              "127.0.0.1:6070",
+		Handler:           nil,
+		TLSConfig:         nil,
+		ReadTimeout:       0,
+		ReadHeaderTimeout: 0,
+		WriteTimeout:      0,
+		IdleTimeout:       0,
+		MaxHeaderBytes:    0,
+		TLSNextProto:      nil,
+		ConnState:         nil,
+		ErrorLog:          nil,
+		BaseContext:       nil,
+		ConnContext:       nil,
+	}
+	defaultHandler := func(w http.ResponseWriter, req *http.Request) {
+		// The "/" pattern matches everything, so we need to check
+		// that we're at the root here.
+		if req.URL.Path != "/" {
+			http.NotFound(w, req)
+			return
+		}
+		fmt.Fprintf(w, "hello world!")
+	}
+	http.HandleFunc("/", defaultHandler)
+
+	go func() {
+		sigint := make(chan os.Signal, 1)
+		signal.Notify(sigint, os.Interrupt)
+		<-sigint
+		if err := adminServer.Shutdown(context.Background()); err != nil {
+			//TODO(lisalu): Use diff. context/logger.
+			logger.Error(ctx, "shutdown error: ", err)
+		}
+	}()
+	if err := adminServer.ListenAndServe(); err != http.ErrServerClosed {
+		logger.Fatal(ctx, "HTTP server ListenAndServe: %v", err)
+	}
 }
 
 func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapConfig *bootstrapv1.Bootstrap,
@@ -83,6 +127,8 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	if mode != "serve" {
 		return
 	}
+
+	go RunAdminServer(ctx, logger)
 
 	registerShutdownHandler(ctx, cancel, server.GracefulStop, logger, time.Second*30)
 	logger.With("address", listener.Addr()).Info(ctx, "Initializing server")
