@@ -38,26 +38,31 @@ func (d *downstreamResponseMap) get(req *gcp.Request) (chan gcp.Response, bool) 
 	return channel, ok
 }
 
-// delete closes the response channel and removes it from the map.
+// delete removes the response channel and request entry from the map.
+// Note: We don't close the response channel prior to deletion because there
+// can be separate go routines that are still attempting to write to the
+// channel. We rely on garbage collection to clean up and close outstanding
+// response channels once the go routines finish writing to them.
 func (d *downstreamResponseMap) delete(req *gcp.Request) chan gcp.Response {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if channel, ok := d.responseChannels[req]; ok {
-		close(channel)
 		delete(d.responseChannels, req)
 		return channel
 	}
 	return nil
 }
 
-// deleteAll closes all the response channels for the provided requests and
-// removes them from the map.
+// deleteAll removes all response channels and request entries from the map.
+// Note: We don't close the response channel prior to deletion because there
+// can be separate go routines that are still attempting to write to the
+// channel. We rely on garbage collection to clean up and close outstanding
+// response channels once the go routines finish writing to them.
 func (d *downstreamResponseMap) deleteAll(watches map[*gcp.Request]bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	for watch := range watches {
 		if d.responseChannels[watch] != nil {
-			close(d.responseChannels[watch])
 			delete(d.responseChannels, watch)
 		}
 	}

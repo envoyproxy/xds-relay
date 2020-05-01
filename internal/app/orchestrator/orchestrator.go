@@ -32,7 +32,7 @@ const (
 
 	// fanoutTimeout is the seconds that a go routine remains blocked waiting
 	// for the downstream response channel to be populated during fanout.
-	fanoutTimeout = 10
+	fanoutTimeout = 1
 )
 
 // Orchestrator has the following responsibilities:
@@ -267,8 +267,8 @@ func (o *orchestrator) fanout(resp *cache.Response, watchers map[*gcp.Request]bo
 				case channel <- convertToGcpResponse(resp, *watch):
 					break
 				case <-time.After(fanoutTimeout * time.Second):
-					o.logger.With("key", aggregatedKey).Error(
-						context.Background(), "timeout exceeded: channel blocked during fanout")
+					o.logger.With("key", aggregatedKey).With("node ID", watch.GetNode().GetId()).
+						Error(context.Background(), "timeout exceeded: channel blocked during fanout")
 				}
 			}
 		}(watch)
