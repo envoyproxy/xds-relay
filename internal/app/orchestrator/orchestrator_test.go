@@ -7,6 +7,7 @@ import (
 	"time"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	v2_core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/duration"
@@ -268,12 +269,21 @@ func TestMultipleWatchesAndUpstreams(t *testing.T) {
 
 	req1 := gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
+		Node: &v2_core.Node{
+			Id: "req1",
+		},
 	}
 	req2 := gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
+		Node: &v2_core.Node{
+			Id: "req2",
+		},
 	}
 	req3 := gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Cluster",
+		Node: &v2_core.Node{
+			Id: "req3",
+		},
 	}
 
 	respChannel1, cancelWatch1 := orchestrator.CreateWatch(req1)

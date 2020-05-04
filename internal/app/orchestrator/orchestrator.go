@@ -266,9 +266,9 @@ func (o *orchestrator) fanout(resp *cache.Response, watchers map[*gcp.Request]bo
 				select {
 				case channel <- convertToGcpResponse(resp, *watch):
 					break
-				case <-time.After(fanoutTimeout * time.Second):
+				default:
 					o.logger.With("key", aggregatedKey).With("node ID", watch.GetNode().GetId()).
-						Error(context.Background(), "timeout exceeded: channel blocked during fanout")
+						Error(context.Background(), "channel blocked during fanout")
 				}
 			}
 		}(watch)

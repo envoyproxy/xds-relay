@@ -25,7 +25,7 @@ func (d *downstreamResponseMap) createChannel(req *gcp.Request) chan gcp.Respons
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if _, ok := d.responseChannels[req]; !ok {
-		d.responseChannels[req] = make(chan gcp.Response)
+		d.responseChannels[req] = make(chan gcp.Response, 1)
 	}
 	return d.responseChannels[req]
 }
