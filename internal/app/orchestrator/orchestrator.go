@@ -29,10 +29,6 @@ const (
 	// unaggregatedPrefix is the prefix used to label discovery requests that
 	// could not be successfully mapped to an aggregation rule.
 	unaggregatedPrefix = "unaggregated_"
-
-	// fanoutTimeout is the seconds that a go routine remains blocked waiting
-	// for the downstream response channel to be populated during fanout.
-	fanoutTimeout = 1
 )
 
 // Orchestrator has the following responsibilities:
