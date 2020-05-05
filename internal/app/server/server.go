@@ -55,19 +55,7 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	// Configure admin server.
 	adminServer := &http.Server{
 		//TODO(lisalu): Make below address configurable.
-		Addr:              "127.0.0.1:6070",
-		Handler:           nil,
-		TLSConfig:         nil,
-		ReadTimeout:       0,
-		ReadHeaderTimeout: 0,
-		WriteTimeout:      0,
-		IdleTimeout:       0,
-		MaxHeaderBytes:    0,
-		TLSNextProto:      nil,
-		ConnState:         nil,
-		ErrorLog:          nil,
-		BaseContext:       nil,
-		ConnContext:       nil,
+		Addr: "127.0.0.1:6070",
 	}
 	defaultHandler := func(w http.ResponseWriter, req *http.Request) {
 		// The "/" pattern matches everything, so we need to check
@@ -76,7 +64,8 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 			http.NotFound(w, req)
 			return
 		}
-		fmt.Fprintf(w, "hello world!")
+		// TODO(lisalu): Add more helpful response message, e.g. listing the different endpoints available.
+		fmt.Fprintf(w, "xds-relay admin API")
 	}
 	http.HandleFunc("/", defaultHandler)
 	configDumpHandler := func(w http.ResponseWriter, req *http.Request) {
