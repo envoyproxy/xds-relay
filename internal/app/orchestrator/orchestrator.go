@@ -282,6 +282,9 @@ func (o *orchestrator) fanout(resp *cache.Response, watchers map[*gcp.Request]bo
 				case channel <- convertToGcpResponse(resp, *watch):
 					break
 				default:
+					// If the channel is blocked, we simply drop subsequent requests and error.
+					// Alternative possibilities are discussed here:
+					// https://github.com/envoyproxy/xds-relay/pull/53#discussion_r420325553
 					o.logger.With("key", aggregatedKey).With("node ID", watch.GetNode().GetId()).
 						Error(context.Background(), "channel blocked during fanout")
 				}
