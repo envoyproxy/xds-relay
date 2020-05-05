@@ -1,3 +1,14 @@
+// Package orchestrator is responsible for instrumenting inbound xDS client
+// requests to the correct aggregated key, forwarding a representative request
+// to the upstream origin server, and managing the lifecycle of downstream and
+// upstream connections and associates streams. It implements
+// go-control-plane's Cache interface in order to receive xDS-based requests,
+// send responses, and handle gRPC streams.
+//
+// This file manages the bookkeeping of upstream responses by tracking the
+// aggregated key and its corresponding receiver channel for upstream
+// responses. The contents of this file are intended to only be used within the
+// orchestrator module and should not be exported.
 package orchestrator
 
 import (
