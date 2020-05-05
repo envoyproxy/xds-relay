@@ -1,0 +1,26 @@
+fragments: 
+  - rules:
+      - match:
+          request_type_match:
+            types:
+              - "type.googleapis.com/envoy.api.v2.Listener"
+        result:
+          string_fragment: "lds"
+      - match:
+          request_type_match:
+            types:
+              - "type.googleapis.com/envoy.api.v2.Cluster"
+        result:
+          string_fragment: "cds"
+      - match:
+          request_type_match:
+            types:
+              - "type.googleapis.com/envoy.api.v2.Route"
+        result:
+          string_fragment: "rds"
+      - match:
+          request_type_match:
+            types:
+              - "type.googleapis.com/envoy.api.v2.Endpoint"
+        result:
+          string_fragment: "eds"
