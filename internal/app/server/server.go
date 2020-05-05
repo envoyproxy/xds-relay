@@ -79,7 +79,10 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 		fmt.Fprintf(w, "hello world!")
 	}
 	http.HandleFunc("/", defaultHandler)
-	http.HandleFunc("/server_info", ConfigDumpHandler)
+	configDumpHandler := func(w http.ResponseWriter, req *http.Request) {
+		fmt.Fprint(w, bootstrapConfig.String())
+	}
+	http.HandleFunc("/server_info", configDumpHandler)
 
 	// Initialize upstream client.
 	upstreamPort := strconv.FormatUint(uint64(bootstrapConfig.OriginServer.Address.PortValue), 10)
@@ -156,9 +159,4 @@ func registerShutdownHandler(
 			logger.Error(ctx, "shutdown error: ", err.Error())
 		}
 	}()
-}
-
-// TODO(lisalu): Implement below API.
-func ConfigDumpHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
 }
