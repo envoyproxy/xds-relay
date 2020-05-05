@@ -35,9 +35,26 @@ func Run(bootstrapConfig *bootstrapv1.Bootstrap,
 	RunWithContext(ctx, cancel, bootstrapConfig, aggregationRulesConfig, logLevel, mode)
 }
 
-func RunAdminServer(ctx context.Context, logger log.Logger) {
+func RunAdminServer(ctx context.Context, adminServer *http.Server, logger log.Logger) {
+	if err := adminServer.ListenAndServe(); err != http.ErrServerClosed {
+		logger.Fatal(ctx, "HTTP server ListenAndServe: %v", err)
+	}
+}
+
+func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapConfig *bootstrapv1.Bootstrap,
+	aggregationRulesConfig *aggregationv1.KeyerConfiguration, logLevel string, mode string) {
+	// Initialize logger. The command line input for the log level overrides the log level set in the bootstrap config.
+	// If no log level is set in the config, the default is INFO.
+	var logger log.Logger
+	if logLevel != "" {
+		logger = log.New(logLevel)
+	} else {
+		logger = log.New(bootstrapConfig.Logging.Level.String())
+	}
+
+	// Configure admin server.
 	adminServer := &http.Server{
-		//TODO(lisalu): Possibly make below address configurable.
+		//TODO(lisalu): Make below address configurable.
 		Addr:              "127.0.0.1:6070",
 		Handler:           nil,
 		TLSConfig:         nil,
@@ -62,31 +79,7 @@ func RunAdminServer(ctx context.Context, logger log.Logger) {
 		fmt.Fprintf(w, "hello world!")
 	}
 	http.HandleFunc("/", defaultHandler)
-
-	go func() {
-		sigint := make(chan os.Signal, 1)
-		signal.Notify(sigint, os.Interrupt)
-		<-sigint
-		if err := adminServer.Shutdown(context.Background()); err != nil {
-			//TODO(lisalu): Use diff. context/logger.
-			logger.Error(ctx, "shutdown error: ", err)
-		}
-	}()
-	if err := adminServer.ListenAndServe(); err != http.ErrServerClosed {
-		logger.Fatal(ctx, "HTTP server ListenAndServe: %v", err)
-	}
-}
-
-func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapConfig *bootstrapv1.Bootstrap,
-	aggregationRulesConfig *aggregationv1.KeyerConfiguration, logLevel string, mode string) {
-	// Initialize logger. The command line input for the log level overrides the log level set in the bootstrap config.
-	// If no log level is set in the config, the default is INFO.
-	var logger log.Logger
-	if logLevel != "" {
-		logger = log.New(logLevel)
-	} else {
-		logger = log.New(bootstrapConfig.Logging.Level.String())
-	}
+	http.HandleFunc("/server_info", ConfigDumpHandler)
 
 	// Initialize upstream client.
 	upstreamPort := strconv.FormatUint(uint64(bootstrapConfig.OriginServer.Address.PortValue), 10)
@@ -128,9 +121,9 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 		return
 	}
 
-	go RunAdminServer(ctx, logger)
+	go RunAdminServer(ctx, adminServer, logger)
 
-	registerShutdownHandler(ctx, cancel, server.GracefulStop, logger, time.Second*30)
+	registerShutdownHandler(ctx, cancel, server.GracefulStop, adminServer.Shutdown, logger, time.Second*30)
 	logger.With("address", listener.Addr()).Info(ctx, "Initializing server")
 	if err := server.Serve(listener); err != nil {
 		logger.With("err", err).Fatal(ctx, "failed to initialize server")
@@ -141,6 +134,7 @@ func registerShutdownHandler(
 	ctx context.Context,
 	cancel context.CancelFunc,
 	gracefulStop func(),
+	adminShutdown func(context.Context) error,
 	logger log.Logger,
 	waitTime time.Duration) {
 	sigs := make(chan os.Signal, 1)
@@ -152,6 +146,9 @@ func registerShutdownHandler(
 			logger.Info(ctx, "initiating grpc graceful stop")
 			gracefulStop()
 			_ = logger.Sync()
+			if shutdownErr := adminShutdown(ctx); shutdownErr != nil {
+				logger.With("err", shutdownErr).Error(ctx, "admin shutdown error: ", shutdownErr.Error())
+			} // TODO(lisalu): Where to place admin shutdown?
 			cancel()
 			return nil
 		}, waitTime)
@@ -159,4 +156,9 @@ func registerShutdownHandler(
 			logger.Error(ctx, "shutdown error: ", err.Error())
 		}
 	}()
+}
+
+// TODO(lisalu): Implement below API.
+func ConfigDumpHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
 }

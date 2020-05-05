@@ -9,6 +9,7 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"time"
 
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
@@ -80,8 +81,13 @@ func New(ctx context.Context,
 		orchestrator.logger.With("error", err).Panic(ctx, "failed to initialize cache")
 	}
 	orchestrator.cache = cache
-
+	http.HandleFunc("/cache/", orchestrator.CacheDumpHandler)
 	return orchestrator
+}
+
+// TODO(lisalu): Implement below API.
+func (c *orchestrator) CacheDumpHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
 }
 
 // CreateWatch is managed by the underlying go-control-plane gRPC server.
