@@ -189,8 +189,27 @@ func (o *orchestrator) Fetch(context.Context, discovery.DiscoveryRequest) (*gcp.
 	return nil, fmt.Errorf("Not implemented")
 }
 
-// watchResponse is intended to be called in a goroutine, to receive incoming
-// responses and fan out to downstream clients.
+// watchUpstream is intended to be called in a go routine, to receive incoming
+// responses, cache the response, and fan out to downstream clients or
+// "watchers". There is a corresponding go routine for each aggregated key.
+//
+// This goroutine continually listens for upstream responses from the passed
+// `responseChannel`. For each response, we will:
+// - cache this latest response, replacing the previous stale response.
+// - retrieve the downstream watchers from the cache for this `aggregated key`.
+// - trigger the fanout process to downstream watchers by pushing to the
+//   individual downstream response channels in separate go routines.
+//
+// Additionally this function tracks a `done` channel and a `shutdownUpstream`
+// function. `done` is a channel that gets closed in two places:
+// 1. when server shutdown is triggered. See the `shutdown` function in this
+//    file for more information.
+// 2. when cache TTL expires for this aggregated key. See the `onCacheEvicted`
+//    function in this file for more information.
+// When the `done` channel is closed, we call the `shutdownUpstream` callback
+// function. This will signify to the upstream client that we no longer require
+// responses from this stream because the downstream connections have been
+// terminated. The upstream client will clean up the stream accordingly.
 func (o *orchestrator) watchUpstream(
 	ctx context.Context,
 	aggregatedKey string,
@@ -221,14 +240,14 @@ func (o *orchestrator) watchUpstream(
 					Error(ctx, "Failed to cache the response")
 			}
 
-			// Get downstream watches and fan out.
+			// Get downstream watchers and fan out.
 			// We retrieve from cache rather than directly fanning out the
 			// newly received response because the cache does additional
 			// resource serialization.
 			cached, err := o.cache.Fetch(aggregatedKey)
 			if err != nil {
 				o.logger.With("err", err).With("key", aggregatedKey).Error(ctx, "cache fetch failed")
-				// Can't do anything because we don't know who the watches
+				// Can't do anything because we don't know who the watchers
 				// are. Drop the response.
 			} else {
 				if cached == nil || cached.Resp == nil {
@@ -251,7 +270,7 @@ func (o *orchestrator) watchUpstream(
 }
 
 // fanout pushes the response to the response channels of all open downstream
-// watches in parallel.
+// watchers in parallel.
 func (o *orchestrator) fanout(resp *cache.Response, watchers map[*gcp.Request]bool, aggregatedKey string) {
 	var wg sync.WaitGroup
 	for watch := range watchers {
@@ -275,7 +294,7 @@ func (o *orchestrator) fanout(resp *cache.Response, watchers map[*gcp.Request]bo
 
 // onCacheEvicted is called when the cache evicts a response due to TTL or
 // other reasons. When this happens, we need to clean up open streams.
-// We shut down both the downstream watches and the upstream stream.
+// We shut down both the downstream watchers and the upstream stream.
 func (o *orchestrator) onCacheEvicted(key string, resource cache.Resource) {
 	// TODO Potential for improvements here to handle the thundering herd
 	// problem: https://github.com/envoyproxy/xds-relay/issues/71

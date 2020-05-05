@@ -69,10 +69,10 @@ func (d *downstreamResponseMap) delete(req *gcp.Request) chan gcp.Response {
 // can be separate go routines that are still attempting to write to the
 // channel. We rely on garbage collection to clean up and close outstanding
 // response channels once the go routines finish writing to them.
-func (d *downstreamResponseMap) deleteAll(watches map[*gcp.Request]bool) {
+func (d *downstreamResponseMap) deleteAll(watchers map[*gcp.Request]bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	for watch := range watches {
+	for watch := range watchers {
 		if d.responseChannels[watch] != nil {
 			delete(d.responseChannels, watch)
 		}

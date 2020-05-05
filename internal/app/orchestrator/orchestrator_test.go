@@ -198,9 +198,9 @@ func TestCachedResponse(t *testing.T) {
 			},
 		},
 	}
-	watches, err := orchestrator.cache.SetResponse(aggregatedKey, mockResponse)
+	watchers, err := orchestrator.cache.SetResponse(aggregatedKey, mockResponse)
 	assert.NoError(t, err)
-	assert.Equal(t, 0, len(watches))
+	assert.Equal(t, 0, len(watchers))
 
 	respChannel, cancelWatch := orchestrator.CreateWatch(req)
 	assert.NotNil(t, respChannel)
@@ -251,7 +251,7 @@ func TestCachedResponse(t *testing.T) {
 	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.responseChannels))
 }
 
-func TestMultipleWatchesAndUpstreams(t *testing.T) {
+func TestMultipleWatchersAndUpstreams(t *testing.T) {
 	upstreamResponseChannelLDS := make(chan *v2.DiscoveryResponse)
 	upstreamResponseChannelCDS := make(chan *v2.DiscoveryResponse)
 	mapper := newMockMapper(t)
