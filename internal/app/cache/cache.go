@@ -113,7 +113,7 @@ func (c *cache) Fetch(key string) (*Resource, error) {
 func (c *cache) SetResponse(key string, resp v2.DiscoveryResponse) (map[*v2.DiscoveryRequest]bool, error) {
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
-	marshaledResources, err := marshalResources(resp.Resources)
+	marshaledResources, err := MarshalResources(resp.Resources)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal resources for key: %s, err %v", key, err)
 	}
@@ -126,6 +126,7 @@ func (c *cache) SetResponse(key string, resp v2.DiscoveryResponse) (map[*v2.Disc
 		resource := Resource{
 			Resp:           response,
 			ExpirationTime: c.getExpirationTime(time.Now()),
+			Requests:       make(map[*v2.DiscoveryRequest]bool),
 		}
 		c.cache.Add(key, resource)
 		return nil, nil
@@ -193,7 +194,9 @@ func (c *cache) getExpirationTime(currentTime time.Time) time.Time {
 	return time.Time{}
 }
 
-func marshalResources(resources []*any.Any) ([]gcp_types.MarshaledResource, error) {
+// MarshalResource converts the raw xDS discovery resources into a serialized
+// form accepted by go-control-plane.
+func MarshalResources(resources []*any.Any) ([]gcp_types.MarshaledResource, error) {
 	var marshaledResources []gcp_types.MarshaledResource
 	for _, resource := range resources {
 		marshaledResource, err := gcp.MarshalResource(resource)
