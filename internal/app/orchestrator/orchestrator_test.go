@@ -144,6 +144,10 @@ func TestGoldenPath(t *testing.T) {
 	assert.NotNil(t, respChannel)
 	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.responseChannels))
 	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
+	orchestrator.upstreamResponseMap.internal.Range(func(key, val interface{}) bool {
+		assert.Equal(t, "lds", key.(string))
+		return true
+	})
 
 	resp := v2.DiscoveryResponse{
 		VersionInfo: "1",
@@ -206,6 +210,10 @@ func TestCachedResponse(t *testing.T) {
 	assert.NotNil(t, respChannel)
 	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.responseChannels))
 	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
+	orchestrator.upstreamResponseMap.internal.Range(func(key, val interface{}) bool {
+		assert.Equal(t, "lds", key.(string))
+		return true
+	})
 
 	gotResponse := <-respChannel
 	assertEqualResources(t, gotResponse, mockResponse, req)
@@ -225,6 +233,10 @@ func TestCachedResponse(t *testing.T) {
 	gotResponse = <-respChannel
 	assertEqualResources(t, gotResponse, resp, req)
 	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
+	orchestrator.upstreamResponseMap.internal.Range(func(key, val interface{}) bool {
+		assert.Contains(t, "lds", key.(string))
+		return true
+	})
 
 	// Test scenario with same request and response version.
 	// We expect a watch to be open but no response.
@@ -237,6 +249,10 @@ func TestCachedResponse(t *testing.T) {
 	assert.NotNil(t, respChannel2)
 	assert.Equal(t, 2, len(orchestrator.downstreamResponseMap.responseChannels))
 	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
+	orchestrator.upstreamResponseMap.internal.Range(func(key, val interface{}) bool {
+		assert.Contains(t, "lds", key.(string))
+		return true
+	})
 
 	// If we pass this point, it's safe to assume the respChannel2 is empty,
 	// otherwise the test would block and not complete.
@@ -321,6 +337,10 @@ func TestMultipleWatchersAndUpstreams(t *testing.T) {
 
 	assert.Equal(t, 3, len(orchestrator.downstreamResponseMap.responseChannels))
 	testutils.AssertSyncMapLen(t, 2, orchestrator.upstreamResponseMap.internal)
+	orchestrator.upstreamResponseMap.internal.Range(func(key, val interface{}) bool {
+		assert.Contains(t, []string{"lds", "cds"}, key.(string))
+		return true
+	})
 
 	assertEqualResources(t, gotResponseFromChannel1, upstreamResponseLDS, req1)
 	assertEqualResources(t, gotResponseFromChannel2, upstreamResponseLDS, req2)
