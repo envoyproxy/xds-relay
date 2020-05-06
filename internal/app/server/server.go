@@ -57,17 +57,8 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 		//TODO(lisalu): Make below address configurable.
 		Addr: "127.0.0.1:6070",
 	}
-	defaultHandler := func(w http.ResponseWriter, req *http.Request) {
-		// The "/" pattern matches everything, so we need to check
-		// that we're at the root here.
-		if req.URL.Path != "/" {
-			http.NotFound(w, req)
-			return
-		}
-		// TODO(lisalu): Add more helpful response message, e.g. listing the different endpoints available.
-		fmt.Fprintf(w, "xds-relay admin API")
-	}
-	http.HandleFunc("/", defaultHandler)
+
+	http.Handle("/", defaultHandler())
 	configDumpHandler := func(w http.ResponseWriter, req *http.Request) {
 		fmt.Fprint(w, bootstrapConfig.String())
 	}
@@ -148,4 +139,17 @@ func registerShutdownHandler(
 			logger.Error(ctx, "shutdown error: ", err.Error())
 		}
 	}()
+}
+
+func defaultHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		// The "/" pattern matches everything, so we need to check
+		// that we're at the root here.
+		if req.URL.Path != "/" {
+			http.NotFound(w, req)
+			return
+		}
+		// TODO(lisalu): Add more helpful response message, e.g. listing the different endpoints available.
+		fmt.Fprintf(w, "xds-relay admin API")
+	}
 }

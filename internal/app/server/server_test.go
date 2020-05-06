@@ -3,6 +3,8 @@ package server
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"syscall"
 	"testing"
 	"time"
@@ -38,6 +40,28 @@ func TestShutdownTimeout(t *testing.T) {
 	_ = syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 	<-l.blockedCh
 	assert.Equal(t, "shutdown error: context deadline exceeded", l.lastErr)
+}
+
+func TestAdminServer_DefaultHandler(t *testing.T) {
+	req, err := http.NewRequest("GET", "/", nil)
+	assert.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler := defaultHandler()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, "xds-relay admin API", rr.Body.String())
+}
+
+func TestAdminServer_NotFound(t *testing.T) {
+	req, err := http.NewRequest("GET", "/not-implemented", nil)
+	assert.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler := defaultHandler()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+	assert.Equal(t, "404 page not found\n", rr.Body.String())
 }
 
 type logger struct {
