@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -10,6 +9,8 @@ import (
 	"strconv"
 	"syscall"
 	"time"
+
+	admin "github.com/envoyproxy/xds-relay/internal/app/admin/http"
 
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
 	"github.com/envoyproxy/xds-relay/internal/app/orchestrator"
@@ -52,18 +53,6 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 		logger = log.New(bootstrapConfig.Logging.Level.String())
 	}
 
-	// Configure admin server.
-	adminServer := &http.Server{
-		//TODO(lisalu): Make below address configurable.
-		Addr: "127.0.0.1:6070",
-	}
-
-	http.Handle("/", defaultHandler())
-	configDumpHandler := func(w http.ResponseWriter, req *http.Request) {
-		fmt.Fprint(w, bootstrapConfig.String())
-	}
-	http.HandleFunc("/server_info", configDumpHandler)
-
 	// Initialize upstream client.
 	upstreamPort := strconv.FormatUint(uint64(bootstrapConfig.OriginServer.Address.PortValue), 10)
 	upstreamAddress := net.JoinHostPort(bootstrapConfig.OriginServer.Address.Address, upstreamPort)
@@ -84,6 +73,15 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 
 	// Initialize orchestrator.
 	orchestrator := orchestrator.New(ctx, logger, requestMapper, upstreamClient, bootstrapConfig.Cache)
+
+	// Configure admin server.
+	adminServer := &http.Server{
+		//TODO(lisalu): Make below address configurable.
+		Addr: "127.0.0.1:6070",
+	}
+	http.Handle("/", admin.DefaultHandler())
+	http.HandleFunc("/server_info", admin.ConfigDumpHandler(bootstrapConfig))
+	http.HandleFunc("/cache/", admin.CacheDumpHandler(orchestrator.GetCache()))
 
 	// Start server.
 	gcpServer := gcp.NewServer(ctx, orchestrator, nil)
@@ -126,12 +124,13 @@ func registerShutdownHandler(
 		sig := <-sigs
 		logger.Info(ctx, "received interrupt signal:", sig.String())
 		err := util.DoWithTimeout(ctx, func() error {
+			logger.Info(ctx, "initiating admin server shutdown")
+			if shutdownErr := adminShutdown(ctx); shutdownErr != nil {
+				logger.With("err", shutdownErr).Error(ctx, "admin shutdown error: ", shutdownErr.Error())
+			}
 			logger.Info(ctx, "initiating grpc graceful stop")
 			gracefulStop()
 			_ = logger.Sync()
-			if shutdownErr := adminShutdown(ctx); shutdownErr != nil {
-				logger.With("err", shutdownErr).Error(ctx, "admin shutdown error: ", shutdownErr.Error())
-			} // TODO(lisalu): Where to place admin shutdown?
 			cancel()
 			return nil
 		}, waitTime)
@@ -139,17 +138,4 @@ func registerShutdownHandler(
 			logger.Error(ctx, "shutdown error: ", err.Error())
 		}
 	}()
-}
-
-func defaultHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		// The "/" pattern matches everything, so we need to check
-		// that we're at the root here.
-		if req.URL.Path != "/" {
-			http.NotFound(w, req)
-			return
-		}
-		// TODO(lisalu): Add more helpful response message, e.g. listing the different endpoints available.
-		fmt.Fprintf(w, "xds-relay admin API")
-	}
 }

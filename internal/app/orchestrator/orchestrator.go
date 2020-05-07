@@ -9,7 +9,6 @@ package orchestrator
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"sync"
 	"time"
 
@@ -58,6 +57,8 @@ type Orchestrator interface {
 	// This is called by the main shutdown handler and tests to clean up
 	// open channels.
 	shutdown(ctx context.Context)
+
+	GetCache() *cache.Cache
 }
 
 type orchestrator struct {
@@ -99,16 +100,10 @@ func New(
 		orchestrator.logger.With("error", err).Panic(ctx, "failed to initialize cache")
 	}
 	orchestrator.cache = cache
-	http.HandleFunc("/cache/", orchestrator.CacheDumpHandler)
 
 	go orchestrator.shutdown(ctx)
 
 	return orchestrator
-}
-
-// TODO(lisalu): Implement below API.
-func (o *orchestrator) CacheDumpHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
 }
 
 // CreateWatch is managed by the underlying go-control-plane gRPC server.
@@ -194,6 +189,10 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) 
 // Fetch implements the polling method of the config cache using a non-empty request.
 func (o *orchestrator) Fetch(context.Context, discovery.DiscoveryRequest) (*gcp.Response, error) {
 	return nil, fmt.Errorf("Not implemented")
+}
+
+func (o *orchestrator) GetCache() *cache.Cache {
+	return &o.cache
 }
 
 // watchUpstream is intended to be called in a go routine, to receive incoming
