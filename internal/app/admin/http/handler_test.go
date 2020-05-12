@@ -55,5 +55,15 @@ func TestAdminServer_ConfigDumpHandler(t *testing.T) {
 	})
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Equal(t, "server:{address:{address:\"127.0.0.1\"  port_value:9991}}", rr.Body.String())
+	assert.Equal(t,
+		`{
+  "server": {
+    "address": {
+      "address": "127.0.0.1",
+      "port_value": 9991
+    }
+  }
+}
+`,
+		rr.Body.String())
 }

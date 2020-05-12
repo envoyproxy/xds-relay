@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -60,10 +61,13 @@ func defaultHandler(handlers []Handler) http.HandlerFunc {
 	}
 }
 
-// TODO(lisalu): Make config output more readable.
 func configDumpHandler(bootstrapConfig *bootstrapv1.Bootstrap) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		fmt.Fprint(w, bootstrapConfig.String())
+		prettyJSON, err := json.MarshalIndent(bootstrapConfig, "", "  ")
+		if err != nil {
+			fmt.Fprintf(w, "Failed to dump config: %s\n", err.Error())
+		}
+		fmt.Fprintf(w, "%s\n", string(prettyJSON))
 	}
 }
 
@@ -75,7 +79,7 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 		cache := orchestrator.Orchestrator.GetReadOnlyCache(*o)
 		resource, err := cache.Fetch(cacheKey)
 		if err != nil {
-			fmt.Fprintf(w, "no resource for key found in cache")
+			fmt.Fprintf(w, "no resource for key found in cache.\n")
 			return
 		}
 		fmt.Print(w, resource.Resp.Raw.String())
