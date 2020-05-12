@@ -30,13 +30,11 @@ func New(logLevel string) Logger {
 }
 
 func (l *logger) Named(name string) Logger {
-	l.zap = l.zap.Named(name)
-	return l
+	return &logger{zap: l.zap.Named(name)}
 }
 
 func (l *logger) With(args ...interface{}) Logger {
-	l.zap = l.zap.With(args...)
-	return l
+	return &logger{zap: l.zap.With(args...)}
 }
 
 func (l *logger) WithContext(ctx context.Context) *logger {
