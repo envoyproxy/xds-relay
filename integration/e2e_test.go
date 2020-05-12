@@ -30,7 +30,7 @@ import (
 	"github.com/onsi/gomega"
 )
 
-var testLogger = log.New("fatal")
+var testLogger = log.New("debug").Named("e2e")
 
 func TestMain(m *testing.M) {
 	// We force a 1 second sleep before running a test to let the OS close any lingering socket from previous
@@ -65,7 +65,6 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 
 	// We run a service that returns the string "Hi, there!" locally and expose it through envoy.
 	go gcptest.RunHTTP(ctx, upstreamPort)
-
 	configv2, snapshotv2, signal := startSnapshotCache(ctx, upstreamPort, basePort, nClusters, nListeners, port)
 
 	// Start xds-relay server. Note that we are starting the server now but the envoy instance is not yet
@@ -78,29 +77,29 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 
 	for i := 0; i < nUpdates; i++ {
 		snapshotv2.Version = fmt.Sprintf("v%d", i)
-		testLogger.Info(ctx, "Update snapshot %v\n", snapshotv2.Version)
+		testLogger.Infof(ctx, "Update snapshot %v\n", snapshotv2.Version)
 
 		snapshotv2 := snapshotv2.Generate()
 		if err := snapshotv2.Consistent(); err != nil {
-			t.Fatalf("Snapshot inconsistency: %+v\n", snapshotv2)
+			testLogger.Fatalf(ctx, "Snapshot inconsistency: %+v\n", snapshotv2)
 		}
 
 		// TODO: parametrize node-id in bootstrap files.
 		err := configv2.SetSnapshot("test-id", snapshotv2)
 		if err != nil {
-			testLogger.Fatal(ctx, "Snapshot error %q for %+v\n", err, snapshotv2)
+			testLogger.Fatalf(ctx, "Snapshot error %q for %+v\n", err, snapshotv2)
 		}
 
 		g.Eventually(func() (int, int) {
 			ok, failed := callLocalService(basePort, nListeners)
-			testLogger.Info(ctx, "Request batch: ok %v, failed %v\n", ok, failed)
+			testLogger.Infof(ctx, "Request batch: ok %v, failed %v\n", ok, failed)
 			return ok, failed
 		}, 1*time.Second, 100*time.Millisecond).Should(gomega.Equal(nListeners))
 	}
 
 	// TODO(https://github.com/envoyproxy/xds-relay/issues/66): figure out a way to only only copy
 	// envoy logs in case of failures.
-	testLogger.Info(ctx, "Envoy logs: \n%s", envoyLogsBuffer.String())
+	testLogger.Infof(ctx, "Envoy logs: \n%s", envoyLogsBuffer.String())
 }
 
 func startSnapshotCache(ctx context.Context, upstreamPort uint, basePort uint, nClusters int, nListeners int, port uint) (gcpcachev2.SnapshotCache, gcpresourcev2.TestSnapshot, chan struct{}) {
@@ -108,7 +107,7 @@ func startSnapshotCache(ctx context.Context, upstreamPort uint, basePort uint, n
 	signal := make(chan struct{})
 	cbv2 := &gcptestv2.Callbacks{Signal: signal}
 
-	configv2 := gcpcachev2.NewSnapshotCache(false, gcpcachev2.IDHash{}, gcpLogger{logger: testLogger})
+	configv2 := gcpcachev2.NewSnapshotCache(false, gcpcachev2.IDHash{}, gcpLogger{logger: testLogger.Named("snapshot")})
 	srv2 := gcpserverv2.NewServer(ctx, configv2, cbv2)
 	// We don't have support for v3 yet, but this is left here in preparation for the eventual
 	// inclusion of v3 resources.
@@ -133,22 +132,22 @@ func startXdsRelayServer(ctx context.Context, cancel context.CancelFunc, bootstr
 	keyerConfigurationFilePath string) {
 	bootstrapConfigFileContent, err := ioutil.ReadFile(bootstrapConfigFilePath)
 	if err != nil {
-		testLogger.Fatal(ctx, "failed to read bootstrap config file: ", err)
+		testLogger.Fatalf(ctx, "failed to read bootstrap config file: ", err)
 	}
 	var bootstrapConfig bootstrapv1.Bootstrap
 	err = yamlproto.FromYAMLToBootstrapConfiguration(string(bootstrapConfigFileContent), &bootstrapConfig)
 	if err != nil {
-		testLogger.Fatal(ctx, "failed to translate bootstrap config: ", err)
+		testLogger.Fatalf(ctx, "failed to translate bootstrap config: ", err)
 	}
 
 	aggregationRulesFileContent, err := ioutil.ReadFile(keyerConfigurationFilePath)
 	if err != nil {
-		testLogger.Fatal(ctx, "failed to read aggregation rules file: ", err)
+		testLogger.Fatalf(ctx, "failed to read aggregation rules file: ", err)
 	}
 	var aggregationRulesConfig aggregationv1.KeyerConfiguration
 	err = yamlproto.FromYAMLToKeyerConfiguration(string(aggregationRulesFileContent), &aggregationRulesConfig)
 	if err != nil {
-		testLogger.Fatal(ctx, "failed to translate aggregation rules: ", err)
+		testLogger.Fatalf(ctx, "failed to translate aggregation rules: ", err)
 	}
 	go server.RunWithContext(ctx, cancel, &bootstrapConfig, &aggregationRulesConfig, "debug", "serve")
 }
@@ -169,8 +168,8 @@ func startEnvoy(ctx context.Context, bootstrapFilePath string, signal chan struc
 	case <-signal:
 		break
 	case <-time.After(1 * time.Minute):
-		testLogger.Info(ctx, "Envoy logs: \n%s", b.String())
-		testLogger.Fatal(ctx, "Timeout waiting for the first request")
+		testLogger.Infof(ctx, "Envoy logs: \n%s", b.String())
+		testLogger.Fatalf(ctx, "Timeout waiting for the first request")
 	}
 
 	return b

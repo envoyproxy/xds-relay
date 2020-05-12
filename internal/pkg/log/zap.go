@@ -70,3 +70,27 @@ func (l *logger) Fatal(ctx context.Context, args ...interface{}) {
 func (l *logger) Panic(ctx context.Context, args ...interface{}) {
 	l.WithContext(ctx).zap.Panic(args...)
 }
+
+func (l *logger) Debugf(ctx context.Context, template string, args ...interface{}) {
+	l.WithContext(ctx).zap.Debugf(template, args...)
+}
+
+func (l *logger) Infof(ctx context.Context, template string, args ...interface{}) {
+	l.WithContext(ctx).zap.Infof(template, args...)
+}
+
+func (l *logger) Warnf(ctx context.Context, template string, args ...interface{}) {
+	l.WithContext(ctx).zap.Warnf(template, args...)
+}
+
+func (l *logger) Errorf(ctx context.Context, template string, args ...interface{}) {
+	l.WithContext(ctx).zap.Errorf(template, args...)
+}
+
+func (l *logger) Fatalf(ctx context.Context, template string, args ...interface{}) {
+	l.WithContext(ctx).zap.Fatalf(template, args...)
+}
+
+func (l *logger) Panicf(ctx context.Context, template string, args ...interface{}) {
+	l.WithContext(ctx).zap.Panicf(template, args...)
+}

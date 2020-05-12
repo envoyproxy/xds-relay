@@ -38,32 +38,26 @@ type logger struct {
 	lastErr   string
 }
 
-func (l *logger) Named(name string) log.Logger {
-	return l
-}
-
-func (l *logger) With(args ...interface{}) log.Logger {
-	return l
-}
-
-func (l *logger) Sync() error { return nil }
-
-func (l *logger) Debug(ctx context.Context, args ...interface{}) {
-}
-
-func (l *logger) Info(ctx context.Context, args ...interface{}) {
-}
-
-func (l *logger) Warn(ctx context.Context, args ...interface{}) {
-}
+func (l *logger) Named(name string) log.Logger                                     { return l }
+func (l *logger) With(args ...interface{}) log.Logger                              { return l }
+func (l *logger) Sync() error                                                      { return nil }
+func (l *logger) Debug(ctx context.Context, args ...interface{})                   {}
+func (l *logger) Info(ctx context.Context, args ...interface{})                    {}
+func (l *logger) Warn(ctx context.Context, args ...interface{})                    {}
+func (l *logger) Fatal(ctx context.Context, args ...interface{})                   {}
+func (l *logger) Panic(ctx context.Context, args ...interface{})                   {}
+func (l *logger) Debugf(ctx context.Context, template string, args ...interface{}) {}
+func (l *logger) Infof(ctx context.Context, template string, args ...interface{})  {}
+func (l *logger) Warnf(ctx context.Context, template string, args ...interface{})  {}
+func (l *logger) Fatalf(ctx context.Context, template string, args ...interface{}) {}
+func (l *logger) Panicf(ctx context.Context, template string, args ...interface{}) {}
 
 func (l *logger) Error(ctx context.Context, args ...interface{}) {
 	l.lastErr = fmt.Sprint(args...)
 	l.blockedCh <- true
 }
 
-func (l *logger) Fatal(ctx context.Context, args ...interface{}) {
-}
-
-func (l *logger) Panic(ctx context.Context, args ...interface{}) {
+func (l *logger) Errorf(ctx context.Context, template string, args ...interface{}) {
+	l.lastErr = fmt.Sprint(args...)
+	l.blockedCh <- true
 }
