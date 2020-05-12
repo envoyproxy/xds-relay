@@ -33,25 +33,29 @@ type Logger interface {
 	//  ).Info("this is an error message")
 	With(args ...interface{}) Logger
 
-	// Log a message at level Debug, annotated with fields provided through With().
-	Debug(ctx context.Context, msg ...interface{})
+	// Debug logs a message at level Debug with support for string formatting, annotated with
+	// fields provided through With().
+	Debug(ctx context.Context, template string, msg ...interface{})
 
-	// Log a message at level Info, annotated with fields provided through With().
-	Info(ctx context.Context, msg ...interface{})
+	// Info logs a message at level Info with support for string formatting, annotated with fields
+	// provided through With().
+	Info(ctx context.Context, template string, msg ...interface{})
 
-	// Log a message at level Warn, annotated with fields provided through With().
-	Warn(ctx context.Context, msg ...interface{})
+	// Warn logs a message at level Warn with support for string formatting, annotated with fields
+	// provided through With().
+	Warn(ctx context.Context, template string, msg ...interface{})
 
-	// Log a message at level Error, annotated with fields provided through With().
-	Error(ctx context.Context, msg ...interface{})
+	// Error logs a message at level Error with support for string formatting, annotated with
+	// fields provided through With().
+	Error(ctx context.Context, template string, msg ...interface{})
 
-	// Log a message at level Panic, annotated with fields provided through With(), and immediately
-	// panic.
-	Panic(ctx context.Context, msg ...interface{})
+	// Panic logs a message at level Panic with support for string formatting, annotated with
+	// fields provided through With(), and immediately panics.
+	Panic(ctx context.Context, template string, msg ...interface{})
 
-	// Log a message at level Fatal, annotated with fields provided through With(), and immediately
-	// call os.Exit.
-	Fatal(ctx context.Context, msg ...interface{})
+	// Fatal logs a message at level Fatal with support for string formatting, annotated with
+	// fields provided through With(), and immediately calls os.Exit.
+	Fatal(ctx context.Context, template string, msg ...interface{})
 
 	// Sync flushes any buffered log entries.
 	Sync() error

@@ -45,26 +45,26 @@ func (l *logger) WithContext(ctx context.Context) *logger {
 
 func (l *logger) Sync() error { return l.zap.Sync() }
 
-func (l *logger) Debug(ctx context.Context, args ...interface{}) {
-	l.WithContext(ctx).zap.Debug(args...)
+func (l *logger) Debug(ctx context.Context, template string, args ...interface{}) {
+	l.WithContext(ctx).zap.Debugf(template, args...)
 }
 
-func (l *logger) Info(ctx context.Context, args ...interface{}) {
-	l.WithContext(ctx).zap.Info(args...)
+func (l *logger) Info(ctx context.Context, template string, args ...interface{}) {
+	l.WithContext(ctx).zap.Infof(template, args...)
 }
 
-func (l *logger) Warn(ctx context.Context, args ...interface{}) {
-	l.WithContext(ctx).zap.Warn(args...)
+func (l *logger) Warn(ctx context.Context, template string, args ...interface{}) {
+	l.WithContext(ctx).zap.Warnf(template, args...)
 }
 
-func (l *logger) Error(ctx context.Context, args ...interface{}) {
-	l.WithContext(ctx).zap.Error(args...)
+func (l *logger) Error(ctx context.Context, template string, args ...interface{}) {
+	l.WithContext(ctx).zap.Errorf(template, args...)
 }
 
-func (l *logger) Fatal(ctx context.Context, args ...interface{}) {
-	l.WithContext(ctx).zap.Fatal(args...)
+func (l *logger) Fatal(ctx context.Context, template string, args ...interface{}) {
+	l.WithContext(ctx).zap.Fatalf(template, args...)
 }
 
-func (l *logger) Panic(ctx context.Context, args ...interface{}) {
-	l.WithContext(ctx).zap.Panic(args...)
+func (l *logger) Panic(ctx context.Context, template string, args ...interface{}) {
+	l.WithContext(ctx).zap.Panicf(template, args...)
 }
