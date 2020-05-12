@@ -58,7 +58,7 @@ type Orchestrator interface {
 	// open channels.
 	shutdown(ctx context.Context)
 
-	GetCache() *cache.Cache
+	GetReadOnlyCache() cache.ReadOnlyCache
 }
 
 type orchestrator struct {
@@ -191,8 +191,8 @@ func (o *orchestrator) Fetch(context.Context, discovery.DiscoveryRequest) (*gcp.
 	return nil, fmt.Errorf("Not implemented")
 }
 
-func (o *orchestrator) GetCache() *cache.Cache {
-	return &o.cache
+func (o *orchestrator) GetReadOnlyCache() cache.ReadOnlyCache {
+	return o.cache.GetReadOnlyCache()
 }
 
 // watchUpstream is intended to be called in a go routine, to receive incoming

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/envoyproxy/xds-relay/internal/app/cache"
+	"github.com/envoyproxy/xds-relay/internal/app/orchestrator"
 
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
 )
@@ -16,7 +16,7 @@ type Handler struct {
 	handler     http.HandlerFunc
 }
 
-func getHandlers(bootstrapConfig *bootstrapv1.Bootstrap, cache *cache.Cache) []Handler {
+func getHandlers(bootstrap *bootstrapv1.Bootstrap, orchestrator *orchestrator.Orchestrator) []Handler {
 	handlers := []Handler{
 		{
 			"/",
@@ -26,12 +26,12 @@ func getHandlers(bootstrapConfig *bootstrapv1.Bootstrap, cache *cache.Cache) []H
 		{
 			"/cache/",
 			"print cache entry for a given key. usage: `/cache/<key>`",
-			cacheDumpHandler(cache),
+			cacheDumpHandler(orchestrator),
 		},
 		{
 			"/server_info",
 			"print bootstrap configuration",
-			configDumpHandler(bootstrapConfig),
+			configDumpHandler(bootstrap),
 		},
 	}
 	// The default handler is defined later to avoid infinite recursion.
@@ -39,8 +39,8 @@ func getHandlers(bootstrapConfig *bootstrapv1.Bootstrap, cache *cache.Cache) []H
 	return handlers
 }
 
-func RegisterHandlers(bootstrapConfig *bootstrapv1.Bootstrap, cache *cache.Cache) {
-	for _, handler := range getHandlers(bootstrapConfig, cache) {
+func RegisterHandlers(bootstrapConfig *bootstrapv1.Bootstrap, orchestrator *orchestrator.Orchestrator) {
+	for _, handler := range getHandlers(bootstrapConfig, orchestrator) {
 		http.Handle(handler.prefix, handler.handler)
 	}
 }
@@ -69,10 +69,11 @@ func configDumpHandler(bootstrapConfig *bootstrapv1.Bootstrap) http.HandlerFunc 
 
 // TODO(lisalu): Support dump of entire cache when no key is provided.
 // TODO(lisalu): Support dump of matching resources when cache key regex is provided.
-func cacheDumpHandler(c *cache.Cache) http.HandlerFunc {
+func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		cacheKey := getCacheKeyParam(req.URL.Path)
-		resource, err := cache.Cache.Fetch(*c, cacheKey)
+		cache := orchestrator.Orchestrator.GetReadOnlyCache(*o)
+		resource, err := cache.Fetch(cacheKey)
 		if err != nil {
 			fmt.Fprintf(w, "no resource for key found in cache")
 			return

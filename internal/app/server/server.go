@@ -81,7 +81,7 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	adminServer := &http.Server{
 		Addr: adminAddress,
 	}
-	handler.RegisterHandlers(bootstrapConfig, orchestrator.GetCache())
+	handler.RegisterHandlers(bootstrapConfig, &orchestrator)
 
 	// Start server.
 	gcpServer := gcp.NewServer(ctx, orchestrator, nil)
