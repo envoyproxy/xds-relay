@@ -14,10 +14,14 @@ func TestAdminServer_DefaultHandler(t *testing.T) {
 	assert.NoError(t, err)
 
 	rr := httptest.NewRecorder()
-	handler := DefaultHandler()
+	handler := defaultHandler([]Handler{{
+		"/foo",
+		"does nothing",
+		http.HandlerFunc(nil),
+	}})
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Equal(t, "xds-relay admin API", rr.Body.String())
+	assert.Equal(t, "admin commands are:\n  /foo: does nothing\n", rr.Body.String())
 }
 
 func TestAdminServer_DefaultHandler_NotFound(t *testing.T) {
@@ -25,7 +29,11 @@ func TestAdminServer_DefaultHandler_NotFound(t *testing.T) {
 	assert.NoError(t, err)
 
 	rr := httptest.NewRecorder()
-	handler := DefaultHandler()
+	handler := defaultHandler([]Handler{{
+		"/foo",
+		"does nothing",
+		http.HandlerFunc(nil),
+	}})
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusNotFound, rr.Code)
 	assert.Equal(t, "404 page not found\n", rr.Body.String())
@@ -36,7 +44,7 @@ func TestAdminServer_ConfigDumpHandler(t *testing.T) {
 	assert.NoError(t, err)
 
 	rr := httptest.NewRecorder()
-	handler := ConfigDumpHandler(&bootstrapv1.Bootstrap{
+	handler := configDumpHandler(&bootstrapv1.Bootstrap{
 		Server: &bootstrapv1.Server{Address: &bootstrapv1.SocketAddress{
 			Address:   "127.0.0.1",
 			PortValue: 9991,
@@ -47,5 +55,5 @@ func TestAdminServer_ConfigDumpHandler(t *testing.T) {
 	})
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Equal(t, "server:{address:{address:\"127.0.0.1\" port_value:9991}}", rr.Body.String())
+	assert.Equal(t, "server:{address:{address:\"127.0.0.1\"  port_value:9991}}", rr.Body.String())
 }

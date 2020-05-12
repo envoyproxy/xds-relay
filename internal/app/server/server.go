@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	admin "github.com/envoyproxy/xds-relay/internal/app/admin/http"
+	handler "github.com/envoyproxy/xds-relay/internal/app/admin/http"
 
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
 	"github.com/envoyproxy/xds-relay/internal/app/orchestrator"
@@ -37,8 +37,9 @@ func Run(bootstrapConfig *bootstrapv1.Bootstrap,
 }
 
 func RunAdminServer(ctx context.Context, adminServer *http.Server, logger log.Logger) {
+	logger.With("address", adminServer.Addr).Info(ctx, "Starting admin server")
 	if err := adminServer.ListenAndServe(); err != http.ErrServerClosed {
-		logger.Fatal(ctx, "HTTP server ListenAndServe: %v", err)
+		logger.Fatal(ctx, "Failed to start admin server with ListenAndServe: %v", err)
 	}
 }
 
@@ -75,13 +76,12 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	orchestrator := orchestrator.New(ctx, logger, requestMapper, upstreamClient, bootstrapConfig.Cache)
 
 	// Configure admin server.
+	adminPort := strconv.FormatUint(uint64(bootstrapConfig.Admin.Address.PortValue), 10)
+	adminAddress := net.JoinHostPort(bootstrapConfig.Admin.Address.Address, adminPort)
 	adminServer := &http.Server{
-		//TODO(lisalu): Make below address configurable.
-		Addr: "127.0.0.1:6070",
+		Addr: adminAddress,
 	}
-	http.Handle("/", admin.DefaultHandler())
-	http.HandleFunc("/server_info", admin.ConfigDumpHandler(bootstrapConfig))
-	http.HandleFunc("/cache/", admin.CacheDumpHandler(orchestrator.GetCache()))
+	handler.RegisterHandlers(bootstrapConfig, orchestrator.GetCache())
 
 	// Start server.
 	gcpServer := gcp.NewServer(ctx, orchestrator, nil)

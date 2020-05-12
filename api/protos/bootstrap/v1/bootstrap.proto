@@ -8,7 +8,7 @@ import "google/protobuf/wrappers.proto";
 import "validate/validate.proto";
 
 
-// [#next-free-field: 5]
+// [#next-free-field: 6]
 message Bootstrap {
     // xds-relay server configuration.
     Server server = 1 [(validate.rules).message.required = true];
@@ -21,6 +21,9 @@ message Bootstrap {
 
     // Request/response cache settings.
     Cache cache = 4 [(validate.rules).message.required = true];
+
+    // Admin server configuration.
+    Admin admin = 5 [(validate.rules).message.required = true];
 }
 
 // [#next-free-field: 2]
@@ -65,4 +68,10 @@ message SocketAddress {
     string address = 1 [(validate.rules).string = {min_bytes: 1}];
 
     uint32 port_value = 2 [(validate.rules).uint32 = {lte: 65535}];
+}
+
+// [#next-free-field: 2]
+message Admin {
+    // The TCP address that the admin server will listen on.
+    SocketAddress address = 1 [(validate.rules).message.required = true];
 }
