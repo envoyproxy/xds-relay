@@ -12,17 +12,17 @@ type gcpLogger struct {
 }
 
 func (gcp gcpLogger) Debugf(format string, args ...interface{}) {
-	gcp.logger.Debugf(context.Background(), format, args)
+	gcp.logger.Debug(context.Background(), format, args)
 }
 
 func (gcp gcpLogger) Infof(format string, args ...interface{}) {
-	gcp.logger.Infof(context.Background(), format, args)
+	gcp.logger.Info(context.Background(), format, args)
 }
 
 func (gcp gcpLogger) Warnf(format string, args ...interface{}) {
-	gcp.logger.Warnf(context.Background(), format, args)
+	gcp.logger.Warn(context.Background(), format, args)
 }
 
 func (gcp gcpLogger) Errorf(format string, args ...interface{}) {
-	gcp.logger.Errorf(context.Background(), format, args)
+	gcp.logger.Error(context.Background(), format, args)
 }

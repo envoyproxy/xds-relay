@@ -33,49 +33,29 @@ type Logger interface {
 	//  ).Info("this is an error message")
 	With(args ...interface{}) Logger
 
-	// Debug logs a message at level Debug, annotated with fields provided through With().
-	Debug(ctx context.Context, msg ...interface{})
-
-	// Info logs a message at level Info, annotated with fields provided through With().
-	Info(ctx context.Context, msg ...interface{})
-
-	// Warn logs a message at level Warn, annotated with fields provided through With().
-	Warn(ctx context.Context, msg ...interface{})
-
-	// Error logs a message at level Error, annotated with fields provided through With().
-	Error(ctx context.Context, msg ...interface{})
-
-	// Panic logs a message at level Panic, annotated with fields provided through With(), and
-	// immediately panics.
-	Panic(ctx context.Context, msg ...interface{})
-
-	// Fatal logs a message at level Fatal, annotated with fields provided through With(), and
-	// immediately calls os.Exit.
-	Fatal(ctx context.Context, msg ...interface{})
-
-	// Debugf logs a message at level Debug with support for string formatting, annotated with
+	// Debug logs a message at level Debug with support for string formatting, annotated with
 	// fields provided through With().
-	Debugf(ctx context.Context, template string, msg ...interface{})
+	Debug(ctx context.Context, template string, msg ...interface{})
 
-	// Infof logs a message at level Info with support for string formatting, annotated with fields
+	// Info logs a message at level Info with support for string formatting, annotated with fields
 	// provided through With().
-	Infof(ctx context.Context, template string, msg ...interface{})
+	Info(ctx context.Context, template string, msg ...interface{})
 
-	// Warnf logs a message at level Warn with support for string formatting, annotated with fields
+	// Warn logs a message at level Warn with support for string formatting, annotated with fields
 	// provided through With().
-	Warnf(ctx context.Context, template string, msg ...interface{})
+	Warn(ctx context.Context, template string, msg ...interface{})
 
-	// Errorf logs a message at level Error with support for string formatting, annotated with
+	// Error logs a message at level Error with support for string formatting, annotated with
 	// fields provided through With().
-	Errorf(ctx context.Context, template string, msg ...interface{})
+	Error(ctx context.Context, template string, msg ...interface{})
 
-	// Panicf logs a message at level Panic with support for string formatting, annotated with
+	// Panic logs a message at level Panic with support for string formatting, annotated with
 	// fields provided through With(), and immediately panics.
-	Panicf(ctx context.Context, template string, msg ...interface{})
+	Panic(ctx context.Context, template string, msg ...interface{})
 
-	// Fatalf logs a message at level Fatal with support for string formatting, annotated with
+	// Fatal logs a message at level Fatal with support for string formatting, annotated with
 	// fields provided through With(), and immediately calls os.Exit.
-	Fatalf(ctx context.Context, template string, msg ...interface{})
+	Fatal(ctx context.Context, template string, msg ...interface{})
 
 	// Sync flushes any buffered log entries.
 	Sync() error
