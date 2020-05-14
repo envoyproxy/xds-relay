@@ -27,10 +27,11 @@ import (
 )
 
 const (
-	nodeID           = "node-id"
-	originServerPort = 19001
-	loglevel         = "fatal"
-	updates          = 1
+	nodeID               = "node-id"
+	originServerGRPCPort = 19001
+	originServerHTTPPort = 19002
+	loglevel             = "fatal"
+	updates              = 1
 )
 
 var testLogger = log.New(loglevel)
@@ -154,7 +155,7 @@ func TestClientContextCancellationShouldCloseAllResponseChannels(t *testing.T) {
 	clientCtx, clientCancel := context.WithCancel(context.Background())
 	client, err := upstream.NewClient(
 		clientCtx,
-		strings.Join([]string{"127.0.0.1", strconv.Itoa(originServerPort)}, ":"),
+		strings.Join([]string{"127.0.0.1", strconv.Itoa(originServerGRPCPort)}, ":"),
 		upstream.CallOptions{Timeout: time.Minute},
 		testLogger)
 	respCh1, _, _ := client.OpenStream(v2.DiscoveryRequest{
@@ -205,11 +206,12 @@ func setup(
 	srv3 := gcpserverv3.NewServer(ctx, nil, nil)
 
 	// Start the origin server
-	go gcptest.RunManagementServer(ctx, srv2, srv3, originServerPort)
+	go gcptest.RunHTTP(ctx, originServerHTTPPort)
+	go gcptest.RunManagementServer(ctx, srv2, srv3, originServerGRPCPort)
 
 	client, err := upstream.NewClient(
 		context.Background(),
-		strings.Join([]string{"127.0.0.1", strconv.Itoa(originServerPort)}, ":"),
+		strings.Join([]string{"127.0.0.1", strconv.Itoa(originServerGRPCPort)}, ":"),
 		upstream.CallOptions{Timeout: time.Minute},
 		logger)
 	if err != nil {
@@ -264,7 +266,7 @@ func sendResponses(
 func createSnapshotCache(updates int, logger log.Logger) (resourcev2.TestSnapshot, gcpcachev2.SnapshotCache) {
 	return resourcev2.TestSnapshot{
 		Xds:          "xds",
-		UpstreamPort: 18080,
+		UpstreamPort: originServerHTTPPort,
 		BasePort:     9000,
 		NumClusters:  updates,
 	}, gcpcachev2.NewSnapshotCache(false, gcpcachev2.IDHash{}, gcpLogger{logger: logger})
