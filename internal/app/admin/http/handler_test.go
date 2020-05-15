@@ -87,7 +87,8 @@ func (m mockSimpleUpstreamClient) OpenStream(req v2.DiscoveryRequest) (<-chan *v
 func TestAdminServer_CacheDumpHandler(t *testing.T) {
 	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
 	mapper := mock_mapper.NewMapper(t)
-	orchestrator := mock_orchestrator.NewOrchestrator(t, mapper, mockSimpleUpstreamClient{responseChan: upstreamResponseChannel})
+	orchestrator := mock_orchestrator.NewOrchestrator(t, mapper,
+		mockSimpleUpstreamClient{responseChan: upstreamResponseChannel})
 	assert.NotNil(t, orchestrator)
 
 	gcpReq := gcp.Request{
@@ -140,7 +141,8 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 func TestAdminServer_CacheDumpHandler_NotFound(t *testing.T) {
 	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
 	mapper := mock_mapper.NewMapper(t)
-	orchestrator := mock_orchestrator.NewOrchestrator(t, mapper, mockSimpleUpstreamClient{responseChan: upstreamResponseChannel})
+	orchestrator := mock_orchestrator.NewOrchestrator(t, mapper,
+		mockSimpleUpstreamClient{responseChan: upstreamResponseChannel})
 	assert.NotNil(t, orchestrator)
 
 	req, err := http.NewRequest("GET", "/cache/cds", nil)
