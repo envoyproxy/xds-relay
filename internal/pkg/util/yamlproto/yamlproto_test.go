@@ -44,7 +44,6 @@ var positiveTests = []TableEntry{
 			&ResultPredicate{
 				Type: &aggregationv1.ResultPredicate_ResourceNamesFragment_{
 					ResourceNamesFragment: &ResourceNamesFragment{
-						Field:   1,
 						Element: 0,
 						Action: &ResultAction{
 							Action: &aggregationv1.ResultPredicate_ResultAction_RegexAction_{
@@ -91,7 +90,6 @@ var positiveTests = []TableEntry{
 							{
 								Type: &aggregationv1.ResultPredicate_ResourceNamesFragment_{
 									ResourceNamesFragment: &ResourceNamesFragment{
-										Field:   1,
 										Element: 0,
 										Action: &ResultAction{
 											Action: &aggregationv1.ResultPredicate_ResultAction_RegexAction_{

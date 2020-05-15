@@ -1,6 +1,7 @@
-package log
+package zap
 
 import (
+	"fmt"
 	"io/ioutil"
 
 	. "github.com/onsi/ginkgo"
@@ -16,16 +17,16 @@ func (w *mockWriter) Write(p []byte) (int, error) {
 }
 
 var _ = Describe("Zap options setup", func() {
-	var opts *Options
+	var opts *options
 
 	BeforeEach(func() {
-		opts = &Options{}
+		opts = &options{}
 	})
 
 	It("should set a custom writer", func() {
 		var w mockWriter
 		WriteTo(&w)(opts)
-		Expect(opts.OutputDest).To(Equal(&w))
+		Expect(opts.outputDest).To(Equal(&w))
 	})
 })
 
@@ -42,5 +43,19 @@ var _ = Describe("Initializing new Zap logger", func() {
 			encoder := zapcore.NewConsoleEncoder(cfg)
 			Expect(New(WriteTo(ioutil.Discard), Encoder(encoder))).NotTo(BeNil())
 		})
+	})
+})
+
+var _ = Describe("Parse log level", func() {
+	It("should set specified log level", func() {
+		level, err := ParseLogLevel("error")
+		Expect(err).To(BeNil())
+		Expect(level).To(Equal(zap.NewAtomicLevelAt(zap.ErrorLevel)))
+	})
+
+	It("should set info level if invalid string is provided", func() {
+		level, err := ParseLogLevel("not a valid log level")
+		Expect(err).To(Equal(fmt.Errorf(`unrecognized level: "not a valid log level"`)))
+		Expect(level).To(Equal(zap.NewAtomicLevelAt(zap.InfoLevel)))
 	})
 })

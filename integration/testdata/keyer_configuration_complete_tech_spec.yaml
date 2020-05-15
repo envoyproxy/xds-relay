@@ -1,0 +1,75 @@
+fragments: 
+  - rules:
+      - match:
+          request_type_match:
+            types:
+              - "type.googleapis.com/envoy.api.v2.Listener"
+              - "type.googleapis.com/envoy.api.v2.Cluster"
+              - "type.googleapis.com/envoy.api.v2.Route"
+              - "type.googleapis.com/envoy.api.v2.Endpoint"
+        result:
+          request_node_fragment:
+            field: 0
+            action:
+              regex_action: { pattern: "^(.*)-*$", replace: "$1" }
+  - rules:
+      - match:
+          and_match:
+            rules:
+              - request_type_match:
+                  types:
+                    - "type.googleapis.com/envoy.api.v2.Listener"
+                    - "type.googleapis.com/envoy.api.v2.Cluster"
+              - request_node_match:
+                  field: 0 
+                  exact_match: "canary"
+        result:
+          string_fragment: "canary"
+      - match:
+          request_type_match:
+            types:
+              - "type.googleapis.com/envoy.api.v2.Listener"
+              - "type.googleapis.com/envoy.api.v2.Cluster"
+              - "type.googleapis.com/envoy.api.v2.Endpoint"
+        result:
+          request_node_fragment:
+            field: 1
+            action:
+              regex_action: { pattern: "^*-(.*)-*$", replace: "$1" }
+      - match:
+          request_type_match:
+            types:
+              - "type.googleapis.com/envoy.api.v2.Route"
+        result:
+          resource_names_fragment:
+            element: 0
+            action: { exact: true }
+  - rules:
+      - match:
+          request_type_match:
+            types:
+              - "type.googleapis.com/envoy.api.v2.Listener"
+        result:
+          string_fragment: "lds"
+      - match:
+          request_type_match:
+            types:
+              - "type.googleapis.com/envoy.api.v2.Cluster"
+        result:
+          string_fragment: "cds"
+      - match:
+          request_type_match:
+            types:
+              - "type.googleapis.com/envoy.api.v2.Route"
+        result:
+          request_node_fragment:
+            field: 1
+            action:
+              regex_action: { pattern: "^*-(.*)-*$", replace: "$1" }
+  - rules:
+      - match:
+          request_type_match:
+            types:
+              - "type.googleapis.com/envoy.api.v2.Route"
+        result:
+          string_fragment: "rds"
