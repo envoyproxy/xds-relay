@@ -5,6 +5,10 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
+
+	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	"github.com/envoyproxy/xds-relay/internal/app/cache"
 
 	"github.com/envoyproxy/xds-relay/internal/app/orchestrator"
 
@@ -63,11 +67,11 @@ func defaultHandler(handlers []Handler) http.HandlerFunc {
 
 func configDumpHandler(bootstrapConfig *bootstrapv1.Bootstrap) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		prettyJSON, err := json.MarshalIndent(bootstrapConfig, "", "  ")
+		configString, err := interfaceToString(bootstrapConfig)
 		if err != nil {
 			fmt.Fprintf(w, "Failed to dump config: %s\n", err.Error())
 		}
-		fmt.Fprintf(w, "%s\n", string(prettyJSON))
+		fmt.Fprintf(w, "%s\n", configString)
 	}
 }
 
@@ -79,11 +83,50 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 		cache := orchestrator.Orchestrator.GetReadOnlyCache(*o)
 		resource, err := cache.Fetch(cacheKey)
 		if err != nil {
-			fmt.Fprintf(w, "no resource for key found in cache.\n")
+			fmt.Fprintf(w, "no resource for key %s found in cache.\n", cacheKey)
 			return
 		}
-		fmt.Print(w, resource.Resp.Raw.String())
+		resourceString, err := resourceToString(resource)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "unable to convert resource to string.\n")
+			return
+		}
+		fmt.Fprint(w, resourceString)
 	}
+}
+
+// Converts an interface to a human-readable string for pretty-printing via marshalling to JSON.
+func interfaceToString(v interface{}) (string, error) {
+	prettyJSON, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(prettyJSON), nil
+}
+
+type marshallableResource struct {
+	Resp           *cache.Response
+	Requests       []*v2.DiscoveryRequest
+	ExpirationTime time.Time
+}
+
+// In order to marshal a Resource from the cache to JSON to be printed,
+// the map of requests is converted to a slice of just the keys,
+// since the bool value is meaningless.
+func resourceToString(resource *cache.Resource) (string, error) {
+	var requests []*v2.DiscoveryRequest
+	for request := range resource.Requests {
+		requests = append(requests, request)
+	}
+
+	resourceString := &marshallableResource{
+		Resp:           resource.Resp,
+		Requests:       requests,
+		ExpirationTime: resource.ExpirationTime,
+	}
+
+	return interfaceToString(resourceString)
 }
 
 func getCacheKeyParam(path string) string {

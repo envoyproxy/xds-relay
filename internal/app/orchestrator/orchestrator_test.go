@@ -2,27 +2,24 @@ package orchestrator
 
 import (
 	"context"
-	"io/ioutil"
 	"testing"
-	"time"
+
+	"github.com/envoyproxy/xds-relay/internal/app/mapper/mock"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	v2_core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
-	"github.com/golang/protobuf/ptypes/any"
-	"github.com/golang/protobuf/ptypes/duration"
-	"github.com/stretchr/testify/assert"
-	"google.golang.org/protobuf/types/known/anypb"
-
 	"github.com/envoyproxy/xds-relay/internal/app/cache"
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
 	upstream_mock "github.com/envoyproxy/xds-relay/internal/app/upstream/mock"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 	"github.com/envoyproxy/xds-relay/internal/pkg/util/testutils"
-	"github.com/envoyproxy/xds-relay/internal/pkg/util/yamlproto"
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
+	"github.com/golang/protobuf/ptypes/any"
+	"github.com/golang/protobuf/ptypes/duration"
+	"github.com/stretchr/testify/assert"
 )
 
 type mockSimpleUpstreamClient struct {
@@ -55,33 +52,6 @@ func (m mockMultiStreamUpstreamClient) OpenStream(
 
 	m.t.Errorf("Unsupported aggregated key, %s", aggregatedKey)
 	return nil, func() {}, nil
-}
-
-func newMockOrchestrator(t *testing.T, mapper mapper.Mapper, upstreamClient upstream.Client) *orchestrator {
-	orchestrator := &orchestrator{
-		logger:                log.New("info"),
-		mapper:                mapper,
-		upstreamClient:        upstreamClient,
-		downstreamResponseMap: newDownstreamResponseMap(),
-		upstreamResponseMap:   newUpstreamResponseMap(),
-	}
-
-	cache, err := cache.NewCache(1000, orchestrator.onCacheEvicted, 10*time.Second)
-	assert.NoError(t, err)
-	orchestrator.cache = cache
-
-	return orchestrator
-}
-
-func newMockMapper(t *testing.T) mapper.Mapper {
-	bytes, err := ioutil.ReadFile("testdata/aggregation_rules.yaml") // key on request type
-	assert.NoError(t, err)
-
-	var config aggregationv1.KeyerConfiguration
-	err = yamlproto.FromYAMLToKeyerConfiguration(string(bytes), &config)
-	assert.NoError(t, err)
-
-	return mapper.NewMapper(&config)
 }
 
 func assertEqualResources(t *testing.T, got gcp.Response, expected v2.DiscoveryResponse, req gcp.Request) {
@@ -126,8 +96,8 @@ func TestNew(t *testing.T) {
 
 func TestGoldenPath(t *testing.T) {
 	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
-	mapper := newMockMapper(t)
-	orchestrator := newMockOrchestrator(
+	mapper := mock.NewMapper(t)
+	orchestrator := NewMockOrchestrator(
 		t,
 		mapper,
 		mockSimpleUpstreamClient{
@@ -153,7 +123,7 @@ func TestGoldenPath(t *testing.T) {
 		VersionInfo: "1",
 		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
 		Resources: []*any.Any{
-			&anypb.Any{
+			{
 				Value: []byte("lds resource"),
 			},
 		},
@@ -174,8 +144,8 @@ func TestGoldenPath(t *testing.T) {
 
 func TestCachedResponse(t *testing.T) {
 	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
-	mapper := newMockMapper(t)
-	orchestrator := newMockOrchestrator(
+	mapper := mock.NewMapper(t)
+	orchestrator := NewMockOrchestrator(
 		t,
 		mapper,
 		mockSimpleUpstreamClient{
@@ -197,7 +167,7 @@ func TestCachedResponse(t *testing.T) {
 		VersionInfo: "1",
 		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
 		Resources: []*any.Any{
-			&anypb.Any{
+			{
 				Value: []byte("lds resource"),
 			},
 		},
@@ -223,7 +193,7 @@ func TestCachedResponse(t *testing.T) {
 		VersionInfo: "2",
 		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
 		Resources: []*any.Any{
-			&anypb.Any{
+			{
 				Value: []byte("some other lds resource"),
 			},
 		},
@@ -270,8 +240,8 @@ func TestCachedResponse(t *testing.T) {
 func TestMultipleWatchersAndUpstreams(t *testing.T) {
 	upstreamResponseChannelLDS := make(chan *v2.DiscoveryResponse)
 	upstreamResponseChannelCDS := make(chan *v2.DiscoveryResponse)
-	mapper := newMockMapper(t)
-	orchestrator := newMockOrchestrator(
+	mapper := mock.NewMapper(t)
+	orchestrator := NewMockOrchestrator(
 		t,
 		mapper,
 		mockMultiStreamUpstreamClient{
@@ -313,7 +283,7 @@ func TestMultipleWatchersAndUpstreams(t *testing.T) {
 		VersionInfo: "1",
 		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
 		Resources: []*any.Any{
-			&anypb.Any{
+			{
 				Value: []byte("lds resource"),
 			},
 		},
@@ -322,7 +292,7 @@ func TestMultipleWatchersAndUpstreams(t *testing.T) {
 		VersionInfo: "1",
 		TypeUrl:     "type.googleapis.com/envoy.api.v2.Cluster",
 		Resources: []*any.Any{
-			&anypb.Any{
+			{
 				Value: []byte("cds resource"),
 			},
 		},
