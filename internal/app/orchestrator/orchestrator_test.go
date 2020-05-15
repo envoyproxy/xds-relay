@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/envoyproxy/xds-relay/internal/app/mapper/mock"
 
@@ -21,6 +22,22 @@ import (
 	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/stretchr/testify/assert"
 )
+
+func newMockOrchestrator(t *testing.T, mapper mapper.Mapper, upstreamClient upstream.Client) *orchestrator {
+	orchestrator := &orchestrator{
+		logger:                log.New("info"),
+		mapper:                mapper,
+		upstreamClient:        upstreamClient,
+		downstreamResponseMap: newDownstreamResponseMap(),
+		upstreamResponseMap:   newUpstreamResponseMap(),
+	}
+
+	cache, err := cache.NewCache(1000, orchestrator.onCacheEvicted, 10*time.Second)
+	assert.NoError(t, err)
+	orchestrator.cache = cache
+
+	return orchestrator
+}
 
 type mockSimpleUpstreamClient struct {
 	responseChan <-chan *v2.DiscoveryResponse
@@ -97,7 +114,7 @@ func TestNew(t *testing.T) {
 func TestGoldenPath(t *testing.T) {
 	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
 	mapper := mock.NewMapper(t)
-	orchestrator := NewMockOrchestrator(
+	orchestrator := newMockOrchestrator(
 		t,
 		mapper,
 		mockSimpleUpstreamClient{
@@ -145,7 +162,7 @@ func TestGoldenPath(t *testing.T) {
 func TestCachedResponse(t *testing.T) {
 	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
 	mapper := mock.NewMapper(t)
-	orchestrator := NewMockOrchestrator(
+	orchestrator := newMockOrchestrator(
 		t,
 		mapper,
 		mockSimpleUpstreamClient{
@@ -241,7 +258,7 @@ func TestMultipleWatchersAndUpstreams(t *testing.T) {
 	upstreamResponseChannelLDS := make(chan *v2.DiscoveryResponse)
 	upstreamResponseChannelCDS := make(chan *v2.DiscoveryResponse)
 	mapper := mock.NewMapper(t)
-	orchestrator := NewMockOrchestrator(
+	orchestrator := newMockOrchestrator(
 		t,
 		mapper,
 		mockMultiStreamUpstreamClient{

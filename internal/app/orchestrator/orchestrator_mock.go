@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func NewMockOrchestrator(t *testing.T, mapper mapper.Mapper, upstreamClient upstream.Client) *orchestrator {
+func NewMockOrchestrator(t *testing.T, mapper mapper.Mapper, upstreamClient upstream.Client) Orchestrator {
 	orchestrator := &orchestrator{
 		logger:                log.New("info"),
 		mapper:                mapper,
