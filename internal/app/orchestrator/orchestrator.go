@@ -119,6 +119,7 @@ func New(
 // provided, the consumer may call this function multiple times.
 func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) {
 	ctx := context.Background()
+	o.logger.With("node ID", req.GetNode().GetId()).With("type", req.GetTypeUrl()).Debug(ctx, "creating watch")
 
 	// If this is the first time we're seeing the request from the
 	// downstream client, initialize a channel to feed future responses.
@@ -264,6 +265,7 @@ func (o *orchestrator) watchUpstream(
 					o.logger.With("key", aggregatedKey).Error(ctx, "attempted to fan out with no cached response")
 				} else {
 					// Goldenpath.
+					o.logger.With("key", aggregatedKey).With("response", cached.Resp).Debug(ctx, "response fanout initiated")
 					o.fanout(cached.Resp, cached.Requests, aggregatedKey)
 				}
 			}
@@ -286,7 +288,8 @@ func (o *orchestrator) fanout(resp *cache.Response, watchers map[*gcp.Request]bo
 			if channel, ok := o.downstreamResponseMap.get(watch); ok {
 				select {
 				case channel <- convertToGcpResponse(resp, *watch):
-					break
+					o.logger.With("key", aggregatedKey).With("node ID", watch.GetNode().GetId()).
+						Debug(context.Background(), "response sent")
 				default:
 					// If the channel is blocked, we simply drop subsequent requests and error.
 					// Alternative possibilities are discussed here:

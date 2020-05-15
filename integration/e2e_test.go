@@ -30,7 +30,7 @@ import (
 	"github.com/onsi/gomega"
 )
 
-var testLogger = log.New("fatal")
+var testLogger = log.New("debug").Named("e2e")
 
 func TestMain(m *testing.M) {
 	// We force a 1 second sleep before running a test to let the OS close any lingering socket from previous
@@ -82,7 +82,7 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 
 		snapshotv2 := snapshotv2.Generate()
 		if err := snapshotv2.Consistent(); err != nil {
-			t.Fatalf("Snapshot inconsistency: %+v\n", snapshotv2)
+			testLogger.Fatal(ctx, "Snapshot inconsistency: %+v\n", snapshotv2)
 		}
 
 		// TODO: parametrize node-id in bootstrap files.
@@ -108,7 +108,7 @@ func startSnapshotCache(ctx context.Context, upstreamPort uint, basePort uint, n
 	signal := make(chan struct{})
 	cbv2 := &gcptestv2.Callbacks{Signal: signal}
 
-	configv2 := gcpcachev2.NewSnapshotCache(false, gcpcachev2.IDHash{}, gcpLogger{logger: testLogger})
+	configv2 := gcpcachev2.NewSnapshotCache(false, gcpcachev2.IDHash{}, gcpLogger{logger: testLogger.Named("snapshot")})
 	srv2 := gcpserverv2.NewServer(ctx, configv2, cbv2)
 	// We don't have support for v3 yet, but this is left here in preparation for the eventual
 	// inclusion of v3 resources.
