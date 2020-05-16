@@ -711,11 +711,32 @@ func (m *Statsd) Validate() error {
 		}
 	}
 
-	if val := m.GetSampleRate(); val < 0 || val > 1 {
+	if m.GetFlushInterval() == nil {
 		return StatsdValidationError{
-			field:  "SampleRate",
-			reason: "value must be inside range [0, 1]",
+			field:  "FlushInterval",
+			reason: "value is required",
 		}
+	}
+
+	if d := m.GetFlushInterval(); d != nil {
+		dur, err := ptypes.Duration(d)
+		if err != nil {
+			return StatsdValidationError{
+				field:  "FlushInterval",
+				reason: "value is not a valid duration",
+				cause:  err,
+			}
+		}
+
+		gte := time.Duration(0*time.Second + 0*time.Nanosecond)
+
+		if dur < gte {
+			return StatsdValidationError{
+				field:  "FlushInterval",
+				reason: "value must be greater than or equal to 0s",
+			}
+		}
+
 	}
 
 	return nil

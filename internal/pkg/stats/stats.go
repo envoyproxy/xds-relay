@@ -17,10 +17,10 @@ import (
 type Config struct {
 	// StatsdAddress that the statsd sink is running on, with format addr:port.
 	StatsdAddress string
-	// SampleRate is the metrics emission sample rate. This defaults to 1.0
-	SampleRate float32
 	// RootPrefix is the prefix for the root scope.
 	RootPrefix string
+	// The maximum interval for packet sending. If set to 0 it defaults to 300ms.
+	FlushInterval time.Duration
 }
 
 // NewScope creates a new root Scope with the set of configured options and
@@ -28,17 +28,16 @@ type Config struct {
 func NewScope(config Config) (tally.Scope, io.Closer, error) {
 	// Configure statsd client for reporting stats.
 	statsdClient, err := statsd.NewClientWithConfig(&statsd.ClientConfig{
-		Address:     config.StatsdAddress,
-		Prefix:      "stats",
-		UseBuffered: true,
+		Address:       config.StatsdAddress,
+		Prefix:        "stats",
+		UseBuffered:   true,
+		FlushInterval: config.FlushInterval,
 	})
 	if err != nil {
 		return nil, nil, err
 	}
 
-	reporter := tallystatsd.NewReporter(statsdClient, tallystatsd.Options{
-		SampleRate: config.SampleRate,
-	})
+	reporter := tallystatsd.NewReporter(statsdClient, tallystatsd.Options{})
 
 	scope, closer := tally.NewRootScope(tally.ScopeOptions{
 		Prefix:   config.RootPrefix,

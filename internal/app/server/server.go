@@ -51,13 +51,13 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 		logger = log.New(bootstrapConfig.Logging.Level.String())
 	}
 
+	// TODO: Abstract how we setup the metrics sink.
 	statsdPort := strconv.FormatUint(uint64(bootstrapConfig.MetricsSink.GetStatsd().Address.PortValue), 10)
 	statsdAddress := net.JoinHostPort(bootstrapConfig.MetricsSink.GetStatsd().Address.Address, statsdPort)
 	stats, statsCloser, err := stats.NewScope(stats.Config{
 		StatsdAddress: statsdAddress,
 		RootPrefix:    bootstrapConfig.MetricsSink.GetStatsd().RootPrefix,
-		// TODO: handle the null case
-		SampleRate: bootstrapConfig.MetricsSink.GetStatsd().SampleRate,
+		FlushInterval: time.Duration(bootstrapConfig.MetricsSink.GetStatsd().FlushInterval.Nanos),
 	})
 	defer statsCloser.Close()
 

@@ -86,5 +86,5 @@ message Statsd {
 
     string root_prefix = 2 [(validate.rules).string.min_bytes = 1];
 
-    float sample_rate = 3 [(validate.rules).float = { gte: 0, lte: 1.0}];
+    google.protobuf.Duration flush_interval = 3 [(validate.rules).duration = {required: true, gte: {nanos: 0}}];
 }
