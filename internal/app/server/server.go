@@ -36,7 +36,6 @@ func Run(bootstrapConfig *bootstrapv1.Bootstrap,
 	logLevel string, mode string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	defer statsCloser.Close()
 
 	RunWithContext(ctx, cancel, bootstrapConfig, aggregationRulesConfig, logLevel, mode)
 }
@@ -52,14 +51,18 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 		logger = log.New(bootstrapConfig.Logging.Level.String())
 	}
 
-	// TODO make configurable
+	statsdPort := strconv.FormatUint(uint64(bootstrapConfig.MetricsSink.GetStatsd().Address.PortValue), 10)
+	statsdAddress := net.JoinHostPort(bootstrapConfig.MetricsSink.GetStatsd().Address.Address, statsdPort)
 	stats, statsCloser, err := stats.NewScope(stats.Config{
-		StatsdAddress: "127.0.0.1:8125",
-		RootPrefix:    "xds-relay",
-		SampleRate:    1.0,
+		StatsdAddress: statsdAddress,
+		RootPrefix:    bootstrapConfig.MetricsSink.GetStatsd().RootPrefix,
+		// TODO: handle the null case
+		SampleRate: bootstrapConfig.MetricsSink.GetStatsd().SampleRate,
 	})
+	defer statsCloser.Close()
+
 	if err != nil {
-		logger.Fatalw("failed to configure stats client", "err", err)
+		logger.With("error", err).Panic(ctx, "failed to configure stats client")
 	}
 
 	// Initialize upstream client.
