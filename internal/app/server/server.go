@@ -54,12 +54,16 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	// Initialize metrics sink. For now we default to statsd.
 	statsdPort := strconv.FormatUint(uint64(bootstrapConfig.MetricsSink.GetStatsd().Address.PortValue), 10)
 	statsdAddress := net.JoinHostPort(bootstrapConfig.MetricsSink.GetStatsd().Address.Address, statsdPort)
-	stats, statsCloser, err := stats.NewScope(stats.Config{
+	scope, scopeCloser, err := stats.NewScope(stats.Config{
 		StatsdAddress: statsdAddress,
 		RootPrefix:    bootstrapConfig.MetricsSink.GetStatsd().RootPrefix,
 		FlushInterval: time.Duration(bootstrapConfig.MetricsSink.GetStatsd().FlushInterval.Nanos),
 	})
-	defer statsCloser.Close()
+	defer func() {
+		if err := scopeCloser.Close(); err != nil {
+			panic(err)
+		}
+	}()
 
 	if err != nil {
 		logger.With("error", err).Panic(ctx, "failed to configure stats client")
@@ -107,7 +111,9 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 
 	registerShutdownHandler(ctx, cancel, server.GracefulStop, logger, time.Second*30)
 	logger.With("address", listener.Addr()).Info(ctx, "Initializing server")
-	stats.SubScope(metricSubscope).Gauge(metricServerAlive).Update(1)
+	serverScope := scope.SubScope("server")
+	serverScope.Counter("start").Inc(1)
+
 	if err := server.Serve(listener); err != nil {
 		logger.With("err", err).Fatal(ctx, "failed to initialize server")
 	}
