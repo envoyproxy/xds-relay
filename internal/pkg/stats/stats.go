@@ -29,7 +29,6 @@ func NewScope(config Config) (tally.Scope, io.Closer, error) {
 	// Configure statsd client for reporting stats.
 	statsdClient, err := statsd.NewClientWithConfig(&statsd.ClientConfig{
 		Address:       config.StatsdAddress,
-		Prefix:        "stats",
 		UseBuffered:   true,
 		FlushInterval: config.FlushInterval,
 	})
