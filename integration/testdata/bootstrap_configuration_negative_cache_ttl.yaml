@@ -8,3 +8,8 @@ logging:
 cache:
   ttl: -60s
   max_entries: 10
+metrics_sink:
+  statsd:
+    address: {address: "12.34.56.78", port_value: 9012}
+    root_prefix: xdsrelay
+    sample_rate: 1.0
