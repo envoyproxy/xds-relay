@@ -51,7 +51,7 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 		logger = log.New(bootstrapConfig.Logging.Level.String())
 	}
 
-	// TODO: Abstract how we setup the metrics sink.
+	// Initialize metrics sink. For now we default to statsd.
 	statsdPort := strconv.FormatUint(uint64(bootstrapConfig.MetricsSink.GetStatsd().Address.PortValue), 10)
 	statsdAddress := net.JoinHostPort(bootstrapConfig.MetricsSink.GetStatsd().Address.Address, statsdPort)
 	stats, statsCloser, err := stats.NewScope(stats.Config{

@@ -99,6 +99,50 @@ var bootstrapTestCases = []TableEntry{
 			"invalid value for enum type: \"foo\"",
 		},
 	},
+	{
+		Description: "negative test: missing root_prefix",
+		Parameters: []interface{}{
+			"./integration/testdata/bootstrap_configuration_missing_root_prefix.yaml",
+			"./integration/testdata/keyer_configuration_complete_tech_spec.yaml",
+			"debug",
+			"serve",
+			true,
+			"caused by: invalid Statsd.RootPrefix: value length must be at least 1 bytes",
+		},
+	},
+	{
+		Description: "negative test: missing flush_interval",
+		Parameters: []interface{}{
+			"./integration/testdata/bootstrap_configuration_missing_flush_interval.yaml",
+			"./integration/testdata/keyer_configuration_complete_tech_spec.yaml",
+			"debug",
+			"serve",
+			true,
+			"caused by: invalid Statsd.FlushInterval: value is required",
+		},
+	},
+	{
+		Description: "negative test: invalid statsd sink port",
+		Parameters: []interface{}{
+			"./integration/testdata/bootstrap_configuration_invalid_statsd_port.yaml",
+			"./integration/testdata/keyer_configuration_complete_tech_spec.yaml",
+			"debug",
+			"serve",
+			true,
+			"caused by: invalid SocketAddress.PortValue: value must be less than or equal to 65535",
+		},
+	},
+	{
+		Description: "negative test: missing statsd sink address",
+		Parameters: []interface{}{
+			"./integration/testdata/bootstrap_configuration_missing_statsd_address.yaml",
+			"./integration/testdata/keyer_configuration_complete_tech_spec.yaml",
+			"debug",
+			"serve",
+			true,
+			"caused by: invalid SocketAddress.Address: value length must be at least 1 bytes",
+		},
+	},
 }
 
 var _ = Describe("Integration tests for bootstrapping xds-relay", func() {

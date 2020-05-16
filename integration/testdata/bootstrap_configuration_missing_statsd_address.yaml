@@ -1,0 +1,15 @@
+server:
+  address: {address: "127.0.0.1", port_value: 9991}
+origin_server:
+  address: {address: "my-control-plane.lyft.net", port_value: 80}
+logging:
+  path: /var/log/xds-aggregator
+  level: DEBUG
+cache:
+  ttl: 60s
+  max_entries: 10
+metrics_sink:
+  statsd:
+    address: {port_value: 9012}
+    root_prefix: xdsrelay
+    flush_interval: 0.25s
