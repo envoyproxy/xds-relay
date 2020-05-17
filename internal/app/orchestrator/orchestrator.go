@@ -21,6 +21,7 @@ import (
 
 	discovery "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
+	"github.com/uber-go/tally"
 )
 
 const (
@@ -65,6 +66,7 @@ type orchestrator struct {
 	upstreamClient upstream.Client
 
 	logger log.Logger
+	scope  tally.Scope
 
 	downstreamResponseMap downstreamResponseMap
 	upstreamResponseMap   upstreamResponseMap
@@ -76,12 +78,14 @@ type orchestrator struct {
 func New(
 	ctx context.Context,
 	l log.Logger,
+	scope tally.Scope,
 	mapper mapper.Mapper,
 	upstreamClient upstream.Client,
 	cacheConfig *bootstrapv1.Cache,
 ) Orchestrator {
 	orchestrator := &orchestrator{
 		logger:                l.Named(component),
+		scope:                 scope,
 		mapper:                mapper,
 		upstreamClient:        upstreamClient,
 		downstreamResponseMap: newDownstreamResponseMap(),
@@ -122,6 +126,7 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) 
 	// If this is the first time we're seeing the request from the
 	// downstream client, initialize a channel to feed future responses.
 	responseChannel := o.downstreamResponseMap.createChannel(&req)
+	o.scope.Counter("create_channel").Inc(1)
 
 	aggregatedKey, err := o.mapper.GetKey(req)
 	if err != nil {

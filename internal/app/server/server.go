@@ -88,7 +88,8 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	requestMapper := mapper.NewMapper(aggregationRulesConfig)
 
 	// Initialize orchestrator.
-	orchestrator := orchestrator.New(ctx, logger, requestMapper, upstreamClient, bootstrapConfig.Cache)
+	orchestrator := orchestrator.New(ctx, logger, scope.SubScope("orchestrator"), requestMapper,
+		upstreamClient, bootstrapConfig.Cache)
 
 	// Start server.
 	gcpServer := gcp.NewServer(ctx, orchestrator, nil)
@@ -111,8 +112,8 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 
 	registerShutdownHandler(ctx, cancel, server.GracefulStop, logger, time.Second*30)
 	logger.With("address", listener.Addr()).Info(ctx, "Initializing server")
-	serverScope := scope.SubScope("server")
-	serverScope.Counter("start").Inc(1)
+	serverScope := scope.SubScope(metricSubscope)
+	serverScope.Counter(metricServerAlive).Inc(1)
 
 	if err := server.Serve(listener); err != nil {
 		logger.With("err", err).Fatal(ctx, "failed to initialize server")

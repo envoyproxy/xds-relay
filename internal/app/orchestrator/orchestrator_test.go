@@ -23,6 +23,7 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/pkg/util/yamlproto"
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
+	"github.com/uber-go/tally"
 )
 
 type mockSimpleUpstreamClient struct {
@@ -57,9 +58,11 @@ func (m mockMultiStreamUpstreamClient) OpenStream(
 	return nil, func() {}, nil
 }
 
-func newMockOrchestrator(t *testing.T, mapper mapper.Mapper, upstreamClient upstream.Client) *orchestrator {
+func newMockOrchestrator(t *testing.T, mockScope tally.Scope, mapper mapper.Mapper,
+	upstreamClient upstream.Client) *orchestrator {
 	orchestrator := &orchestrator{
 		logger:                log.New("info"),
+		scope:                 mockScope,
 		mapper:                mapper,
 		upstreamClient:        upstreamClient,
 		downstreamResponseMap: newDownstreamResponseMap(),
@@ -82,6 +85,10 @@ func newMockMapper(t *testing.T) mapper.Mapper {
 	assert.NoError(t, err)
 
 	return mapper.NewMapper(&config)
+}
+
+func newMockScope(prefix string) tally.TestScope {
+	return tally.NewTestScope(prefix, make(map[string]string))
 }
 
 func assertEqualResources(t *testing.T, got gcp.Response, expected v2.DiscoveryResponse, req gcp.Request) {
@@ -120,15 +127,18 @@ func TestNew(t *testing.T) {
 		MaxEntries: 10,
 	}
 
-	orchestrator := New(context.Background(), log.New("info"), requestMapper, upstreamClient, &cacheConfig)
+	orchestrator := New(context.Background(), log.New("info"), tally.NewTestScope("prefix",
+		make(map[string]string)), requestMapper, upstreamClient, &cacheConfig)
 	assert.NotNil(t, orchestrator)
 }
 
 func TestGoldenPath(t *testing.T) {
 	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
 	mapper := newMockMapper(t)
+	mockScope := newMockScope("mock_orchestrator")
 	orchestrator := newMockOrchestrator(
 		t,
+		mockScope,
 		mapper,
 		mockSimpleUpstreamClient{
 			responseChan: upstreamResponseChannel,
@@ -141,6 +151,9 @@ func TestGoldenPath(t *testing.T) {
 	}
 
 	respChannel, cancelWatch := orchestrator.CreateWatch(req)
+	snap := mockScope.Snapshot()
+	counters := snap.Counters()
+	testutils.AssertCounterValue(t, counters, "mock_orchestrator.create_channel", 1)
 	assert.NotNil(t, respChannel)
 	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.responseChannels))
 	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
@@ -175,8 +188,10 @@ func TestGoldenPath(t *testing.T) {
 func TestCachedResponse(t *testing.T) {
 	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
 	mapper := newMockMapper(t)
+	mockScope := newMockScope("prefix")
 	orchestrator := newMockOrchestrator(
 		t,
+		mockScope,
 		mapper,
 		mockSimpleUpstreamClient{
 			responseChan: upstreamResponseChannel,
@@ -270,9 +285,11 @@ func TestCachedResponse(t *testing.T) {
 func TestMultipleWatchersAndUpstreams(t *testing.T) {
 	upstreamResponseChannelLDS := make(chan *v2.DiscoveryResponse)
 	upstreamResponseChannelCDS := make(chan *v2.DiscoveryResponse)
+	mockScope := newMockScope("prefix")
 	mapper := newMockMapper(t)
 	orchestrator := newMockOrchestrator(
 		t,
+		mockScope,
 		mapper,
 		mockMultiStreamUpstreamClient{
 			ldsResponseChan: upstreamResponseChannelLDS,
