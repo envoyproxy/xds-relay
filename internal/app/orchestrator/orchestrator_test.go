@@ -66,6 +66,7 @@ func newMockOrchestrator(t *testing.T, mockScope tally.Scope, mapper mapper.Mapp
 		mapper:                mapper,
 		upstreamClient:        upstreamClient,
 		downstreamResponseMap: newDownstreamResponseMap(),
+		downstreamScope:       mockScope.SubScope("downstream"),
 		upstreamResponseMap:   newUpstreamResponseMap(),
 	}
 
@@ -153,7 +154,7 @@ func TestGoldenPath(t *testing.T) {
 	respChannel, cancelWatch := orchestrator.CreateWatch(req)
 	snap := mockScope.Snapshot()
 	counters := snap.Counters()
-	testutils.AssertCounterValue(t, counters, "mock_orchestrator.create_channel", 1)
+	testutils.AssertCounterValue(t, counters, "mock_orchestrator.downstream.create_channel", 1)
 	assert.NotNil(t, respChannel)
 	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.responseChannels))
 	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)

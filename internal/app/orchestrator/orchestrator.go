@@ -30,6 +30,8 @@ const (
 	// unaggregatedPrefix is the prefix used to label discovery requests that
 	// could not be successfully mapped to an aggregation rule.
 	unaggregatedPrefix = "unaggregated_"
+
+	metricCreateChannel = "create_channel"
 )
 
 // Orchestrator has the following responsibilities:
@@ -69,6 +71,7 @@ type orchestrator struct {
 	scope  tally.Scope
 
 	downstreamResponseMap downstreamResponseMap
+	downstreamScope       tally.Scope
 	upstreamResponseMap   upstreamResponseMap
 }
 
@@ -89,6 +92,7 @@ func New(
 		mapper:                mapper,
 		upstreamClient:        upstreamClient,
 		downstreamResponseMap: newDownstreamResponseMap(),
+		downstreamScope:       scope.SubScope("downstream"),
 		upstreamResponseMap:   newUpstreamResponseMap(),
 	}
 
@@ -126,7 +130,7 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) 
 	// If this is the first time we're seeing the request from the
 	// downstream client, initialize a channel to feed future responses.
 	responseChannel := o.downstreamResponseMap.createChannel(&req)
-	o.scope.Counter("create_channel").Inc(1)
+	o.downstreamScope.Counter(metricCreateChannel).Inc(1)
 
 	aggregatedKey, err := o.mapper.GetKey(req)
 	if err != nil {
