@@ -74,7 +74,18 @@ var bootstrapTestCases = []TableEntry{
 			"debug",
 			"serve",
 			true,
-			"invalid SocketAddress.Address: value length must be at least 1 bytes",
+			"invalid SocketAddress.Address: value must be a valid hostname, or ip address",
+		},
+	},
+	{
+		Description: "negative test: invalid hostname value",
+		Parameters: []interface{}{
+			"./integration/testdata/bootstrap_configuration_invalid_hostname_value.yaml",
+			"./integration/testdata/keyer_configuration_complete_tech_spec.yaml",
+			"debug",
+			"serve",
+			true,
+			"invalid SocketAddress.Address: value must be a valid hostname, or ip address",
 		},
 	},
 	{
