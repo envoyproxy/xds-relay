@@ -31,5 +31,8 @@ jobs:
         run: make compile-validator-tool
         working-directory: ${{ env.PACKAGEPATH }}
       - name: Run integration tests
-        run: make integration-tests
         working-directory: ${{ env.PACKAGEPATH }}
+        uses: nick-invision/retry@v1
+        with:
+          max_attempts: 3
+          command: make integration-tests
