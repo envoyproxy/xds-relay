@@ -33,5 +33,6 @@ jobs:
       - name: Run integration tests
         uses: nick-invision/retry@v1
         with:
+          timeout_minutes: 10
           max_attempts: 3
           command: make integration-tests
