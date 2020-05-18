@@ -151,7 +151,7 @@ var bootstrapTestCases = []TableEntry{
 			"debug",
 			"serve",
 			true,
-			"caused by: invalid SocketAddress.Address: value length must be at least 1 bytes",
+			"invalid SocketAddress.Address: value must be a valid hostname, or ip address",
 		},
 	},
 }
