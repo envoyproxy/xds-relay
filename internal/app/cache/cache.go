@@ -33,7 +33,7 @@ type Cache interface {
 
 type ReadOnlyCache interface {
 	// Fetch returns the cached resource if it exists.
-	Fetch(key string) (*Resource, error)
+	FetchReadOnly(key string) (Resource, error)
 }
 
 type cache struct {
@@ -85,6 +85,14 @@ func NewCache(maxEntries int, onEvicted OnEvictFunc, ttl time.Duration) (Cache, 
 
 func (c *cache) GetReadOnlyCache() ReadOnlyCache {
 	return c
+}
+
+func (c *cache) FetchReadOnly(key string) (Resource, error) {
+	resource, err := c.Fetch(key)
+	if resource == nil {
+		return Resource{}, err
+	}
+	return *resource, err
 }
 
 func (c *cache) Fetch(key string) (*Resource, error) {

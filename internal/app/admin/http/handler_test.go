@@ -155,3 +155,24 @@ func TestAdminServer_CacheDumpHandler_NotFound(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.Equal(t, "no resource for key cds found in cache.\n", rr.Body.String())
 }
+
+func TestGetCacheKeyParam(t *testing.T) {
+	path := "127.0.0.1:6070/cache/foo_production_*"
+	cacheKey, err := getCacheKeyParam(path)
+	assert.NoError(t, err)
+	assert.Equal(t, "foo_production_*", cacheKey)
+}
+
+func TestGetCacheKeyParam_NoKey(t *testing.T) {
+	path := "127.0.0.1:6070/cache/"
+	cacheKey, err := getCacheKeyParam(path)
+	assert.NoError(t, err)
+	assert.Equal(t, "", cacheKey)
+}
+
+func TestGetCacheKeyParam_Malformed(t *testing.T) {
+	path := "127.0.0.1:6070"
+	cacheKey, err := getCacheKeyParam(path)
+	assert.Error(t, err, "")
+	assert.Equal(t, "", cacheKey)
+}

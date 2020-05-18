@@ -1,11 +1,12 @@
 package handler
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/envoyproxy/xds-relay/internal/pkg/util/stringify"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/xds-relay/internal/app/cache"
@@ -26,7 +27,7 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap, orchestrator *orchestrator.Or
 		{
 			"/",
 			"admin home page",
-			defaultHandler(nil),
+			func(http.ResponseWriter, *http.Request) {},
 		},
 		{
 			"/cache/",
@@ -67,7 +68,7 @@ func defaultHandler(handlers []Handler) http.HandlerFunc {
 
 func configDumpHandler(bootstrapConfig *bootstrapv1.Bootstrap) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		configString, err := interfaceToString(bootstrapConfig)
+		configString, err := stringify.InterfaceToString(bootstrapConfig)
 		if err != nil {
 			fmt.Fprintf(w, "Failed to dump config: %s\n", err.Error())
 		}
@@ -79,9 +80,13 @@ func configDumpHandler(bootstrapConfig *bootstrapv1.Bootstrap) http.HandlerFunc 
 // TODO(lisalu): Support dump of matching resources when cache key regex is provided.
 func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		cacheKey := getCacheKeyParam(req.URL.Path)
+		cacheKey, err := getCacheKeyParam(req.URL.Path)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, "unable to parse cache key from path: %s", err.Error())
+		}
 		cache := orchestrator.Orchestrator.GetReadOnlyCache(*o)
-		resource, err := cache.Fetch(cacheKey)
+		resource, err := cache.FetchReadOnly(cacheKey)
 		if err != nil {
 			fmt.Fprintf(w, "no resource for key %s found in cache.\n", cacheKey)
 			return
@@ -96,15 +101,6 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	}
 }
 
-// Converts an interface to a human-readable string for pretty-printing via marshalling to JSON.
-func interfaceToString(v interface{}) (string, error) {
-	prettyJSON, err := json.MarshalIndent(v, "", "  ")
-	if err != nil {
-		return "", err
-	}
-	return string(prettyJSON), nil
-}
-
 type marshallableResource struct {
 	Resp           *cache.Response
 	Requests       []*v2.DiscoveryRequest
@@ -114,7 +110,7 @@ type marshallableResource struct {
 // In order to marshal a Resource from the cache to JSON to be printed,
 // the map of requests is converted to a slice of just the keys,
 // since the bool value is meaningless.
-func resourceToString(resource *cache.Resource) (string, error) {
+func resourceToString(resource cache.Resource) (string, error) {
 	var requests []*v2.DiscoveryRequest
 	for request := range resource.Requests {
 		requests = append(requests, request)
@@ -126,11 +122,14 @@ func resourceToString(resource *cache.Resource) (string, error) {
 		ExpirationTime: resource.ExpirationTime,
 	}
 
-	return interfaceToString(resourceString)
+	return stringify.InterfaceToString(resourceString)
 }
 
-func getCacheKeyParam(path string) string {
+func getCacheKeyParam(path string) (string, error) {
 	// Assumes that the URL is of the format `address/cache/parameter` and returns `parameter`.
 	splitPath := strings.SplitN(path, "/", 3)
-	return splitPath[2]
+	if len(splitPath) == 3 {
+		return splitPath[2], nil
+	}
+	return "", fmt.Errorf("unable to parse cache key from path: %s", path)
 }
