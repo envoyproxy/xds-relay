@@ -36,3 +36,4 @@ jobs:
           timeout_minutes: 10
           max_attempts: 3
           command: make integration-tests
+        working-directory: ${{ env.PACKAGEPATH }}
