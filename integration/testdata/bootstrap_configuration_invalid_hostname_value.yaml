@@ -1,0 +1,10 @@
+server:
+  address: {address: "invalid_hostname.net", port_value: 12345}
+origin_server:
+  address: {address: "my-control-plane.lyft.net", port_value: 80}
+logging:
+  path: /var/log/xds-aggregator
+  level: DEBUG
+cache:
+  ttl: 60s
+  max_entries: 10
