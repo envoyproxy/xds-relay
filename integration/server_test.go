@@ -34,7 +34,3 @@ func TestServerShutdown(t *testing.T) {
 	err = cmd.Wait()
 	assert.Nil(t, e)
 }
-
-func TestAssertAlwaysFalse(t *testing.T) {
-	assert.Equal(t, 1, 2)
-}
