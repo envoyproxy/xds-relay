@@ -6,8 +6,6 @@ on:
   pull_request:
     branches:
       - master
-env:
-  PACKAGEPATH: ${{ github.workspace }}/go/src/github.com/${{ github.repository }}
 jobs:
   tests:
     strategy:
@@ -18,18 +16,17 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-        with:
-          path: ${{ env.PACKAGEPATH }}
       - name: Install Go
         uses: actions/setup-go@v2-beta
         with:
           go-version: ${{ matrix.go-version }}
       - name: Build xds-relay binary
         run: make compile
-        working-directory: ${{ env.PACKAGEPATH }}
       - name: Build configuration validator tool
         run: make compile-validator-tool
-        working-directory: ${{ env.PACKAGEPATH }}
       - name: Run integration tests
-        run: make integration-tests
-        working-directory: ${{ env.PACKAGEPATH }}
+        uses: nick-invision/retry@v1
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          command: make integration-tests
