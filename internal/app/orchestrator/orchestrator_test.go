@@ -65,8 +65,7 @@ func newMockOrchestrator(t *testing.T, mockScope tally.Scope, mapper mapper.Mapp
 		scope:                 mockScope,
 		mapper:                mapper,
 		upstreamClient:        upstreamClient,
-		downstreamResponseMap: newDownstreamResponseMap(),
-		downstreamScope:       mockScope.SubScope("downstream"),
+		downstreamResponseMap: newDownstreamResponseMap(mockScope.SubScope("downstream")),
 		upstreamResponseMap:   newUpstreamResponseMap(),
 	}
 
