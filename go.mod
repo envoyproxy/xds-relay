@@ -3,6 +3,7 @@ module github.com/envoyproxy/xds-relay
 go 1.14
 
 require (
+	github.com/cactus/go-statsd-client/statsd v0.0.0-20200322202804-24fc78943200
 	github.com/envoyproxy/go-control-plane v0.9.5
 	github.com/envoyproxy/protoc-gen-validate v0.3.0
 	github.com/ghodss/yaml v1.0.0
@@ -12,6 +13,7 @@ require (
 	github.com/lyft/protoc-gen-star v0.4.14 // indirect
 	github.com/onsi/ginkgo v1.12.0
 	github.com/onsi/gomega v1.9.0
+	github.com/uber-go/tally v3.3.15+incompatible
 	github.com/spf13/afero v1.2.2 // indirect
 	github.com/spf13/cobra v0.0.6
 	github.com/stretchr/testify v1.4.0

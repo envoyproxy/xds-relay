@@ -6,10 +6,9 @@ logging:
   path: /var/log/xds-aggregator
   level: DEBUG
 cache:
-  ttl: -60s
+  ttl: 60s
   max_entries: 10
 metrics_sink:
   statsd:
     address: {address: "12.34.56.78", port_value: 9012}
     root_prefix: xdsrelay
-    flush_interval: 1s

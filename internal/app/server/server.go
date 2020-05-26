@@ -9,6 +9,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/envoyproxy/xds-relay/internal/pkg/stats"
+
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
 	"github.com/envoyproxy/xds-relay/internal/app/orchestrator"
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
@@ -21,6 +23,12 @@ import (
 	api "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	gcp "github.com/envoyproxy/go-control-plane/pkg/server/v2"
 	"google.golang.org/grpc"
+)
+
+const (
+	metricSubscope             = "server"
+	metricSubscopeOrchestrator = "orchestrator"
+	metricServerAlive          = "alive"
 )
 
 // Run instantiates a running gRPC server for accepting incoming xDS-based requests.
@@ -44,6 +52,24 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 		logger = log.New(bootstrapConfig.Logging.Level.String())
 	}
 
+	// Initialize metrics sink. For now we default to statsd.
+	statsdPort := strconv.FormatUint(uint64(bootstrapConfig.MetricsSink.GetStatsd().Address.PortValue), 10)
+	statsdAddress := net.JoinHostPort(bootstrapConfig.MetricsSink.GetStatsd().Address.Address, statsdPort)
+	scope, scopeCloser, err := stats.NewScope(stats.Config{
+		StatsdAddress: statsdAddress,
+		RootPrefix:    bootstrapConfig.MetricsSink.GetStatsd().RootPrefix,
+		FlushInterval: time.Duration(bootstrapConfig.MetricsSink.GetStatsd().FlushInterval.Nanos),
+	})
+	defer func() {
+		if err := scopeCloser.Close(); err != nil {
+			panic(err)
+		}
+	}()
+
+	if err != nil {
+		logger.With("error", err).Panic(ctx, "failed to configure stats client")
+	}
+
 	// Initialize upstream client.
 	upstreamPort := strconv.FormatUint(uint64(bootstrapConfig.OriginServer.Address.PortValue), 10)
 	upstreamAddress := net.JoinHostPort(bootstrapConfig.OriginServer.Address.Address, upstreamPort)
@@ -63,7 +89,8 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	requestMapper := mapper.NewMapper(aggregationRulesConfig)
 
 	// Initialize orchestrator.
-	orchestrator := orchestrator.New(ctx, logger, requestMapper, upstreamClient, bootstrapConfig.Cache)
+	orchestrator := orchestrator.New(ctx, logger, scope.SubScope(metricSubscopeOrchestrator), requestMapper,
+		upstreamClient, bootstrapConfig.Cache)
 
 	// Start server.
 	gcpServer := gcp.NewServer(ctx, orchestrator, nil)
@@ -86,6 +113,9 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 
 	registerShutdownHandler(ctx, cancel, server.GracefulStop, logger, time.Second*30)
 	logger.With("address", listener.Addr()).Info(ctx, "Initializing server")
+	serverScope := scope.SubScope(metricSubscope)
+	serverScope.Counter(metricServerAlive).Inc(1)
+
 	if err := server.Serve(listener); err != nil {
 		logger.With("err", err).Fatal(ctx, "failed to initialize server")
 	}

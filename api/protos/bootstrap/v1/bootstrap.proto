@@ -8,7 +8,7 @@ import "google/protobuf/wrappers.proto";
 import "validate/validate.proto";
 
 
-// [#next-free-field: 5]
+// [#next-free-field: 6]
 message Bootstrap {
     // xds-relay server configuration.
     Server server = 1 [(validate.rules).message.required = true];
@@ -21,6 +21,9 @@ message Bootstrap {
 
     // Request/response cache settings.
     Cache cache = 4 [(validate.rules).message.required = true];
+
+    // Metrics sink settings
+    MetricsSink metrics_sink = 5 [(validate.rules).message.required = true];
 }
 
 // [#next-free-field: 2]
@@ -65,4 +68,23 @@ message SocketAddress {
     string address = 1 [(validate.rules).string = {address: true}];
 
     uint32 port_value = 2 [(validate.rules).uint32 = {lte: 65535}];
+}
+
+
+// The type of metrics sink, i.e. statsd, prometheus, etc.
+message MetricsSink {
+    oneof type {
+      option (validate.required) = true;
+
+      Statsd statsd = 1;
+    }
+}
+
+// [#next-free-field: 4]
+message Statsd {
+    SocketAddress address = 1 [(validate.rules).message.required = true];
+
+    string root_prefix = 2 [(validate.rules).string.min_bytes = 1];
+
+    google.protobuf.Duration flush_interval = 3 [(validate.rules).duration = {required: true, gte: {nanos: 0}}];
 }
