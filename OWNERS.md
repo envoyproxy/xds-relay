@@ -8,3 +8,6 @@ right place.
 * Jess Yuen ([jessicayuen](https://github.com/jessicayuen)) (jyuen@lyft.com)
 * Lita Cho ([lita](https://github.com/lita)) (lita@lyft.com)
 * Matt Klein ([mattklein123](https://github.com/mattklein123)) (mklein@lyft.com)
+* Jyoti Mahapatra ([jyotimahapatra](https://github.com/jyotimahapatra)) (jmahapatra@lyft.com)
+* Eduardo Apolinario ([eapolinario](https://github.com/eapolinario)) (eapolinario@lyft.com)
+* Lisa Lu ([LisaLudique](https://github.com/LisaLudique)) (lisalu@lyft.com)
