@@ -26,8 +26,9 @@ import (
 )
 
 const (
-	metricSubscope    = "server"
-	metricServerAlive = "alive"
+	metricSubscope             = "server"
+	metricSubscopeOrchestrator = "orchestrator"
+	metricServerAlive          = "alive"
 )
 
 // Run instantiates a running gRPC server for accepting incoming xDS-based requests.
@@ -88,7 +89,7 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	requestMapper := mapper.NewMapper(aggregationRulesConfig)
 
 	// Initialize orchestrator.
-	orchestrator := orchestrator.New(ctx, logger, scope.SubScope("orchestrator"), requestMapper,
+	orchestrator := orchestrator.New(ctx, logger, scope.SubScope(metricSubscopeOrchestrator), requestMapper,
 		upstreamClient, bootstrapConfig.Cache)
 
 	// Start server.
