@@ -110,6 +110,7 @@ type marshallableResource struct {
 // In order to marshal a Resource from the cache to JSON to be printed,
 // the map of requests is converted to a slice of just the keys,
 // since the bool value is meaningless.
+// TODO(lisalu): More intelligent unmarshalling of DiscoveryResponse.
 func resourceToString(resource cache.Resource) (string, error) {
 	var requests []*v2.DiscoveryRequest
 	for request := range resource.Requests {
