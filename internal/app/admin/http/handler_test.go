@@ -5,6 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/uber-go/tally"
+
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	mock_mapper "github.com/envoyproxy/xds-relay/internal/app/mapper/mock"
@@ -87,8 +89,9 @@ func (m mockSimpleUpstreamClient) OpenStream(req v2.DiscoveryRequest) (<-chan *v
 func TestAdminServer_CacheDumpHandler(t *testing.T) {
 	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
 	mapper := mock_mapper.NewMapper(t)
+	mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
 	orchestrator := mock_orchestrator.NewOrchestrator(t, mapper,
-		mockSimpleUpstreamClient{responseChan: upstreamResponseChannel})
+		mockSimpleUpstreamClient{responseChan: upstreamResponseChannel}, mockScope)
 	assert.NotNil(t, orchestrator)
 
 	gcpReq := gcp.Request{
@@ -141,8 +144,9 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 func TestAdminServer_CacheDumpHandler_NotFound(t *testing.T) {
 	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
 	mapper := mock_mapper.NewMapper(t)
+	mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
 	orchestrator := mock_orchestrator.NewOrchestrator(t, mapper,
-		mockSimpleUpstreamClient{responseChan: upstreamResponseChannel})
+		mockSimpleUpstreamClient{responseChan: upstreamResponseChannel}, mockScope)
 	assert.NotNil(t, orchestrator)
 
 	req, err := http.NewRequest("GET", "/cache/cds", nil)

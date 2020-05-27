@@ -8,4 +8,8 @@ if [ $? -ne 0 ]; then
     make build-docker-image
 fi
 
-docker run -v $(pwd):/xds-relay -it xds-relay:latest $*
+docker run \
+       --network host \
+       -v $(pwd):/xds-relay \
+       -it xds-relay:latest \
+       $*

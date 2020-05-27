@@ -1,5 +1,5 @@
 server:
-  address: {address: "127.0.0.1", port_value: 65536}
+  address: {address: "127.0.0.1", port_value: 9991}
 origin_server:
   address: {address: "my-control-plane.lyft.net", port_value: 80}
 logging:
@@ -8,10 +8,9 @@ logging:
 cache:
   ttl: 60s
   max_entries: 10
-admin:
-  address: {address: "127.0.0.1", port_value: 6070}
 metrics_sink:
   statsd:
     address: {address: "12.34.56.78", port_value: 9012}
-    root_prefix: xdsrelay
-    flush_interval: 1s
+    flush_interval: 0.5s
+admin:
+  address: {address: "127.0.0.1", port_value: 6070}

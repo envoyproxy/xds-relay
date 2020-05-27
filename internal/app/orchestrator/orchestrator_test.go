@@ -21,23 +21,8 @@ import (
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/stretchr/testify/assert"
+	"github.com/uber-go/tally"
 )
-
-func newMockOrchestrator(t *testing.T, mapper mapper.Mapper, upstreamClient upstream.Client) *orchestrator {
-	orchestrator := &orchestrator{
-		logger:                log.New("info"),
-		mapper:                mapper,
-		upstreamClient:        upstreamClient,
-		downstreamResponseMap: newDownstreamResponseMap(),
-		upstreamResponseMap:   newUpstreamResponseMap(),
-	}
-
-	cache, err := cache.NewCache(1000, orchestrator.onCacheEvicted, 10*time.Second)
-	assert.NoError(t, err)
-	orchestrator.cache = cache
-
-	return orchestrator
-}
 
 type mockSimpleUpstreamClient struct {
 	responseChan <-chan *v2.DiscoveryResponse
@@ -69,6 +54,28 @@ func (m mockMultiStreamUpstreamClient) OpenStream(
 
 	m.t.Errorf("Unsupported aggregated key, %s", aggregatedKey)
 	return nil, func() {}, nil
+}
+
+func newMockOrchestrator(t *testing.T, mockScope tally.Scope, mapper mapper.Mapper,
+	upstreamClient upstream.Client) *orchestrator {
+	orchestrator := &orchestrator{
+		logger:                log.New("info"),
+		scope:                 mockScope,
+		mapper:                mapper,
+		upstreamClient:        upstreamClient,
+		downstreamResponseMap: newDownstreamResponseMap(mockScope.SubScope("downstream")),
+		upstreamResponseMap:   newUpstreamResponseMap(),
+	}
+
+	cache, err := cache.NewCache(1000, orchestrator.onCacheEvicted, 10*time.Second)
+	assert.NoError(t, err)
+	orchestrator.cache = cache
+
+	return orchestrator
+}
+
+func newMockScope(prefix string) tally.TestScope {
+	return tally.NewTestScope(prefix, make(map[string]string))
 }
 
 func assertEqualResources(t *testing.T, got gcp.Response, expected v2.DiscoveryResponse, req gcp.Request) {
@@ -107,15 +114,18 @@ func TestNew(t *testing.T) {
 		MaxEntries: 10,
 	}
 
-	orchestrator := New(context.Background(), log.New("info"), requestMapper, upstreamClient, &cacheConfig)
+	orchestrator := New(context.Background(), log.New("info"), tally.NewTestScope("prefix",
+		make(map[string]string)), requestMapper, upstreamClient, &cacheConfig)
 	assert.NotNil(t, orchestrator)
 }
 
 func TestGoldenPath(t *testing.T) {
 	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
 	mapper := mock.NewMapper(t)
+	mockScope := newMockScope("mock_orchestrator")
 	orchestrator := newMockOrchestrator(
 		t,
+		mockScope,
 		mapper,
 		mockSimpleUpstreamClient{
 			responseChan: upstreamResponseChannel,
@@ -128,6 +138,9 @@ func TestGoldenPath(t *testing.T) {
 	}
 
 	respChannel, cancelWatch := orchestrator.CreateWatch(req)
+	snap := mockScope.Snapshot()
+	counters := snap.Counters()
+	testutils.AssertCounterValue(t, counters, "mock_orchestrator.downstream.create_channel", 1)
 	assert.NotNil(t, respChannel)
 	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.responseChannels))
 	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
@@ -162,8 +175,10 @@ func TestGoldenPath(t *testing.T) {
 func TestCachedResponse(t *testing.T) {
 	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
 	mapper := mock.NewMapper(t)
+	mockScope := newMockScope("prefix")
 	orchestrator := newMockOrchestrator(
 		t,
+		mockScope,
 		mapper,
 		mockSimpleUpstreamClient{
 			responseChan: upstreamResponseChannel,
@@ -258,8 +273,10 @@ func TestMultipleWatchersAndUpstreams(t *testing.T) {
 	upstreamResponseChannelLDS := make(chan *v2.DiscoveryResponse)
 	upstreamResponseChannelCDS := make(chan *v2.DiscoveryResponse)
 	mapper := mock.NewMapper(t)
+	mockScope := newMockScope("prefix")
 	orchestrator := newMockOrchestrator(
 		t,
+		mockScope,
 		mapper,
 		mockMultiStreamUpstreamClient{
 			ldsResponseChan: upstreamResponseChannelLDS,
