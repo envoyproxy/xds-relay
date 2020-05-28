@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/envoyproxy/xds-relay/internal/app/mapper/mock"
+	mapper_mock "github.com/envoyproxy/xds-relay/internal/app/mapper/mock"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	v2_core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
@@ -121,7 +121,7 @@ func TestNew(t *testing.T) {
 
 func TestGoldenPath(t *testing.T) {
 	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
-	mapper := mock.NewMapper(t)
+	mapper := mapper_mock.NewMapper(t)
 	mockScope := newMockScope("mock_orchestrator")
 	orchestrator := newMockOrchestrator(
 		t,
@@ -174,7 +174,7 @@ func TestGoldenPath(t *testing.T) {
 
 func TestCachedResponse(t *testing.T) {
 	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
-	mapper := mock.NewMapper(t)
+	mapper := mapper_mock.NewMapper(t)
 	mockScope := newMockScope("prefix")
 	orchestrator := newMockOrchestrator(
 		t,
@@ -272,7 +272,7 @@ func TestCachedResponse(t *testing.T) {
 func TestMultipleWatchersAndUpstreams(t *testing.T) {
 	upstreamResponseChannelLDS := make(chan *v2.DiscoveryResponse)
 	upstreamResponseChannelCDS := make(chan *v2.DiscoveryResponse)
-	mapper := mock.NewMapper(t)
+	mapper := mapper_mock.NewMapper(t)
 	mockScope := newMockScope("prefix")
 	orchestrator := newMockOrchestrator(
 		t,
