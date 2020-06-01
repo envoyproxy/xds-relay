@@ -84,7 +84,7 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	upstreamAddress := net.JoinHostPort(bootstrapConfig.OriginServer.Address.Address, upstreamPort)
 	// TODO: configure timeout param from bootstrap config.
 	// https://github.com/envoyproxy/xds-relay/issues/55
-	upstreamClient, err := upstream.NewClient(
+	upstreamClient, err := upstream.New(
 		ctx,
 		upstreamAddress,
 		upstream.CallOptions{Timeout: time.Minute},
@@ -95,7 +95,7 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	}
 
 	// Initialize request aggregation mapper component.
-	requestMapper := mapper.NewMapper(aggregationRulesConfig)
+	requestMapper := mapper.New(aggregationRulesConfig)
 
 	// Initialize orchestrator.
 	orchestrator := orchestrator.New(ctx, logger, scope.SubScope(metricSubscopeOrchestrator), requestMapper,

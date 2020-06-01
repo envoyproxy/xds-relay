@@ -34,7 +34,7 @@ const (
 )
 
 // NewMapper constructs a concrete implementation for the Mapper interface
-func NewMapper(config *aggregationv1.KeyerConfiguration) Mapper {
+func New(config *aggregationv1.KeyerConfiguration) Mapper {
 	return &mapper{
 		config: config,
 	}

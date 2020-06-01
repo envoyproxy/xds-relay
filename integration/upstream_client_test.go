@@ -152,7 +152,7 @@ func TestClientContextCancellationShouldCloseAllResponseChannels(t *testing.T) {
 	}
 
 	clientCtx, clientCancel := context.WithCancel(context.Background())
-	client, err := upstream.NewClient(
+	client, err := upstream.New(
 		clientCtx,
 		strings.Join([]string{"127.0.0.1", strconv.Itoa(originServerPort)}, ":"),
 		upstream.CallOptions{Timeout: time.Minute},
@@ -207,7 +207,7 @@ func setup(
 	// Start the origin server
 	go gcptest.RunManagementServer(ctx, srv2, srv3, originServerPort)
 
-	client, err := upstream.NewClient(
+	client, err := upstream.New(
 		context.Background(),
 		strings.Join([]string{"127.0.0.1", strconv.Itoa(originServerPort)}, ":"),
 		upstream.CallOptions{Timeout: time.Minute},

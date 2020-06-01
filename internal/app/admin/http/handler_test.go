@@ -5,12 +5,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/envoyproxy/xds-relay/internal/app/mapper"
+	"github.com/envoyproxy/xds-relay/internal/app/orchestrator"
+
 	"github.com/uber-go/tally"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
-	mock_mapper "github.com/envoyproxy/xds-relay/internal/app/mapper/mock"
-	mock_orchestrator "github.com/envoyproxy/xds-relay/internal/app/orchestrator/mock"
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/stretchr/testify/assert"
@@ -88,9 +89,9 @@ func (m mockSimpleUpstreamClient) OpenStream(req v2.DiscoveryRequest) (<-chan *v
 
 func TestAdminServer_CacheDumpHandler(t *testing.T) {
 	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
-	mapper := mock_mapper.NewMapper(t)
+	mapper := mapper.NewMapper(t)
 	mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
-	orchestrator := mock_orchestrator.NewOrchestrator(t, mapper,
+	orchestrator := orchestrator.NewOrchestrator(t, mapper,
 		mockSimpleUpstreamClient{responseChan: upstreamResponseChannel}, mockScope)
 	assert.NotNil(t, orchestrator)
 
@@ -143,9 +144,9 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 
 func TestAdminServer_CacheDumpHandler_NotFound(t *testing.T) {
 	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
-	mapper := mock_mapper.NewMapper(t)
+	mapper := mapper.NewMapper(t)
 	mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
-	orchestrator := mock_orchestrator.NewOrchestrator(t, mapper,
+	orchestrator := orchestrator.NewOrchestrator(t, mapper,
 		mockSimpleUpstreamClient{responseChan: upstreamResponseChannel}, mockScope)
 	assert.NotNil(t, orchestrator)
 

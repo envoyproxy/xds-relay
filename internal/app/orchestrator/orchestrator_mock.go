@@ -13,6 +13,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func NewOrchestrator(t *testing.T,
+	mapper mapper.Mapper,
+	upstreamClient upstream.Client,
+	scope tally.Scope) Orchestrator {
+	return NewMockOrchestrator(t, mapper, upstreamClient, scope)
+}
+
 func NewMockOrchestrator(t *testing.T,
 	mapper mapper.Mapper,
 	upstreamClient upstream.Client,

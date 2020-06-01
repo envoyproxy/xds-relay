@@ -72,13 +72,13 @@ type version struct {
 	nonce   string
 }
 
-// NewClient creates a grpc connection with an upstream origin server.
+// New creates a grpc connection with an upstream origin server.
 // Each xds relay server should create a single such upstream connection.
 // grpc will handle the actual number of underlying tcp connections.
 //
 // The method does not block until the underlying connection is up.
 // Returns immediately and connecting the server happens in background
-func NewClient(ctx context.Context, url string, callOptions CallOptions, logger log.Logger) (Client, error) {
+func New(ctx context.Context, url string, callOptions CallOptions, logger log.Logger) (Client, error) {
 	namedLogger := logger.Named("upstream_client")
 	namedLogger.With("address", url).Info(ctx, "Initiating upstream connection")
 	// TODO: configure grpc options.https://github.com/envoyproxy/xds-relay/issues/55

@@ -1103,7 +1103,7 @@ var _ = Describe("GetKey", func() {
 					},
 				},
 			}
-			mapper := NewMapper(&protoConfig)
+			mapper := New(&protoConfig)
 			request := getDiscoveryRequest()
 			request.TypeUrl = typeurl
 			key, err := mapper.GetKey(request)
@@ -1125,7 +1125,7 @@ var _ = Describe("GetKey", func() {
 					},
 				},
 			}
-			mapper := NewMapper(&protoConfig)
+			mapper := New(&protoConfig)
 			key, err := mapper.GetKey(request)
 			Expect(key).To(Equal(""))
 			Expect(err).Should(Equal(fmt.Errorf("Cannot map the input to a key")))
@@ -1158,7 +1158,7 @@ var _ = Describe("GetKey", func() {
 					},
 				},
 			}
-			mapper := NewMapper(&protoConfig)
+			mapper := New(&protoConfig)
 			key, err := mapper.GetKey(getDiscoveryRequest())
 			Expect(expectedKey).To(Equal(key))
 			Expect(err).Should(BeNil())
@@ -1187,7 +1187,7 @@ var _ = Describe("GetKey", func() {
 					},
 				},
 			}
-			mapper := NewMapper(&protoConfig)
+			mapper := New(&protoConfig)
 			key, err := mapper.GetKey(getDiscoveryRequest())
 			Expect(key).To(Equal(""))
 			Expect(err).Should(Equal(fmt.Errorf("Cannot map the input to a key")))
@@ -1208,7 +1208,7 @@ var _ = Describe("GetKey", func() {
 					},
 				},
 			}
-			mapper := NewMapper(&protoConfig)
+			mapper := New(&protoConfig)
 			key, err := mapper.GetKey(getDiscoveryRequest())
 			Expect(key).To(Equal(""))
 			Expect(err.Error()).Should(Equal("error parsing regexp: invalid UTF-8: `\xbd\xb2`"))
@@ -1237,7 +1237,7 @@ var _ = Describe("GetKey", func() {
 					},
 				},
 			}
-			mapper := NewMapper(&protoConfig)
+			mapper := New(&protoConfig)
 			key, err := mapper.GetKey(getDiscoveryRequest())
 			Expect(key).To(Equal(""))
 			Expect(err.Error()).Should(Equal("error parsing regexp: invalid UTF-8: `\xbd\xb2`"))
@@ -1258,7 +1258,7 @@ var _ = Describe("GetKey", func() {
 					},
 				},
 			}
-			mapper := NewMapper(&protoConfig)
+			mapper := New(&protoConfig)
 			key, err := mapper.GetKey(request)
 			Expect(key).To(Equal(""))
 			Expect(err).Should(Equal(fmt.Errorf(assert)))
@@ -1266,7 +1266,7 @@ var _ = Describe("GetKey", func() {
 		emptyFragmentErrorCases...)
 
 	It("TypeUrl should not be empty", func() {
-		mapper := NewMapper(&KeyerConfiguration{})
+		mapper := New(&KeyerConfiguration{})
 		request := getDiscoveryRequest()
 		request.TypeUrl = ""
 		key, err := mapper.GetKey(request)

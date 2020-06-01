@@ -5,15 +5,12 @@ import (
 	"testing"
 	"time"
 
-	mapper_mock "github.com/envoyproxy/xds-relay/internal/app/mapper/mock"
-
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	v2_core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	"github.com/envoyproxy/xds-relay/internal/app/cache"
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
-	upstream_mock "github.com/envoyproxy/xds-relay/internal/app/upstream/mock"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 	"github.com/envoyproxy/xds-relay/internal/pkg/util/testutils"
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
@@ -90,7 +87,7 @@ func assertEqualResources(t *testing.T, got gcp.Response, expected v2.DiscoveryR
 
 func TestNew(t *testing.T) {
 	// Trivial test to ensure orchestrator instantiates.
-	upstreamClient := upstream_mock.NewClient(
+	upstreamClient := upstream.NewClient(
 		context.Background(),
 		upstream.CallOptions{},
 		nil,
@@ -105,7 +102,7 @@ func TestNew(t *testing.T) {
 			},
 		},
 	}
-	requestMapper := mapper.NewMapper(&config)
+	requestMapper := mapper.New(&config)
 
 	cacheConfig := bootstrapv1.Cache{
 		Ttl: &duration.Duration{
@@ -121,7 +118,7 @@ func TestNew(t *testing.T) {
 
 func TestGoldenPath(t *testing.T) {
 	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
-	mapper := mapper_mock.NewMapper(t)
+	mapper := mapper.NewMapper(t)
 	mockScope := newMockScope("mock_orchestrator")
 	orchestrator := newMockOrchestrator(
 		t,
@@ -174,7 +171,7 @@ func TestGoldenPath(t *testing.T) {
 
 func TestCachedResponse(t *testing.T) {
 	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
-	mapper := mapper_mock.NewMapper(t)
+	mapper := mapper.NewMapper(t)
 	mockScope := newMockScope("prefix")
 	orchestrator := newMockOrchestrator(
 		t,
@@ -272,7 +269,7 @@ func TestCachedResponse(t *testing.T) {
 func TestMultipleWatchersAndUpstreams(t *testing.T) {
 	upstreamResponseChannelLDS := make(chan *v2.DiscoveryResponse)
 	upstreamResponseChannelCDS := make(chan *v2.DiscoveryResponse)
-	mapper := mapper_mock.NewMapper(t)
+	mapper := mapper.NewMapper(t)
 	mockScope := newMockScope("prefix")
 	orchestrator := newMockOrchestrator(
 		t,

@@ -10,7 +10,6 @@ import (
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
-	mock "github.com/envoyproxy/xds-relay/internal/app/upstream/mock"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -63,7 +62,7 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServer(t *testing.T) {
 	var message *v2.DiscoveryRequest
 	responseChan := make(chan *v2.DiscoveryResponse)
 	wait := make(chan bool)
-	client := mock.NewClient(
+	client := upstream.NewClient(
 		context.Background(),
 		CallOptions{Timeout: time.Nanosecond},
 		nil,
@@ -182,7 +181,7 @@ func TestOpenStreamShouldSendErrorWhenSendMsgBlocks(t *testing.T) {
 }
 
 func createMockClient() upstream.Client {
-	return mock.NewClient(
+	return upstream.NewClient(
 		context.Background(),
 		CallOptions{Timeout: time.Nanosecond},
 		nil,
@@ -191,7 +190,7 @@ func createMockClient() upstream.Client {
 }
 
 func createMockClientWithError() upstream.Client {
-	return mock.NewClient(
+	return upstream.NewClient(
 		context.Background(),
 		CallOptions{Timeout: time.Nanosecond},
 		fmt.Errorf("error"),
@@ -203,5 +202,5 @@ func createMockClientWithReponse(
 	t time.Duration,
 	r chan *v2.DiscoveryResponse,
 	sendCb func(m interface{}) error) upstream.Client {
-	return mock.NewClient(context.Background(), CallOptions{Timeout: t}, nil, r, sendCb)
+	return upstream.NewClient(context.Background(), CallOptions{Timeout: t}, nil, r, sendCb)
 }

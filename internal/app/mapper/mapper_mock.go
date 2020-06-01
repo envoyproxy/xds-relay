@@ -9,6 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func NewMapper(t *testing.T) Mapper {
+	return NewMockMapper(t)
+}
+
 func NewMockMapper(t *testing.T) Mapper {
 	bytes, err := ioutil.ReadFile("testdata/aggregation_rules.yaml") // key on request type
 	assert.NoError(t, err)
@@ -17,5 +21,5 @@ func NewMockMapper(t *testing.T) Mapper {
 	err = yamlproto.FromYAMLToKeyerConfiguration(string(bytes), &config)
 	assert.NoError(t, err)
 
-	return NewMapper(&config)
+	return New(&config)
 }
