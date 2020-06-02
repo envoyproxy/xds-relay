@@ -26,31 +26,31 @@ const (
 // channels.
 type downstreamResponseMap struct {
 	mu               sync.RWMutex
-	responseChannels map[*gcp.Request]chan gcp.Response
+	responseChannels map[*gcp.Request]chan gcp.ResponseIface
 	scope            tally.Scope
 }
 
 func newDownstreamResponseMap(scope tally.Scope) downstreamResponseMap {
 	return downstreamResponseMap{
-		responseChannels: make(map[*gcp.Request]chan gcp.Response),
+		responseChannels: make(map[*gcp.Request]chan gcp.ResponseIface),
 		scope:            scope,
 	}
 }
 
 // createChannel initializes a new channel for a request if it doesn't already
 // exist.
-func (d *downstreamResponseMap) createChannel(req *gcp.Request) chan gcp.Response {
+func (d *downstreamResponseMap) createChannel(req *gcp.Request) chan gcp.ResponseIface {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if _, ok := d.responseChannels[req]; !ok {
-		d.responseChannels[req] = make(chan gcp.Response, 1)
+		d.responseChannels[req] = make(chan gcp.ResponseIface, 1)
 	}
 	d.scope.Counter(metricCreateChannel).Inc(1)
 	return d.responseChannels[req]
 }
 
 // get retrieves the channel where responses are set for the specified request.
-func (d *downstreamResponseMap) get(req *gcp.Request) (chan gcp.Response, bool) {
+func (d *downstreamResponseMap) get(req *gcp.Request) (chan gcp.ResponseIface, bool) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	channel, ok := d.responseChannels[req]
@@ -62,7 +62,7 @@ func (d *downstreamResponseMap) get(req *gcp.Request) (chan gcp.Response, bool) 
 // can be separate go routines that are still attempting to write to the
 // channel. We rely on garbage collection to clean up and close outstanding
 // response channels once the go routines finish writing to them.
-func (d *downstreamResponseMap) delete(req *gcp.Request) chan gcp.Response {
+func (d *downstreamResponseMap) delete(req *gcp.Request) chan gcp.ResponseIface {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if channel, ok := d.responseChannels[req]; ok {

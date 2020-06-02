@@ -121,7 +121,7 @@ func New(
 //
 // Cancel is an optional function to release resources in the producer. If
 // provided, the consumer may call this function multiple times.
-func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) {
+func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.ResponseIface, func()) {
 	ctx := context.Background()
 	o.logger.With("node ID", req.GetNode().GetId()).With("type", req.GetTypeUrl()).Debug(ctx, "creating watch")
 
@@ -158,7 +158,7 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) 
 		o.logger.With("err", err).With("key", aggregatedKey).Warn(ctx, "failed to fetch aggregated key")
 	}
 
-	if cached != nil && cached.Resp != nil && cached.Resp.Raw.GetVersionInfo() != req.GetVersionInfo() {
+	if cached != nil && cached.Resp != nil && cached.Resp.GetVersionInfo() != req.GetVersionInfo() {
 		// If we have a cached response and the version is different,
 		// immediately push the result to the response channel.
 		go func() { responseChannel <- convertToGcpResponse(cached.Resp, req) }()
@@ -192,7 +192,7 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) 
 }
 
 // Fetch implements the polling method of the config cache using a non-empty request.
-func (o *orchestrator) Fetch(context.Context, discovery.DiscoveryRequest) (*gcp.Response, error) {
+func (o *orchestrator) Fetch(context.Context, discovery.DiscoveryRequest) (gcp.ResponseIface, error) {
 	return nil, fmt.Errorf("Not implemented")
 }
 
@@ -283,7 +283,7 @@ func (o *orchestrator) watchUpstream(
 
 // fanout pushes the response to the response channels of all open downstream
 // watchers in parallel.
-func (o *orchestrator) fanout(resp *cache.Response, watchers map[*gcp.Request]bool, aggregatedKey string) {
+func (o *orchestrator) fanout(resp *discovery.DiscoveryResponse, watchers map[*gcp.Request]bool, aggregatedKey string) {
 	var wg sync.WaitGroup
 	for watch := range watchers {
 		wg.Add(1)
@@ -336,11 +336,9 @@ func (o *orchestrator) shutdown(ctx context.Context) {
 
 // convertToGcpResponse constructs the go-control-plane response from the
 // cached response.
-func convertToGcpResponse(resp *cache.Response, req gcp.Request) gcp.Response {
-	return gcp.Response{
-		Request:            req,
-		Version:            resp.Raw.GetVersionInfo(),
-		ResourceMarshaled:  true,
-		MarshaledResources: resp.MarshaledResources,
+func convertToGcpResponse(resp *discovery.DiscoveryResponse, req gcp.Request) gcp.PassthroughResponse {
+	return gcp.PassthroughResponse{
+		Request:  req,
+		Response: resp,
 	}
 }

@@ -75,14 +75,11 @@ func newMockScope(prefix string) tally.TestScope {
 	return tally.NewTestScope(prefix, make(map[string]string))
 }
 
-func assertEqualResources(t *testing.T, got gcp.Response, expected v2.DiscoveryResponse, req gcp.Request) {
-	expectedResources, err := cache.MarshalResources(expected.Resources)
+func assertEqualResponse(t *testing.T, got gcp.ResponseIface, expected v2.DiscoveryResponse, req gcp.Request) {
+	gotDiscoveryResponse, err := got.GetDiscoveryResponse()
 	assert.NoError(t, err)
-	expectedResponse := cache.Response{
-		Raw:                expected,
-		MarshaledResources: expectedResources,
-	}
-	assert.Equal(t, convertToGcpResponse(&expectedResponse, req), got)
+	assert.Equal(t, expected, *gotDiscoveryResponse)
+	assert.Equal(t, req, *got.GetRequest())
 }
 
 func TestNew(t *testing.T) {
@@ -158,7 +155,7 @@ func TestGoldenPath(t *testing.T) {
 	upstreamResponseChannel <- &resp
 
 	gotResponse := <-respChannel
-	assertEqualResources(t, gotResponse, resp, req)
+	assertEqualResponse(t, gotResponse, resp, req)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -215,7 +212,7 @@ func TestCachedResponse(t *testing.T) {
 	})
 
 	gotResponse := <-respChannel
-	assertEqualResources(t, gotResponse, mockResponse, req)
+	assertEqualResponse(t, gotResponse, mockResponse, req)
 
 	// Attempt pushing a more recent response from upstream.
 	resp := v2.DiscoveryResponse{
@@ -230,7 +227,7 @@ func TestCachedResponse(t *testing.T) {
 
 	upstreamResponseChannel <- &resp
 	gotResponse = <-respChannel
-	assertEqualResources(t, gotResponse, resp, req)
+	assertEqualResponse(t, gotResponse, resp, req)
 	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
 	orchestrator.upstreamResponseMap.internal.Range(func(key, val interface{}) bool {
 		assert.Contains(t, "lds", key.(string))
@@ -343,9 +340,9 @@ func TestMultipleWatchersAndUpstreams(t *testing.T) {
 		return true
 	})
 
-	assertEqualResources(t, gotResponseFromChannel1, upstreamResponseLDS, req1)
-	assertEqualResources(t, gotResponseFromChannel2, upstreamResponseLDS, req2)
-	assertEqualResources(t, gotResponseFromChannel3, upstreamResponseCDS, req3)
+	assertEqualResponse(t, gotResponseFromChannel1, upstreamResponseLDS, req1)
+	assertEqualResponse(t, gotResponseFromChannel2, upstreamResponseLDS, req2)
+	assertEqualResponse(t, gotResponseFromChannel3, upstreamResponseCDS, req3)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

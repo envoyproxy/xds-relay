@@ -8,10 +8,7 @@ import (
 	"time"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	gcp_types "github.com/envoyproxy/go-control-plane/pkg/cache/types"
-	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	"github.com/golang/groupcache/lru"
-	"github.com/golang/protobuf/ptypes/any"
 )
 
 type Cache interface {
@@ -42,14 +39,8 @@ type cache struct {
 	ttl     time.Duration
 }
 
-// Response stores the raw Discovery Response alongside its marshaled resources.
-type Response struct {
-	Raw                v2.DiscoveryResponse
-	MarshaledResources []gcp_types.MarshaledResource
-}
-
 type Resource struct {
-	Resp           *Response
+	Resp           *v2.DiscoveryResponse
 	Requests       map[*v2.DiscoveryRequest]bool
 	ExpirationTime time.Time
 }
@@ -130,21 +121,13 @@ func (c *cache) Fetch(key string) (*Resource, error) {
 	return &resource, nil
 }
 
-func (c *cache) SetResponse(key string, resp v2.DiscoveryResponse) (map[*v2.DiscoveryRequest]bool, error) {
+func (c *cache) SetResponse(key string, response v2.DiscoveryResponse) (map[*v2.DiscoveryRequest]bool, error) {
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
-	marshaledResources, err := MarshalResources(resp.Resources)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal resources for key: %s, err %v", key, err)
-	}
-	response := &Response{
-		Raw:                resp,
-		MarshaledResources: marshaledResources,
-	}
 	value, found := c.cache.Get(key)
 	if !found {
 		resource := Resource{
-			Resp:           response,
+			Resp:           &response,
 			ExpirationTime: c.getExpirationTime(time.Now()),
 			Requests:       make(map[*v2.DiscoveryRequest]bool),
 		}
@@ -155,7 +138,7 @@ func (c *cache) SetResponse(key string, resp v2.DiscoveryResponse) (map[*v2.Disc
 	if !ok {
 		return nil, fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
-	resource.Resp = response
+	resource.Resp = &response
 	resource.ExpirationTime = c.getExpirationTime(time.Now())
 	c.cache.Add(key, resource)
 	return resource.Requests, nil
@@ -212,19 +195,4 @@ func (c *cache) getExpirationTime(currentTime time.Time) time.Time {
 		return currentTime.Add(c.ttl)
 	}
 	return time.Time{}
-}
-
-// MarshalResource converts the raw xDS discovery resources into a serialized
-// form accepted by go-control-plane.
-func MarshalResources(resources []*any.Any) ([]gcp_types.MarshaledResource, error) {
-	var marshaledResources []gcp_types.MarshaledResource
-	for _, resource := range resources {
-		marshaledResource, err := gcp.MarshalResource(resource)
-		if err != nil {
-			return nil, err
-		}
-
-		marshaledResources = append(marshaledResources, marshaledResource)
-	}
-	return marshaledResources, nil
 }
