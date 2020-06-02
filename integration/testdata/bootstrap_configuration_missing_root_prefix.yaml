@@ -12,3 +12,5 @@ metrics_sink:
   statsd:
     address: {address: "12.34.56.78", port_value: 9012}
     flush_interval: 0.5s
+admin:
+  address: {address: "127.0.0.1", port_value: 6070}

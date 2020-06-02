@@ -7,18 +7,25 @@ import (
 	"testing"
 	"time"
 
-	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 )
 
 func TestShutdown(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	blockedCh := make(chan bool, 1)
+	blockedCh := make(chan bool, 2)
 	l := &logger{}
 	registerShutdownHandler(ctx, cancel, func() {
 		blockedCh <- true
-	}, l, time.Second*5)
+	},
+		func(context.Context) error {
+			blockedCh <- true
+			return nil
+		},
+		l, time.Second*5)
 	_ = syscall.Kill(syscall.Getpid(), syscall.SIGINT)
+	<-blockedCh
 	<-blockedCh
 }
 
@@ -27,7 +34,7 @@ func TestShutdownTimeout(t *testing.T) {
 	l := &logger{blockedCh: make(chan bool, 1)}
 	registerShutdownHandler(ctx, cancel, func() {
 		<-time.After(time.Minute)
-	}, l, time.Millisecond)
+	}, func(context.Context) error { return nil }, l, time.Millisecond)
 	_ = syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 	<-l.blockedCh
 	assert.Equal(t, "shutdown error: context deadline exceeded", l.lastErr)

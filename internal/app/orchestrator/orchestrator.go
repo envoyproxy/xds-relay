@@ -58,6 +58,8 @@ type Orchestrator interface {
 	// This is called by the main shutdown handler and tests to clean up
 	// open channels.
 	shutdown(ctx context.Context)
+
+	GetReadOnlyCache() cache.ReadOnlyCache
 }
 
 type orchestrator struct {
@@ -192,6 +194,10 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) 
 // Fetch implements the polling method of the config cache using a non-empty request.
 func (o *orchestrator) Fetch(context.Context, discovery.DiscoveryRequest) (*gcp.Response, error) {
 	return nil, fmt.Errorf("Not implemented")
+}
+
+func (o *orchestrator) GetReadOnlyCache() cache.ReadOnlyCache {
+	return o.cache.GetReadOnlyCache()
 }
 
 // watchUpstream is intended to be called in a go routine, to receive incoming

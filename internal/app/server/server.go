@@ -3,12 +3,14 @@ package server
 import (
 	"context"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
 	"syscall"
 	"time"
 
+	handler "github.com/envoyproxy/xds-relay/internal/app/admin/http"
 	"github.com/envoyproxy/xds-relay/internal/pkg/stats"
 
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
@@ -39,6 +41,13 @@ func Run(bootstrapConfig *bootstrapv1.Bootstrap,
 	defer cancel()
 
 	RunWithContext(ctx, cancel, bootstrapConfig, aggregationRulesConfig, logLevel, mode)
+}
+
+func RunAdminServer(ctx context.Context, adminServer *http.Server, logger log.Logger) {
+	logger.With("address", adminServer.Addr).Info(ctx, "Starting admin server")
+	if err := adminServer.ListenAndServe(); err != http.ErrServerClosed {
+		logger.Fatal(ctx, "Failed to start admin server with ListenAndServe: %v", err)
+	}
 }
 
 func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapConfig *bootstrapv1.Bootstrap,
@@ -75,7 +84,7 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	upstreamAddress := net.JoinHostPort(bootstrapConfig.OriginServer.Address.Address, upstreamPort)
 	// TODO: configure timeout param from bootstrap config.
 	// https://github.com/envoyproxy/xds-relay/issues/55
-	upstreamClient, err := upstream.NewClient(
+	upstreamClient, err := upstream.New(
 		ctx,
 		upstreamAddress,
 		upstream.CallOptions{Timeout: time.Minute},
@@ -86,11 +95,19 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	}
 
 	// Initialize request aggregation mapper component.
-	requestMapper := mapper.NewMapper(aggregationRulesConfig)
+	requestMapper := mapper.New(aggregationRulesConfig)
 
 	// Initialize orchestrator.
 	orchestrator := orchestrator.New(ctx, logger, scope.SubScope(metricSubscopeOrchestrator), requestMapper,
 		upstreamClient, bootstrapConfig.Cache)
+
+	// Configure admin server.
+	adminPort := strconv.FormatUint(uint64(bootstrapConfig.Admin.Address.PortValue), 10)
+	adminAddress := net.JoinHostPort(bootstrapConfig.Admin.Address.Address, adminPort)
+	adminServer := &http.Server{
+		Addr: adminAddress,
+	}
+	handler.RegisterHandlers(bootstrapConfig, &orchestrator)
 
 	// Start server.
 	gcpServer := gcp.NewServer(ctx, orchestrator, nil)
@@ -111,7 +128,9 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 		return
 	}
 
-	registerShutdownHandler(ctx, cancel, server.GracefulStop, logger, time.Second*30)
+	go RunAdminServer(ctx, adminServer, logger)
+
+	registerShutdownHandler(ctx, cancel, server.GracefulStop, adminServer.Shutdown, logger, time.Second*30)
 	logger.With("address", listener.Addr()).Info(ctx, "Initializing server")
 	serverScope := scope.SubScope(metricSubscope)
 	serverScope.Counter(metricServerAlive).Inc(1)
@@ -125,6 +144,7 @@ func registerShutdownHandler(
 	ctx context.Context,
 	cancel context.CancelFunc,
 	gracefulStop func(),
+	adminShutdown func(context.Context) error,
 	logger log.Logger,
 	waitTime time.Duration) {
 	sigs := make(chan os.Signal, 1)
@@ -133,6 +153,10 @@ func registerShutdownHandler(
 		sig := <-sigs
 		logger.Info(ctx, "received interrupt signal:", sig.String())
 		err := util.DoWithTimeout(ctx, func() error {
+			logger.Info(ctx, "initiating admin server shutdown")
+			if shutdownErr := adminShutdown(ctx); shutdownErr != nil {
+				logger.With("err", shutdownErr).Error(ctx, "admin shutdown error: ", shutdownErr.Error())
+			}
 			logger.Info(ctx, "initiating grpc graceful stop")
 			gracefulStop()
 			_ = logger.Sync()

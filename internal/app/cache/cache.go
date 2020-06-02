@@ -26,6 +26,14 @@ type Cache interface {
 
 	// DeleteRequest removes the given request from any cache entries it's present in.
 	DeleteRequest(key string, req *v2.DiscoveryRequest) error
+
+	// GetReadOnlyCache returns a copy of the cache that only exposes read-only methods in its interface.
+	GetReadOnlyCache() ReadOnlyCache
+}
+
+type ReadOnlyCache interface {
+	// Fetch returns the cached resource if it exists.
+	FetchReadOnly(key string) (Resource, error)
 }
 
 type cache struct {
@@ -73,6 +81,18 @@ func NewCache(maxEntries int, onEvicted OnEvictFunc, ttl time.Duration) (Cache, 
 		// Duration before which an item is evicted for expiring. Zero means no expiration time.
 		ttl: ttl,
 	}, nil
+}
+
+func (c *cache) GetReadOnlyCache() ReadOnlyCache {
+	return c
+}
+
+func (c *cache) FetchReadOnly(key string) (Resource, error) {
+	resource, err := c.Fetch(key)
+	if resource == nil {
+		return Resource{}, err
+	}
+	return *resource, err
 }
 
 func (c *cache) Fetch(key string) (*Resource, error) {

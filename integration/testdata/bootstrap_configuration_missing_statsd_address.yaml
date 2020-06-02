@@ -13,3 +13,5 @@ metrics_sink:
     address: {port_value: 9012}
     root_prefix: xdsrelay
     flush_interval: 0.25s
+admin:
+  address: {address: "127.0.0.1", port_value: 6070}

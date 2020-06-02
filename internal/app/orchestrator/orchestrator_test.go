@@ -2,27 +2,22 @@ package orchestrator
 
 import (
 	"context"
-	"io/ioutil"
 	"testing"
 	"time"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	v2_core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
-	"github.com/golang/protobuf/ptypes/any"
-	"github.com/golang/protobuf/ptypes/duration"
-	"github.com/stretchr/testify/assert"
-	"google.golang.org/protobuf/types/known/anypb"
-
 	"github.com/envoyproxy/xds-relay/internal/app/cache"
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
-	upstream_mock "github.com/envoyproxy/xds-relay/internal/app/upstream/mock"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 	"github.com/envoyproxy/xds-relay/internal/pkg/util/testutils"
-	"github.com/envoyproxy/xds-relay/internal/pkg/util/yamlproto"
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
+	"github.com/golang/protobuf/ptypes/any"
+	"github.com/golang/protobuf/ptypes/duration"
+	"github.com/stretchr/testify/assert"
 	"github.com/uber-go/tally"
 )
 
@@ -76,17 +71,6 @@ func newMockOrchestrator(t *testing.T, mockScope tally.Scope, mapper mapper.Mapp
 	return orchestrator
 }
 
-func newMockMapper(t *testing.T) mapper.Mapper {
-	bytes, err := ioutil.ReadFile("testdata/aggregation_rules.yaml") // key on request type
-	assert.NoError(t, err)
-
-	var config aggregationv1.KeyerConfiguration
-	err = yamlproto.FromYAMLToKeyerConfiguration(string(bytes), &config)
-	assert.NoError(t, err)
-
-	return mapper.NewMapper(&config)
-}
-
 func newMockScope(prefix string) tally.TestScope {
 	return tally.NewTestScope(prefix, make(map[string]string))
 }
@@ -103,7 +87,7 @@ func assertEqualResources(t *testing.T, got gcp.Response, expected v2.DiscoveryR
 
 func TestNew(t *testing.T) {
 	// Trivial test to ensure orchestrator instantiates.
-	upstreamClient := upstream_mock.NewClient(
+	upstreamClient := upstream.NewMock(
 		context.Background(),
 		upstream.CallOptions{},
 		nil,
@@ -118,7 +102,7 @@ func TestNew(t *testing.T) {
 			},
 		},
 	}
-	requestMapper := mapper.NewMapper(&config)
+	requestMapper := mapper.New(&config)
 
 	cacheConfig := bootstrapv1.Cache{
 		Ttl: &duration.Duration{
@@ -134,7 +118,7 @@ func TestNew(t *testing.T) {
 
 func TestGoldenPath(t *testing.T) {
 	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
-	mapper := newMockMapper(t)
+	mapper := mapper.NewMock(t)
 	mockScope := newMockScope("mock_orchestrator")
 	orchestrator := newMockOrchestrator(
 		t,
@@ -166,7 +150,7 @@ func TestGoldenPath(t *testing.T) {
 		VersionInfo: "1",
 		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
 		Resources: []*any.Any{
-			&anypb.Any{
+			{
 				Value: []byte("lds resource"),
 			},
 		},
@@ -187,7 +171,7 @@ func TestGoldenPath(t *testing.T) {
 
 func TestCachedResponse(t *testing.T) {
 	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
-	mapper := newMockMapper(t)
+	mapper := mapper.NewMock(t)
 	mockScope := newMockScope("prefix")
 	orchestrator := newMockOrchestrator(
 		t,
@@ -212,7 +196,7 @@ func TestCachedResponse(t *testing.T) {
 		VersionInfo: "1",
 		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
 		Resources: []*any.Any{
-			&anypb.Any{
+			{
 				Value: []byte("lds resource"),
 			},
 		},
@@ -238,7 +222,7 @@ func TestCachedResponse(t *testing.T) {
 		VersionInfo: "2",
 		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
 		Resources: []*any.Any{
-			&anypb.Any{
+			{
 				Value: []byte("some other lds resource"),
 			},
 		},
@@ -285,8 +269,8 @@ func TestCachedResponse(t *testing.T) {
 func TestMultipleWatchersAndUpstreams(t *testing.T) {
 	upstreamResponseChannelLDS := make(chan *v2.DiscoveryResponse)
 	upstreamResponseChannelCDS := make(chan *v2.DiscoveryResponse)
+	mapper := mapper.NewMock(t)
 	mockScope := newMockScope("prefix")
-	mapper := newMockMapper(t)
 	orchestrator := newMockOrchestrator(
 		t,
 		mockScope,
@@ -330,7 +314,7 @@ func TestMultipleWatchersAndUpstreams(t *testing.T) {
 		VersionInfo: "1",
 		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
 		Resources: []*any.Any{
-			&anypb.Any{
+			{
 				Value: []byte("lds resource"),
 			},
 		},
@@ -339,7 +323,7 @@ func TestMultipleWatchersAndUpstreams(t *testing.T) {
 		VersionInfo: "1",
 		TypeUrl:     "type.googleapis.com/envoy.api.v2.Cluster",
 		Resources: []*any.Any{
-			&anypb.Any{
+			{
 				Value: []byte("cds resource"),
 			},
 		},
