@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func NewMapper(t *testing.T) Mapper {
+func NewMock(t *testing.T) Mapper {
 	return NewMockMapper(t)
 }
 

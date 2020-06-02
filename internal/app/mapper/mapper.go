@@ -33,7 +33,7 @@ const (
 	separator = "_"
 )
 
-// NewMapper constructs a concrete implementation for the Mapper interface
+// New constructs a concrete implementation for the Mapper interface
 func New(config *aggregationv1.KeyerConfiguration) Mapper {
 	return &mapper{
 		config: config,

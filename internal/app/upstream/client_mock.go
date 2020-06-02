@@ -31,7 +31,7 @@ func NewMockClient(
 }
 
 // NewClient creates a mock implementation for testing
-func NewClient(
+func NewMock(
 	ctx context.Context,
 	callOptions CallOptions,
 	errorOnCreate error,

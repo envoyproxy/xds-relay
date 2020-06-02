@@ -89,9 +89,9 @@ func (m mockSimpleUpstreamClient) OpenStream(req v2.DiscoveryRequest) (<-chan *v
 
 func TestAdminServer_CacheDumpHandler(t *testing.T) {
 	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
-	mapper := mapper.NewMapper(t)
+	mapper := mapper.NewMock(t)
 	mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
-	orchestrator := orchestrator.NewOrchestrator(t, mapper,
+	orchestrator := orchestrator.NewMock(t, mapper,
 		mockSimpleUpstreamClient{responseChan: upstreamResponseChannel}, mockScope)
 	assert.NotNil(t, orchestrator)
 
@@ -144,9 +144,9 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 
 func TestAdminServer_CacheDumpHandler_NotFound(t *testing.T) {
 	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
-	mapper := mapper.NewMapper(t)
+	mapper := mapper.NewMock(t)
 	mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
-	orchestrator := orchestrator.NewOrchestrator(t, mapper,
+	orchestrator := orchestrator.NewMock(t, mapper,
 		mockSimpleUpstreamClient{responseChan: upstreamResponseChannel}, mockScope)
 	assert.NotNil(t, orchestrator)
 

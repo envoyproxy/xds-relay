@@ -87,7 +87,7 @@ func assertEqualResources(t *testing.T, got gcp.Response, expected v2.DiscoveryR
 
 func TestNew(t *testing.T) {
 	// Trivial test to ensure orchestrator instantiates.
-	upstreamClient := upstream.NewClient(
+	upstreamClient := upstream.NewMock(
 		context.Background(),
 		upstream.CallOptions{},
 		nil,
@@ -118,7 +118,7 @@ func TestNew(t *testing.T) {
 
 func TestGoldenPath(t *testing.T) {
 	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
-	mapper := mapper.NewMapper(t)
+	mapper := mapper.NewMock(t)
 	mockScope := newMockScope("mock_orchestrator")
 	orchestrator := newMockOrchestrator(
 		t,
@@ -171,7 +171,7 @@ func TestGoldenPath(t *testing.T) {
 
 func TestCachedResponse(t *testing.T) {
 	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
-	mapper := mapper.NewMapper(t)
+	mapper := mapper.NewMock(t)
 	mockScope := newMockScope("prefix")
 	orchestrator := newMockOrchestrator(
 		t,
@@ -269,7 +269,7 @@ func TestCachedResponse(t *testing.T) {
 func TestMultipleWatchersAndUpstreams(t *testing.T) {
 	upstreamResponseChannelLDS := make(chan *v2.DiscoveryResponse)
 	upstreamResponseChannelCDS := make(chan *v2.DiscoveryResponse)
-	mapper := mapper.NewMapper(t)
+	mapper := mapper.NewMock(t)
 	mockScope := newMockScope("prefix")
 	orchestrator := newMockOrchestrator(
 		t,
