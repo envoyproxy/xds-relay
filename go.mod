@@ -4,7 +4,7 @@ go 1.14
 
 require (
 	github.com/cactus/go-statsd-client/statsd v0.0.0-20200322202804-24fc78943200
-	github.com/envoyproxy/go-control-plane v0.9.6-0.20200602151211-b12a9ed045da
+	github.com/envoyproxy/go-control-plane v0.9.6-0.20200609173151-1f0d489b127f
 	github.com/envoyproxy/protoc-gen-validate v0.3.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e
