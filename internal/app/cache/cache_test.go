@@ -66,15 +66,8 @@ var testDiscoveryResponse = v2.DiscoveryResponse{
 	},
 }
 
-var testResponse = Response{
-	Raw: testDiscoveryResponse,
-	MarshaledResources: [][]byte{
-		[]byte("\x12\x04test"),
-	},
-}
-
 var testResource = Resource{
-	Resp:     &testResponse,
+	Resp:     &testDiscoveryResponse,
 	Requests: make(map[*v2.DiscoveryRequest]bool),
 }
 
@@ -109,7 +102,7 @@ func TestSetResponseAndFetch(t *testing.T) {
 
 	resource, err = cache.Fetch(testKeyA)
 	assert.NoError(t, err)
-	assert.Equal(t, testResponse, *resource.Resp)
+	assert.Equal(t, testDiscoveryResponse, *resource.Resp)
 }
 
 func TestAddRequestAndSetResponse(t *testing.T) {
@@ -130,7 +123,7 @@ func TestAddRequestAndSetResponse(t *testing.T) {
 
 	resource, err := cache.Fetch(testKeyA)
 	assert.NoError(t, err)
-	assert.Equal(t, testResponse, *resource.Resp)
+	assert.Equal(t, testDiscoveryResponse, *resource.Resp)
 }
 
 func TestMaxEntries(t *testing.T) {
@@ -142,7 +135,7 @@ func TestMaxEntries(t *testing.T) {
 
 	resource, err := cache.Fetch(testKeyA)
 	assert.NoError(t, err)
-	assert.Equal(t, testResponse, *resource.Resp)
+	assert.Equal(t, testDiscoveryResponse, *resource.Resp)
 
 	assert.PanicsWithValue(t, panicValues{
 		key:    testKeyA,
@@ -170,7 +163,7 @@ func TestTTL_Enabled(t *testing.T) {
 
 	resource, err := cache.Fetch(testKeyA)
 	assert.NoError(t, err)
-	assert.Equal(t, testResponse, *resource.Resp)
+	assert.Equal(t, testDiscoveryResponse, *resource.Resp)
 
 	time.Sleep(time.Millisecond * 10)
 	assert.PanicsWithValue(t, panicValues{
@@ -197,7 +190,7 @@ func TestTTL_Disabled(t *testing.T) {
 
 	resource, err := cache.Fetch(testKeyA)
 	assert.NoError(t, err)
-	assert.Equal(t, testResponse, *resource.Resp)
+	assert.Equal(t, testDiscoveryResponse, *resource.Resp)
 
 	gomega.Consistently(func() (*Resource, error) {
 		return cache.Fetch(testKeyA)

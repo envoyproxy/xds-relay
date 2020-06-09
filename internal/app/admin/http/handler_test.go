@@ -121,18 +121,13 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.Contains(t, rr.Body.String(), `{
   "Resp": {
-    "Raw": {
-      "version_info": "1",
-      "resources": [
-        {
-          "value": "bGRzIHJlc291cmNl"
-        }
-      ],
-      "type_url": "type.googleapis.com/envoy.api.v2.Listener"
-    },
-    "MarshaledResources": [
-      "EgxsZHMgcmVzb3VyY2U="
-    ]
+    "version_info": "1",
+    "resources": [
+      {
+        "value": "bGRzIHJlc291cmNl"
+      }
+    ],
+    "type_url": "type.googleapis.com/envoy.api.v2.Listener"
   },
   "Requests": [
     {

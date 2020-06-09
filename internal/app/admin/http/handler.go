@@ -102,7 +102,7 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 }
 
 type marshallableResource struct {
-	Resp           *cache.Response
+	Resp           *v2.DiscoveryResponse
 	Requests       []*v2.DiscoveryRequest
 	ExpirationTime time.Time
 }
