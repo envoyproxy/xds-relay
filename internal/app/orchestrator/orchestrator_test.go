@@ -75,7 +75,7 @@ func newMockScope(prefix string) tally.TestScope {
 	return tally.NewTestScope(prefix, make(map[string]string))
 }
 
-func assertEqualResponse(t *testing.T, got gcp.ResponseIface, expected v2.DiscoveryResponse, req gcp.Request) {
+func assertEqualResponse(t *testing.T, got gcp.Response, expected v2.DiscoveryResponse, req gcp.Request) {
 	gotDiscoveryResponse, err := got.GetDiscoveryResponse()
 	assert.NoError(t, err)
 	assert.Equal(t, expected, *gotDiscoveryResponse)

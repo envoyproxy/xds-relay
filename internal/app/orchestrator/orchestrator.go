@@ -121,7 +121,7 @@ func New(
 //
 // Cancel is an optional function to release resources in the producer. If
 // provided, the consumer may call this function multiple times.
-func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.ResponseIface, func()) {
+func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) {
 	ctx := context.Background()
 	o.logger.With("node ID", req.GetNode().GetId()).With("type", req.GetTypeUrl()).Debug(ctx, "creating watch")
 
@@ -192,7 +192,7 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.ResponseIface, fun
 }
 
 // Fetch implements the polling method of the config cache using a non-empty request.
-func (o *orchestrator) Fetch(context.Context, discovery.DiscoveryRequest) (gcp.ResponseIface, error) {
+func (o *orchestrator) Fetch(context.Context, discovery.DiscoveryRequest) (gcp.Response, error) {
 	return nil, fmt.Errorf("Not implemented")
 }
 
@@ -338,7 +338,7 @@ func (o *orchestrator) shutdown(ctx context.Context) {
 // cached response.
 func convertToGcpResponse(resp *discovery.DiscoveryResponse, req gcp.Request) gcp.PassthroughResponse {
 	return gcp.PassthroughResponse{
-		Request:  req,
-		Response: resp,
+		Request:           req,
+		DiscoveryResponse: resp,
 	}
 }
