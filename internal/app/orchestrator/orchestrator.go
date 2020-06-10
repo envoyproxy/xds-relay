@@ -132,11 +132,12 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) 
 	if err != nil {
 		// Can't map the request to an aggregated key. Log and continue to
 		// propagate the response upstream without aggregation.
-		o.logger.With("err", err).With("req node", req.GetNode()).Warn(ctx, "failed to map to aggregated key")
+		o.logger.With("err", err, "type", req.GetTypeUrl()).Warn(ctx, "failed to map to aggregated key")
 		// Mimic the aggregated key.
-		// TODO (https://github.com/envoyproxy/xds-relay/issues/56). This key
-		// needs to be made more granular to uniquely identify a request.
-		aggregatedKey = fmt.Sprintf("%s%s_%s", unaggregatedPrefix, req.GetNode().GetId(), req.GetTypeUrl())
+		// TODO (https://github.com/envoyproxy/xds-relay/issues/56). Can we
+		// condense this key but still make it granular enough to uniquely
+		// identify a request?
+		aggregatedKey = fmt.Sprintf("%s%s", unaggregatedPrefix, req.String())
 	}
 
 	o.logger.With(

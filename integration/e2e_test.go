@@ -58,7 +58,7 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 		nClusters                 = 7
 		nListeners                = 9
 		nUpdates                  = 4
-		keyerConfiguration        = "./testdata/keyer_configuration_complete_tech_spec.yaml"
+		keyerConfiguration        = "./testdata/keyer_configuration_e2e.yaml"
 		xdsRelayBootstrap         = "./testdata/bootstrap_configuration_e2e.yaml"
 		envoyBootstrap            = "./testdata/envoy_bootstrap.yaml"
 	)
