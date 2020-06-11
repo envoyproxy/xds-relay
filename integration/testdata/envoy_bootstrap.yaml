@@ -1,4 +1,4 @@
-# Base config for a split xDS management server on 18000, admin port on 19000
+# Base Envoy config with a management server listening on 9991 (xds-relay) and admin port on 19000.
 admin:
   access_log_path: /dev/null
   address:
@@ -21,8 +21,8 @@ dynamic_resources:
           cluster_name: xds_cluster
       set_node_on_first_message_only: true
 node:
-  cluster: test-cluster
-  id: test-id
+  cluster: dev
+  id: envoy-1
 static_resources:
   clusters:
   - connect_timeout: 1s
@@ -34,6 +34,6 @@ static_resources:
             address:
               socket_address:
                 address: 127.0.0.1
-                port_value: 18000
+                port_value: 9991
     http2_protocol_options: {}
     name: xds_cluster
