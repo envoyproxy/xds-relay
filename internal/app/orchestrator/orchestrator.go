@@ -12,16 +12,15 @@ import (
 	"sync"
 	"time"
 
+	discovery "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
+	"github.com/uber-go/tally"
 
 	"github.com/envoyproxy/xds-relay/internal/app/cache"
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
-
-	discovery "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
-	"github.com/uber-go/tally"
 )
 
 const (
@@ -79,14 +78,14 @@ type orchestrator struct {
 // orchestrator.
 func New(
 	ctx context.Context,
-	l log.Logger,
+	logger log.Logger,
 	scope tally.Scope,
 	mapper mapper.Mapper,
 	upstreamClient upstream.Client,
 	cacheConfig *bootstrapv1.Cache,
 ) Orchestrator {
 	orchestrator := &orchestrator{
-		logger:                l.Named(component),
+		logger:                logger.Named(component),
 		scope:                 scope,
 		mapper:                mapper,
 		upstreamClient:        upstreamClient,
@@ -99,6 +98,7 @@ func New(
 		int(cacheConfig.MaxEntries),
 		orchestrator.onCacheEvicted,
 		time.Duration(cacheConfig.Ttl.Nanos)*time.Nanosecond,
+		logger,
 	)
 	if err != nil {
 		orchestrator.logger.With("error", err).Panic(ctx, "failed to initialize cache")
@@ -123,7 +123,6 @@ func New(
 // provided, the consumer may call this function multiple times.
 func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) {
 	ctx := context.Background()
-	o.logger.With("node ID", req.GetNode().GetId()).With("type", req.GetTypeUrl()).Debug(ctx, "creating watch")
 
 	// If this is the first time we're seeing the request from the
 	// downstream client, initialize a channel to feed future responses.
@@ -133,12 +132,22 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) 
 	if err != nil {
 		// Can't map the request to an aggregated key. Log and continue to
 		// propagate the response upstream without aggregation.
-		o.logger.With("err", err).With("req node", req.GetNode()).Warn(ctx, "failed to map to aggregated key")
+		o.logger.With("err", err, "type", req.GetTypeUrl()).Warn(ctx, "failed to map to aggregated key")
 		// Mimic the aggregated key.
-		// TODO (https://github.com/envoyproxy/xds-relay/issues/56). This key
-		// needs to be made more granular to uniquely identify a request.
-		aggregatedKey = fmt.Sprintf("%s%s_%s", unaggregatedPrefix, req.GetNode().GetId(), req.GetTypeUrl())
+		// TODO (https://github.com/envoyproxy/xds-relay/issues/56). Can we
+		// condense this key but still make it granular enough to uniquely
+		// identify a request?
+		aggregatedKey = fmt.Sprintf("%s%s", unaggregatedPrefix, req.String())
 	}
+
+	o.logger.With(
+		"node ID", req.GetNode().GetId(),
+		"type", req.GetTypeUrl(),
+		"version", req.GetVersionInfo(),
+		"nonce", req.GetResponseNonce(),
+		"error detail", req.GetErrorDetail(),
+		"aggregated key", aggregatedKey,
+	).Debug(ctx, "creating watch")
 
 	// Register the watch for future responses.
 	err = o.cache.AddRequest(aggregatedKey, &req)
@@ -183,6 +192,7 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) 
 			} else {
 				// Spin up a go routine to watch for upstream responses.
 				// One routine is opened per aggregate key.
+				o.logger.With("key", aggregatedKey).Debug(ctx, "watching upstream")
 				go o.watchUpstream(ctx, aggregatedKey, respChannel.response, respChannel.done, shutdown)
 			}
 		}
@@ -269,12 +279,17 @@ func (o *orchestrator) watchUpstream(
 					o.logger.With("key", aggregatedKey).Error(ctx, "attempted to fan out with no cached response")
 				} else {
 					// Goldenpath.
-					o.logger.With("key", aggregatedKey).With("response", cached.Resp).Debug(ctx, "response fanout initiated")
+					o.logger.With(
+						"key", aggregatedKey,
+						"response type", cached.Resp.GetTypeUrl(),
+						"response version", cached.Resp.GetVersionInfo(),
+					).Debug(ctx, "response fanout initiated")
 					o.fanout(cached.Resp, cached.Requests, aggregatedKey)
 				}
 			}
 		case <-done:
 			// Exit when signaled that the stream has closed.
+			o.logger.With("key", aggregatedKey).Info(ctx, "shutting down upstream watch")
 			shutdownUpstream()
 			return
 		}
@@ -292,8 +307,12 @@ func (o *orchestrator) fanout(resp *discovery.DiscoveryResponse, watchers map[*g
 			if channel, ok := o.downstreamResponseMap.get(watch); ok {
 				select {
 				case channel <- convertToGcpResponse(resp, *watch):
-					o.logger.With("key", aggregatedKey).With("node ID", watch.GetNode().GetId()).
-						Debug(context.Background(), "response sent")
+					o.logger.With(
+						"key", aggregatedKey,
+						"node ID", watch.GetNode().GetId(),
+						"response version", resp.GetVersionInfo(),
+						"response type", resp.GetTypeUrl(),
+					).Debug(context.Background(), "response sent")
 				default:
 					// If the channel is blocked, we simply drop subsequent requests and error.
 					// Alternative possibilities are discussed here:

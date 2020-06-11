@@ -3,12 +3,15 @@
 package cache
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/golang/groupcache/lru"
+
+	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 )
 
 type Cache interface {
@@ -37,6 +40,8 @@ type cache struct {
 	cacheMu sync.RWMutex
 	cache   lru.Cache
 	ttl     time.Duration
+
+	logger log.Logger
 }
 
 type Resource struct {
@@ -48,7 +53,7 @@ type Resource struct {
 // OnEvictFunc is a callback function for each eviction. Receives the key and cache value when called.
 type OnEvictFunc func(key string, value Resource)
 
-func NewCache(maxEntries int, onEvicted OnEvictFunc, ttl time.Duration) (Cache, error) {
+func NewCache(maxEntries int, onEvicted OnEvictFunc, ttl time.Duration, logger log.Logger) (Cache, error) {
 	if ttl < 0 {
 		return nil, fmt.Errorf("ttl must be nonnegative but was set to %v", ttl)
 	}
@@ -70,7 +75,8 @@ func NewCache(maxEntries int, onEvicted OnEvictFunc, ttl time.Duration) (Cache, 
 			},
 		},
 		// Duration before which an item is evicted for expiring. Zero means no expiration time.
-		ttl: ttl,
+		ttl:    ttl,
+		logger: logger.Named("cache"),
 	}, nil
 }
 
@@ -118,6 +124,12 @@ func (c *cache) Fetch(key string) (*Resource, error) {
 			return nil, nil
 		}
 	}
+	c.logger.With(
+		"key", key,
+		"version", resource.Resp.GetVersionInfo(),
+		"type_url", resource.Resp.GetTypeUrl(),
+		"resource length", len(resource.Resp.GetResources()),
+	).Debug(context.Background(), "fetch")
 	return &resource, nil
 }
 
@@ -132,6 +144,7 @@ func (c *cache) SetResponse(key string, response v2.DiscoveryResponse) (map[*v2.
 			Requests:       make(map[*v2.DiscoveryRequest]bool),
 		}
 		c.cache.Add(key, resource)
+		c.logger.With("key", key, "response url", response.GetTypeUrl()).Debug(context.Background(), "set response")
 		return nil, nil
 	}
 	resource, ok := value.(Resource)
@@ -141,6 +154,7 @@ func (c *cache) SetResponse(key string, response v2.DiscoveryResponse) (map[*v2.
 	resource.Resp = &response
 	resource.ExpirationTime = c.getExpirationTime(time.Now())
 	c.cache.Add(key, resource)
+	c.logger.With("key", key, "response url", response.GetTypeUrl()).Debug(context.Background(), "set response")
 	return resource.Requests, nil
 }
 
@@ -156,6 +170,11 @@ func (c *cache) AddRequest(key string, req *v2.DiscoveryRequest) error {
 			ExpirationTime: c.getExpirationTime(time.Now()),
 		}
 		c.cache.Add(key, resource)
+		c.logger.With(
+			"key", key,
+			"node ID", req.GetNode().GetId(),
+			"request type", req.GetTypeUrl(),
+		).Debug(context.Background(), "request added")
 		return nil
 	}
 	resource, ok := value.(Resource)
@@ -164,6 +183,11 @@ func (c *cache) AddRequest(key string, req *v2.DiscoveryRequest) error {
 	}
 	resource.Requests[req] = true
 	c.cache.Add(key, resource)
+	c.logger.With(
+		"key", key,
+		"node ID", req.GetNode().GetId(),
+		"request type", req.GetTypeUrl(),
+	).Debug(context.Background(), "request added")
 	return nil
 }
 
@@ -180,6 +204,11 @@ func (c *cache) DeleteRequest(key string, req *v2.DiscoveryRequest) error {
 	}
 	delete(resource.Requests, req)
 	c.cache.Add(key, resource)
+	c.logger.With(
+		"key", key,
+		"node ID", req.GetNode().GetId(),
+		"request type", req.GetTypeUrl(),
+	).Debug(context.Background(), "request deleted")
 	return nil
 }
 

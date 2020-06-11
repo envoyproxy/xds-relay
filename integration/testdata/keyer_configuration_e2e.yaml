@@ -1,0 +1,69 @@
+fragments: 
+  - rules:
+      - match:
+          request_type_match:
+            types:
+              - "type.googleapis.com/envoy.api.v2.Listener"
+              - "type.googleapis.com/envoy.api.v2.Cluster"
+              - "type.googleapis.com/envoy.api.v2.ClusterLoadAssignment"
+              - "type.googleapis.com/envoy.api.v2.RouteConfiguration"
+        result:
+          request_node_fragment:
+            field: 0
+            action:
+              regex_action: { pattern: "^(.*)-*$", replace: "$1" }
+  - rules:
+      - match:
+          request_type_match:
+            types:
+              - "type.googleapis.com/envoy.api.v2.Listener"
+              - "type.googleapis.com/envoy.api.v2.Cluster"
+              - "type.googleapis.com/envoy.api.v2.ClusterLoadAssignment"
+              - "type.googleapis.com/envoy.api.v2.RouteConfiguration"
+        result:
+          request_node_fragment:
+            field: 1
+            action:
+              regex_action: { pattern: "^*-(.*)-*$", replace: "$1" }
+  - rules:
+      - match:
+          request_type_match:
+            types:
+              - "type.googleapis.com/envoy.api.v2.Listener"
+        result:
+          string_fragment: "lds"
+      - match:
+          request_type_match:
+            types:
+              - "type.googleapis.com/envoy.api.v2.Cluster"
+        result:
+          string_fragment: "cds"
+      - match:
+          request_type_match:
+            types:
+              - "type.googleapis.com/envoy.api.v2.ClusterLoadAssignment"
+        result:
+          string_fragment: "clusterloadassignment"
+      - match:
+          request_type_match:
+            types:
+              - "type.googleapis.com/envoy.api.v2.RouteConfiguration"
+        result:
+          string_fragment: "routeconfiguration"
+  - rules:
+      - match:
+          request_type_match:
+            types:
+              - "type.googleapis.com/envoy.api.v2.ClusterLoadAssignment"
+        result:
+          resource_names_fragment:
+            element: 0
+            action: { exact: true }
+      - match:
+          request_type_match:
+            types:
+              - "type.googleapis.com/envoy.api.v2.RouteConfiguration"
+        result:
+          resource_names_fragment:
+            element: 0
+            action: { exact: true }

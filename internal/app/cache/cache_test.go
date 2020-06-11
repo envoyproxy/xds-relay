@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/envoyproxy/xds-relay/internal/pkg/log"
+
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"github.com/golang/groupcache/lru"
@@ -12,9 +14,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const testKeyA = "key_A"
+const (
+	testKeyA = "key_A"
+	testKeyB = "key_B"
+)
 
-const testKeyB = "key_B"
+var logger = log.New("debug")
 
 type panicValues struct {
 	key    lru.Key
@@ -72,7 +77,7 @@ var testResource = Resource{
 }
 
 func TestAddRequestAndFetch(t *testing.T) {
-	cache, err := NewCache(1, testOnEvict, time.Second*60)
+	cache, err := NewCache(1, testOnEvict, time.Second*60, logger)
 	assert.NoError(t, err)
 
 	resource, err := cache.Fetch(testKeyA)
@@ -88,7 +93,7 @@ func TestAddRequestAndFetch(t *testing.T) {
 }
 
 func TestSetResponseAndFetch(t *testing.T) {
-	cache, err := NewCache(1, testOnEvict, time.Second*60)
+	cache, err := NewCache(1, testOnEvict, time.Second*60, logger)
 	assert.NoError(t, err)
 
 	// Simulate cache miss and setting of new response.
@@ -106,7 +111,7 @@ func TestSetResponseAndFetch(t *testing.T) {
 }
 
 func TestAddRequestAndSetResponse(t *testing.T) {
-	cache, err := NewCache(2, testOnEvict, time.Second*60)
+	cache, err := NewCache(2, testOnEvict, time.Second*60, logger)
 	assert.NoError(t, err)
 
 	err = cache.AddRequest(testKeyA, &testRequestA)
@@ -127,7 +132,7 @@ func TestAddRequestAndSetResponse(t *testing.T) {
 }
 
 func TestMaxEntries(t *testing.T) {
-	cache, err := NewCache(1, testOnEvict, time.Second*60)
+	cache, err := NewCache(1, testOnEvict, time.Second*60, logger)
 	assert.NoError(t, err)
 
 	_, err = cache.SetResponse(testKeyA, testDiscoveryResponse)
@@ -155,7 +160,7 @@ func TestMaxEntries(t *testing.T) {
 }
 
 func TestTTL_Enabled(t *testing.T) {
-	cache, err := NewCache(1, testOnEvict, time.Millisecond*10)
+	cache, err := NewCache(1, testOnEvict, time.Millisecond*10, logger)
 	assert.NoError(t, err)
 
 	_, err = cache.SetResponse(testKeyA, testDiscoveryResponse)
@@ -182,7 +187,7 @@ func TestTTL_Enabled(t *testing.T) {
 
 func TestTTL_Disabled(t *testing.T) {
 	gomega.RegisterTestingT(t)
-	cache, err := NewCache(1, testOnEvict, 0)
+	cache, err := NewCache(1, testOnEvict, 0, logger)
 	assert.NoError(t, err)
 
 	_, err = cache.SetResponse(testKeyA, testDiscoveryResponse)
@@ -198,7 +203,7 @@ func TestTTL_Disabled(t *testing.T) {
 }
 
 func TestTTL_Negative(t *testing.T) {
-	cache, err := NewCache(1, testOnEvict, -1)
+	cache, err := NewCache(1, testOnEvict, -1, logger)
 	assert.EqualError(t, err, "ttl must be nonnegative but was set to -1ns")
 	assert.Nil(t, cache)
 }
@@ -230,7 +235,7 @@ func TestGetExpirationTime(t *testing.T) {
 }
 
 func TestDeleteRequest(t *testing.T) {
-	cache, err := NewCache(1, testOnEvict, time.Second*60)
+	cache, err := NewCache(1, testOnEvict, time.Second*60, logger)
 	assert.NoError(t, err)
 
 	err = cache.AddRequest(testKeyA, &testRequestA)
