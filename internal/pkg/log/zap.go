@@ -2,6 +2,7 @@ package log
 
 import (
 	"context"
+	"io"
 
 	"github.com/envoyproxy/xds-relay/internal/pkg/log/zap"
 	z "go.uber.org/zap"
@@ -12,7 +13,10 @@ type logger struct {
 }
 
 // New returns an instance of Logger implemented using the Zap logging framework.
-func New(logLevel string) Logger {
+//
+// logLevel is mandatory, can be one of DEBUG, INFO, WARN, ERROR, FATAL.
+// outputPath is mandatory. Use os.Stderr if unsure.
+func New(logLevel string, writeTo io.Writer) Logger {
 	zLevel, parseLogLevelErr := zap.ParseLogLevel(logLevel)
 
 	log := zap.New(
@@ -20,6 +24,7 @@ func New(logLevel string) Logger {
 		// CallerSkip skips 1 number of callers, otherwise the file that gets
 		// logged will always be the wrapped file. In this case, log.go.
 		zap.AddCallerSkip(1),
+		zap.WriteTo(writeTo),
 	)
 
 	if parseLogLevelErr != nil {

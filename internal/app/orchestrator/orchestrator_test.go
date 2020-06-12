@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -57,7 +58,7 @@ func newMockOrchestrator(t *testing.T, mockScope tally.Scope, mapper mapper.Mapp
 	upstreamClient upstream.Client) *orchestrator {
 	logger := log.New("info")
 	orchestrator := &orchestrator{
-		logger:                logger,
+		logger:                log.New("info", os.Stderr),
 		scope:                 mockScope,
 		mapper:                mapper,
 		upstreamClient:        upstreamClient,
@@ -109,7 +110,7 @@ func TestNew(t *testing.T) {
 		MaxEntries: 10,
 	}
 
-	orchestrator := New(context.Background(), log.New("info"), tally.NewTestScope("prefix",
+	orchestrator := New(context.Background(), log.New("info", os.Stderr), tally.NewTestScope("prefix",
 		make(map[string]string)), requestMapper, upstreamClient, &cacheConfig)
 	assert.NotNil(t, orchestrator)
 }

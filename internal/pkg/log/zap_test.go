@@ -1,6 +1,7 @@
 package log
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -27,7 +28,7 @@ func TestNew(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := New(tt.logLevel)
+			got := New(tt.logLevel, os.Stderr)
 			assert.NotNil(t, got)
 		})
 	}

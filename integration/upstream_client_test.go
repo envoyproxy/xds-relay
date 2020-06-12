@@ -33,7 +33,7 @@ const (
 	updates          = 1
 )
 
-var testLogger = log.New(loglevel)
+var testLogger = log.New(loglevel, os.Stderr)
 
 func TestXdsClientGetsIncrementalResponsesFromUpstreamServer(t *testing.T) {
 	updates := 2

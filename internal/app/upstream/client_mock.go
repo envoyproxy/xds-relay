@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -26,11 +27,11 @@ func NewMockClient(
 		edsClient:   edsClient,
 		cdsClient:   cdsClient,
 		callOptions: callOptions,
-		logger:      log.New("panic"),
+		logger:      log.New("panic", os.Stderr),
 	}
 }
 
-// NewClient creates a mock implementation for testing
+// NewMock creates a mock client implementation for testing
 func NewMock(
 	ctx context.Context,
 	callOptions CallOptions,

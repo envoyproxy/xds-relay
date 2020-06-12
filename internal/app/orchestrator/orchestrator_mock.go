@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -23,8 +24,9 @@ func NewMock(t *testing.T,
 func NewMockOrchestrator(t *testing.T,
 	mapper mapper.Mapper,
 	upstreamClient upstream.Client,
-	scope tally.Scope) Orchestrator {
-	logger := log.New("info")
+	scope tally.Scope,
+) Orchestrator {
+	logger := log.New("info", os.Stderr)
 	orchestrator := &orchestrator{
 		logger:                logger,
 		scope:                 scope,

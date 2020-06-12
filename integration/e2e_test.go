@@ -30,7 +30,7 @@ import (
 	"github.com/onsi/gomega"
 )
 
-var testLogger = log.New("debug").Named("e2e")
+var testLogger = log.New("debug", os.Stderr).Named("e2e")
 
 func TestMain(m *testing.M) {
 	// We force a 1 second sleep before running a test to let the OS close any lingering socket from previous

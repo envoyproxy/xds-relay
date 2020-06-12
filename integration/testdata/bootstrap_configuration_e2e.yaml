@@ -3,7 +3,6 @@ server:
 origin_server:
   address: {address: "127.0.0.1", port_value: 18000}
 logging:
-  path: /var/log/xds-aggregator
   level: DEBUG
 cache:
   ttl: 60s
