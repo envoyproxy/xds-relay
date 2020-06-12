@@ -15,7 +15,8 @@ type logger struct {
 // New returns an instance of Logger implemented using the Zap logging framework.
 //
 // logLevel is mandatory, can be one of DEBUG, INFO, WARN, ERROR, FATAL.
-// outputPath is mandatory. Use os.Stderr if unsure.
+// writeTo is mandatory. This is the writer where logs should be outputted to.
+// Use os.Stderr if unsure.
 func New(logLevel string, writeTo io.Writer) Logger {
 	zLevel, parseLogLevelErr := zap.ParseLogLevel(logLevel)
 

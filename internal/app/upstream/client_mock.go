@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -27,7 +26,7 @@ func NewMockClient(
 		edsClient:   edsClient,
 		cdsClient:   cdsClient,
 		callOptions: callOptions,
-		logger:      log.New("panic", os.Stderr),
+		logger:      log.MockLogger,
 	}
 }
 
