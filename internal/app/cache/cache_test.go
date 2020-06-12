@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -19,7 +20,7 @@ const (
 	testKeyB = "key_B"
 )
 
-var logger = log.New("debug")
+var logger = log.New("debug", os.Stderr)
 
 type panicValues struct {
 	key    lru.Key

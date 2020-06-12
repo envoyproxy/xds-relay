@@ -56,7 +56,7 @@ func (m mockMultiStreamUpstreamClient) OpenStream(
 
 func newMockOrchestrator(t *testing.T, mockScope tally.Scope, mapper mapper.Mapper,
 	upstreamClient upstream.Client) *orchestrator {
-	logger := log.New("info")
+	logger := log.New("info", os.Stderr)
 	orchestrator := &orchestrator{
 		logger:                log.New("info", os.Stderr),
 		scope:                 mockScope,
