@@ -1,6 +1,11 @@
 package handler
 
 import (
+	"context"
+	"github.com/envoyproxy/xds-relay/internal/pkg/log"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -156,23 +161,55 @@ func TestAdminServer_CacheDumpHandler_NotFound(t *testing.T) {
 	assert.Equal(t, "no resource for key cds found in cache.\n", rr.Body.String())
 }
 
-func TestGetCacheKeyParam(t *testing.T) {
+func TestGetParam(t *testing.T) {
 	path := "127.0.0.1:6070/cache/foo_production_*"
-	cacheKey, err := getCacheKeyParam(path)
+	cacheKey, err := getParam(path)
 	assert.NoError(t, err)
 	assert.Equal(t, "foo_production_*", cacheKey)
 }
 
-func TestGetCacheKeyParam_NoKey(t *testing.T) {
+func TestGetParam_Empty(t *testing.T) {
 	path := "127.0.0.1:6070/cache/"
-	cacheKey, err := getCacheKeyParam(path)
+	cacheKey, err := getParam(path)
 	assert.NoError(t, err)
 	assert.Equal(t, "", cacheKey)
 }
 
-func TestGetCacheKeyParam_Malformed(t *testing.T) {
+func TestGetParam_Malformed(t *testing.T) {
 	path := "127.0.0.1:6070"
-	cacheKey, err := getCacheKeyParam(path)
+	cacheKey, err := getParam(path)
 	assert.Error(t, err, "")
 	assert.Equal(t, "", cacheKey)
+}
+
+func TestAdminServer_LogLevelHandler(t *testing.T) {
+	ctx := context.Background()
+	obsLogger, logs := log.NewMock("info")
+	assert.Equal(t, 0, logs.Len(), "Expected empty ObservedLogs to have zero length.")
+	assert.Equal(t, []observer.LoggedEntry{}, logs.All(), "Unexpected LoggedEntries in empty ObservedLogs.")
+	obsLogger.Info(ctx, "foo")
+	obsLogger.Debug(ctx, "bar")
+	want := []observer.LoggedEntry{{
+		Entry:   zapcore.Entry{Level: zap.InfoLevel, Message: "foo"},
+		Context: []zapcore.Field{zap.Int("i", 1)},
+	}}
+	assert.Equal(t, 1, logs.Len(), "Unexpected observed logs Len.")
+	assert.Equal(t, want, logs.AllUntimed(), "Unexpected contents from AllUntimed.")
+
+	req, err := http.NewRequest("POST", "/log_level/debug", nil)
+	assert.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler := logLevelHandler(obsLogger)
+
+	handler.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	obsLogger.Info(ctx, "bar")
+	//want := []observer.LoggedEntry{{
+	//	Entry:   zapcore.Entry{Level: zap.InfoLevel, Message: "foo"},
+	//	Context: []zapcore.Field{zap.Int("i", 1)},
+	//}}
+	assert.Equal(t, 1, logs.Len(), "Unexpected observed logs Len.")
+	assert.Equal(t, want, logs.AllUntimed(), "Unexpected contents from AllUntimed.")
 }

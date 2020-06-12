@@ -59,4 +59,6 @@ type Logger interface {
 
 	// Sync flushes any buffered log entries.
 	Sync() error
+
+	UpdateLogLevel(logLevel string)
 }

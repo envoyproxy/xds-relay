@@ -2,6 +2,8 @@ package handler
 
 import (
 	"fmt"
+	"github.com/envoyproxy/xds-relay/internal/pkg/log"
+	"github.com/envoyproxy/xds-relay/internal/pkg/log/zap"
 	"net/http"
 	"strings"
 	"time"
@@ -22,7 +24,7 @@ type Handler struct {
 	handler     http.HandlerFunc
 }
 
-func getHandlers(bootstrap *bootstrapv1.Bootstrap, orchestrator *orchestrator.Orchestrator) []Handler {
+func getHandlers(bootstrap *bootstrapv1.Bootstrap, orchestrator *orchestrator.Orchestrator, logger log.Logger) []Handler {
 	handlers := []Handler{
 		{
 			"/",
@@ -35,6 +37,11 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap, orchestrator *orchestrator.Or
 			cacheDumpHandler(orchestrator),
 		},
 		{
+			"/log_level/",
+			"update the log level. usage: `/log_level/<level>`",
+			logLevelHandler(logger),
+		},
+		{
 			"/server_info",
 			"print bootstrap configuration",
 			configDumpHandler(bootstrap),
@@ -45,8 +52,8 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap, orchestrator *orchestrator.Or
 	return handlers
 }
 
-func RegisterHandlers(bootstrapConfig *bootstrapv1.Bootstrap, orchestrator *orchestrator.Orchestrator) {
-	for _, handler := range getHandlers(bootstrapConfig, orchestrator) {
+func RegisterHandlers(bootstrapConfig *bootstrapv1.Bootstrap, orchestrator *orchestrator.Orchestrator, logger log.Logger) {
+	for _, handler := range getHandlers(bootstrapConfig, orchestrator, logger) {
 		http.Handle(handler.prefix, handler.handler)
 	}
 }
@@ -80,7 +87,7 @@ func configDumpHandler(bootstrapConfig *bootstrapv1.Bootstrap) http.HandlerFunc 
 // TODO(lisalu): Support dump of matching resources when cache key regex is provided.
 func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		cacheKey, err := getCacheKeyParam(req.URL.Path)
+		cacheKey, err := getParam(req.URL.Path)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprintf(w, "unable to parse cache key from path: %s", err.Error())
@@ -126,11 +133,28 @@ func resourceToString(resource cache.Resource) (string, error) {
 	return stringify.InterfaceToString(resourceString)
 }
 
-func getCacheKeyParam(path string) (string, error) {
-	// Assumes that the URL is of the format `address/cache/parameter` and returns `parameter`.
+func getParam(path string) (string, error) {
+	// Assumes that the URL is of the format `address/endpoint/parameter` and returns `parameter`.
 	splitPath := strings.SplitN(path, "/", 3)
 	if len(splitPath) == 3 {
 		return splitPath[2], nil
 	}
-	return "", fmt.Errorf("unable to parse cache key from path: %s", path)
+	return "", fmt.Errorf("unable to parse parameter from path: %s", path)
+}
+
+func logLevelHandler(l log.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		if req.Method == "POST" {
+			logLevel, _ := getParam(req.URL.Path)
+			_, parseLogLevelErr := zap.ParseLogLevel(logLevel); if parseLogLevelErr != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				fmt.Fprintf(w, "Invalid log level: %s\n", logLevel)
+				return
+			}
+			l.UpdateLogLevel(logLevel)
+		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			fmt.Fprintf(w, "Only POST is supported\n")
+		}
+	}
 }
