@@ -3,7 +3,6 @@ server:
 origin_server:
   address: {address: "my-control-plane.lyft.net", port_value: 80}
 logging:
-  path: /var/log/xds-aggregator
   level: DEBUG
 cache:
   ttl: -60s

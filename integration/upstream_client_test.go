@@ -29,20 +29,17 @@ import (
 const (
 	nodeID           = "node-id"
 	originServerPort = 19001
-	loglevel         = "fatal"
 	updates          = 1
 )
-
-var testLogger = log.New(loglevel)
 
 func TestXdsClientGetsIncrementalResponsesFromUpstreamServer(t *testing.T) {
 	updates := 2
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	snapshotsv2, configv2 := createSnapshotCache(updates, testLogger)
+	snapshotsv2, configv2 := createSnapshotCache(updates, log.MockLogger)
 	cb := gcptestv2.Callbacks{Signal: make(chan struct{})}
-	respCh, _, err := setup(ctx, testLogger, snapshotsv2, configv2, &cb)
+	respCh, _, err := setup(ctx, log.MockLogger, snapshotsv2, configv2, &cb)
 	if err != nil {
 		assert.Fail(t, "Setup failed: %s", err.Error())
 		return
@@ -65,7 +62,7 @@ func TestXdsClientGetsIncrementalResponsesFromUpstreamServer(t *testing.T) {
 		}
 	}()
 
-	sendResponses(ctx, testLogger, updates, snapshotsv2, configv2)
+	sendResponses(ctx, log.MockLogger, updates, snapshotsv2, configv2)
 	wg.Wait()
 
 	timeoutCtx, timeoutCtxCancel := context.WithTimeout(ctx, 10*time.Second)
@@ -84,9 +81,9 @@ func TestXdsClientShutdownShouldCloseTheResponseChannel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	snapshotsv2, configv2 := createSnapshotCache(updates, testLogger)
+	snapshotsv2, configv2 := createSnapshotCache(updates, log.MockLogger)
 	cb := gcptestv2.Callbacks{Signal: make(chan struct{})}
-	respCh, shutdown, err := setup(ctx, testLogger, snapshotsv2, configv2, &cb)
+	respCh, shutdown, err := setup(ctx, log.MockLogger, snapshotsv2, configv2, &cb)
 	if err != nil {
 		assert.Fail(t, "Setup failed: %s", err.Error())
 		return
@@ -103,7 +100,7 @@ func TestXdsClientShutdownShouldCloseTheResponseChannel(t *testing.T) {
 		}
 	}()
 
-	sendResponses(ctx, testLogger, updates, snapshotsv2, configv2)
+	sendResponses(ctx, log.MockLogger, updates, snapshotsv2, configv2)
 	shutdown()
 	wg.Wait()
 }
@@ -111,9 +108,9 @@ func TestXdsClientShutdownShouldCloseTheResponseChannel(t *testing.T) {
 func TestServerShutdownShouldCloseResponseChannel(t *testing.T) {
 	serverCtx, cancel := context.WithCancel(context.Background())
 
-	snapshotsv2, configv2 := createSnapshotCache(updates, testLogger)
+	snapshotsv2, configv2 := createSnapshotCache(updates, log.MockLogger)
 	cb := gcptestv2.Callbacks{Signal: make(chan struct{})}
-	respCh, _, err := setup(serverCtx, testLogger, snapshotsv2, configv2, &cb)
+	respCh, _, err := setup(serverCtx, log.MockLogger, snapshotsv2, configv2, &cb)
 	if err != nil {
 		assert.Fail(t, "Setup failed: %s", err.Error())
 		cancel()
@@ -134,7 +131,7 @@ func TestServerShutdownShouldCloseResponseChannel(t *testing.T) {
 		}
 	}()
 
-	sendResponses(serverCtx, testLogger, updates, snapshotsv2, configv2)
+	sendResponses(serverCtx, log.MockLogger, updates, snapshotsv2, configv2)
 	cancel()
 	wg.Wait()
 }
@@ -143,9 +140,9 @@ func TestClientContextCancellationShouldCloseAllResponseChannels(t *testing.T) {
 	serverCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	snapshotsv2, configv2 := createSnapshotCache(updates, testLogger)
+	snapshotsv2, configv2 := createSnapshotCache(updates, log.MockLogger)
 	cb := gcptestv2.Callbacks{Signal: make(chan struct{})}
-	_, _, err := setup(serverCtx, testLogger, snapshotsv2, configv2, &cb)
+	_, _, err := setup(serverCtx, log.MockLogger, snapshotsv2, configv2, &cb)
 	if err != nil {
 		assert.Fail(t, "Setup failed: %s", err.Error())
 		return
@@ -156,7 +153,7 @@ func TestClientContextCancellationShouldCloseAllResponseChannels(t *testing.T) {
 		clientCtx,
 		strings.Join([]string{"127.0.0.1", strconv.Itoa(originServerPort)}, ":"),
 		upstream.CallOptions{Timeout: time.Minute},
-		testLogger)
+		log.MockLogger)
 	respCh1, _, _ := client.OpenStream(v2.DiscoveryRequest{
 		TypeUrl: upstream.ClusterTypeURL,
 		Node: &corev2.Node{
@@ -190,7 +187,7 @@ func TestClientContextCancellationShouldCloseAllResponseChannels(t *testing.T) {
 		}
 	}()
 
-	sendResponses(serverCtx, testLogger, updates, snapshotsv2, configv2)
+	sendResponses(serverCtx, log.MockLogger, updates, snapshotsv2, configv2)
 	clientCancel()
 	wg.Wait()
 }

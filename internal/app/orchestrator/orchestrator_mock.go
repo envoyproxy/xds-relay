@@ -23,10 +23,10 @@ func NewMock(t *testing.T,
 func NewMockOrchestrator(t *testing.T,
 	mapper mapper.Mapper,
 	upstreamClient upstream.Client,
-	scope tally.Scope) Orchestrator {
-	logger := log.New("info")
+	scope tally.Scope,
+) Orchestrator {
 	orchestrator := &orchestrator{
-		logger:                logger,
+		logger:                log.MockLogger,
 		scope:                 scope,
 		mapper:                mapper,
 		upstreamClient:        upstreamClient,
@@ -34,7 +34,7 @@ func NewMockOrchestrator(t *testing.T,
 		upstreamResponseMap:   newUpstreamResponseMap(),
 	}
 
-	cache, err := cache.NewCache(1000, orchestrator.onCacheEvicted, 10*time.Second, logger)
+	cache, err := cache.NewCache(1000, orchestrator.onCacheEvicted, 10*time.Second, log.MockLogger)
 	assert.NoError(t, err)
 	orchestrator.cache = cache
 

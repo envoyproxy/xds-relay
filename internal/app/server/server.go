@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -54,11 +55,19 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	aggregationRulesConfig *aggregationv1.KeyerConfiguration, logLevel string, mode string) {
 	// Initialize logger. The command line input for the log level overrides the log level set in the bootstrap config.
 	// If no log level is set in the config, the default is INFO.
+	// If no log path is set in the config, the default is output to stderr.
 	var logger log.Logger
+	writeTo := os.Stderr
+	if bootstrapConfig.Logging.Path != "" {
+		var err error
+		if writeTo, err = os.Create(bootstrapConfig.Logging.Path); err != nil {
+			panic(fmt.Errorf("failed to create/truncate log file at path %s, %v", bootstrapConfig.Logging.Path, err))
+		}
+	}
 	if logLevel != "" {
-		logger = log.New(logLevel)
+		logger = log.New(logLevel, writeTo)
 	} else {
-		logger = log.New(bootstrapConfig.Logging.Level.String())
+		logger = log.New(bootstrapConfig.Logging.Level.String(), writeTo)
 	}
 	// Initialize metrics sink. For now we default to statsd.
 	statsdPort := strconv.FormatUint(uint64(bootstrapConfig.MetricsSink.GetStatsd().Address.PortValue), 10)
