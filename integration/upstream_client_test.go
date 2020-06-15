@@ -153,7 +153,7 @@ func TestClientContextCancellationShouldCloseAllResponseChannels(t *testing.T) {
 		clientCtx,
 		strings.Join([]string{"127.0.0.1", strconv.Itoa(originServerPort)}, ":"),
 		upstream.CallOptions{Timeout: time.Minute},
-		testLogger)
+		log.MockLogger)
 	respCh1, _, _ := client.OpenStream(v2.DiscoveryRequest{
 		TypeUrl: upstream.ClusterTypeURL,
 		Node: &corev2.Node{
