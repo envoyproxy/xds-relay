@@ -26,11 +26,11 @@ func NewMockClient(
 		edsClient:   edsClient,
 		cdsClient:   cdsClient,
 		callOptions: callOptions,
-		logger:      log.New("panic"),
+		logger:      log.MockLogger,
 	}
 }
 
-// NewClient creates a mock implementation for testing
+// NewMock creates a mock client implementation for testing
 func NewMock(
 	ctx context.Context,
 	callOptions CallOptions,

@@ -55,9 +55,8 @@ func (m mockMultiStreamUpstreamClient) OpenStream(
 
 func newMockOrchestrator(t *testing.T, mockScope tally.Scope, mapper mapper.Mapper,
 	upstreamClient upstream.Client) *orchestrator {
-	logger := log.New("info")
 	orchestrator := &orchestrator{
-		logger:                logger,
+		logger:                log.MockLogger,
 		scope:                 mockScope,
 		mapper:                mapper,
 		upstreamClient:        upstreamClient,
@@ -65,7 +64,7 @@ func newMockOrchestrator(t *testing.T, mockScope tally.Scope, mapper mapper.Mapp
 		upstreamResponseMap:   newUpstreamResponseMap(),
 	}
 
-	cache, err := cache.NewCache(1000, orchestrator.onCacheEvicted, 10*time.Second, logger)
+	cache, err := cache.NewCache(1000, orchestrator.onCacheEvicted, 10*time.Second, log.MockLogger)
 	assert.NoError(t, err)
 	orchestrator.cache = cache
 
@@ -109,7 +108,7 @@ func TestNew(t *testing.T) {
 		MaxEntries: 10,
 	}
 
-	orchestrator := New(context.Background(), log.New("info"), tally.NewTestScope("prefix",
+	orchestrator := New(context.Background(), log.MockLogger, tally.NewTestScope("prefix",
 		make(map[string]string)), requestMapper, upstreamClient, &cacheConfig)
 	assert.NotNil(t, orchestrator)
 }
