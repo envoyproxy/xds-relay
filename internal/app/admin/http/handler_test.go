@@ -7,7 +7,7 @@ import (
 
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
 	"github.com/envoyproxy/xds-relay/internal/app/orchestrator"
-
+	"github.com/golang/protobuf/ptypes"
 	"github.com/uber-go/tally"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
@@ -98,18 +98,26 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 	gcpReq := gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
 	}
-	_, _ = orchestrator.CreateWatch(gcpReq)
+	respChannel, cancelWatch := orchestrator.CreateWatch(gcpReq)
+	assert.NotNil(t, respChannel)
 
+	listener := &v2.Listener{
+		Name: "lds resource",
+	}
+	listenerAny, err := ptypes.MarshalAny(listener)
+	assert.NoError(t, err)
 	resp := v2.DiscoveryResponse{
 		VersionInfo: "1",
 		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
 		Resources: []*any.Any{
-			{
-				Value: []byte("lds resource"),
-			},
+			listenerAny,
 		},
 	}
 	upstreamResponseChannel <- &resp
+	gotResponse := <-respChannel
+	gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
+	assert.NoError(t, err)
+	assert.Equal(t, resp, *gotDiscoveryResponse)
 
 	req, err := http.NewRequest("GET", "/cache/lds", nil)
 	assert.NoError(t, err)
@@ -121,13 +129,23 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.Contains(t, rr.Body.String(), `{
   "Resp": {
-    "version_info": "1",
-    "resources": [
-      {
-        "value": "bGRzIHJlc291cmNl"
-      }
-    ],
-    "type_url": "type.googleapis.com/envoy.api.v2.Listener"
+    "VersionInfo": "1",
+    "Resources": {
+      "Endpoints": null,
+      "Clusters": null,
+      "Routes": null,
+      "Listeners": [
+        {
+          "name": "lds resource"
+        }
+      ],
+      "Secrets": null,
+      "Runtimes": null
+    },
+    "Canary": false,
+    "TypeURL": "type.googleapis.com/envoy.api.v2.Listener",
+    "Nonce": "",
+    "ControlPlane": null
   },
   "Requests": [
     {
@@ -135,6 +153,7 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
     }
   ],
   "ExpirationTime": "`)
+	cancelWatch()
 }
 
 func TestAdminServer_CacheDumpHandler_NotFound(t *testing.T) {
@@ -175,4 +194,38 @@ func TestGetCacheKeyParam_Malformed(t *testing.T) {
 	cacheKey, err := getCacheKeyParam(path)
 	assert.Error(t, err, "")
 	assert.Equal(t, "", cacheKey)
+}
+
+func TestMarshalResources(t *testing.T) {
+	listener := &v2.Listener{
+		Name: "lds resource",
+	}
+	listenerAny, err := ptypes.MarshalAny(listener)
+	assert.NoError(t, err)
+	marshalled := marshalResources([]*any.Any{
+		listenerAny,
+	})
+	assert.NotNil(t, marshalled)
+	assert.Equal(t, 1, len(marshalled.Listeners))
+	assert.Equal(t, "lds resource", marshalled.Listeners[0].Name)
+}
+
+func TestMarshalDiscoveryResponse(t *testing.T) {
+	listener := &v2.Listener{
+		Name: "lds resource",
+	}
+	listenerAny, err := ptypes.MarshalAny(listener)
+	assert.NoError(t, err)
+	resp := v2.DiscoveryResponse{
+		VersionInfo: "1",
+		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
+		Resources: []*any.Any{
+			listenerAny,
+		},
+	}
+	marshalled := marshalDiscoveryResponse(&resp)
+	assert.NotNil(t, marshalled)
+	assert.Equal(t, resp.VersionInfo, marshalled.VersionInfo)
+	assert.Equal(t, resp.TypeUrl, marshalled.TypeURL)
+	assert.Equal(t, listener.Name, marshalled.Resources.Listeners[0].Name)
 }

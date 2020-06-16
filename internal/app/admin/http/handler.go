@@ -6,6 +6,14 @@ import (
 	"strings"
 	"time"
 
+	envoy_api_v2_core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+
+	envoy_api_v2_auth "github.com/envoyproxy/go-control-plane/envoy/api/v2/auth"
+	envoy_service_discovery_v2 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v2"
+	resource2 "github.com/envoyproxy/go-control-plane/pkg/resource/v2"
+	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/any"
+
 	"github.com/envoyproxy/xds-relay/internal/pkg/util/stringify"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
@@ -102,7 +110,7 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 }
 
 type marshallableResource struct {
-	Resp           *v2.DiscoveryResponse
+	Resp           *marshalledDiscoveryResponse
 	Requests       []*v2.DiscoveryRequest
 	ExpirationTime time.Time
 }
@@ -110,7 +118,6 @@ type marshallableResource struct {
 // In order to marshal a Resource from the cache to JSON to be printed,
 // the map of requests is converted to a slice of just the keys,
 // since the bool value is meaningless.
-// TODO(lisalu): More intelligent unmarshalling of DiscoveryResponse.
 func resourceToString(resource cache.Resource) (string, error) {
 	var requests []*v2.DiscoveryRequest
 	for request := range resource.Requests {
@@ -118,12 +125,91 @@ func resourceToString(resource cache.Resource) (string, error) {
 	}
 
 	resourceString := &marshallableResource{
-		Resp:           resource.Resp,
+		Resp:           marshalDiscoveryResponse(resource.Resp),
 		Requests:       requests,
 		ExpirationTime: resource.ExpirationTime,
 	}
 
 	return stringify.InterfaceToString(resourceString)
+}
+
+type marshalledDiscoveryResponse struct {
+	VersionInfo  string
+	Resources    *xDSResources
+	Canary       bool
+	TypeURL      string
+	Nonce        string
+	ControlPlane *envoy_api_v2_core.ControlPlane
+}
+
+type xDSResources struct {
+	Endpoints []*v2.ClusterLoadAssignment
+	Clusters  []*v2.Cluster
+	Routes    []*v2.RouteConfiguration
+	Listeners []*v2.Listener
+	Secrets   []*envoy_api_v2_auth.Secret
+	Runtimes  []*envoy_service_discovery_v2.Runtime
+}
+
+func marshalDiscoveryResponse(resp *v2.DiscoveryResponse) *marshalledDiscoveryResponse {
+	if resp != nil {
+		marshalledResp := marshalledDiscoveryResponse{
+			VersionInfo:  resp.VersionInfo,
+			Canary:       resp.Canary,
+			TypeURL:      resp.TypeUrl,
+			Resources:    marshalResources(resp.Resources),
+			Nonce:        resp.Nonce,
+			ControlPlane: resp.ControlPlane,
+		}
+		return &marshalledResp
+	}
+	return nil
+}
+
+func marshalResources(Resources []*any.Any) *xDSResources {
+	var marshalledResources xDSResources
+	for _, resource := range Resources {
+		switch resource.TypeUrl {
+		case resource2.EndpointType:
+			e := &v2.ClusterLoadAssignment{}
+			err := ptypes.UnmarshalAny(resource, e)
+			if err == nil {
+				marshalledResources.Endpoints = append(marshalledResources.Endpoints, e)
+			}
+		case resource2.ClusterType:
+			c := &v2.Cluster{}
+			err := ptypes.UnmarshalAny(resource, c)
+			if err == nil {
+				marshalledResources.Clusters = append(marshalledResources.Clusters, c)
+			}
+		case resource2.RouteType:
+			r := &v2.RouteConfiguration{}
+			err := ptypes.UnmarshalAny(resource, r)
+			if err == nil {
+				marshalledResources.Routes = append(marshalledResources.Routes, r)
+			}
+		case resource2.ListenerType:
+			l := &v2.Listener{}
+			err := ptypes.UnmarshalAny(resource, l)
+			if err == nil {
+				marshalledResources.Listeners = append(marshalledResources.Listeners, l)
+			}
+		case resource2.SecretType:
+			s := &envoy_api_v2_auth.Secret{}
+			err := ptypes.UnmarshalAny(resource, s)
+			if err == nil {
+				marshalledResources.Secrets = append(marshalledResources.Secrets, s)
+			}
+		case resource2.RuntimeType:
+			r := &envoy_service_discovery_v2.Runtime{}
+			err := ptypes.UnmarshalAny(resource, r)
+			if err == nil {
+				marshalledResources.Runtimes = append(marshalledResources.Runtimes, r)
+			}
+		default:
+		}
+	}
+	return &marshalledResources
 }
 
 func getCacheKeyParam(path string) (string, error) {
