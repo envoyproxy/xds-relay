@@ -89,7 +89,9 @@ func configDumpHandler(bootstrapConfig *bootstrapv1.Bootstrap) http.HandlerFunc 
 	return func(w http.ResponseWriter, req *http.Request) {
 		configString, err := stringify.InterfaceToString(bootstrapConfig)
 		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, "Failed to dump config: %s\n", err.Error())
+			return
 		}
 		fmt.Fprintf(w, "%s\n", configString)
 	}
@@ -103,6 +105,7 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprintf(w, "unable to parse cache key from path: %s", err.Error())
+			return
 		}
 		cache := orchestrator.Orchestrator.GetReadOnlyCache(*o)
 		resource, err := cache.FetchReadOnly(cacheKey)
@@ -253,6 +256,7 @@ func logLevelHandler(l log.Logger) http.HandlerFunc {
 			if err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				fmt.Fprintf(w, "unable to parse log level from path: %s", err.Error())
+				return
 			}
 			_, parseLogLevelErr := zap.ParseLogLevel(logLevel)
 			if parseLogLevelErr != nil {
