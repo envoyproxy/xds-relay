@@ -1,14 +1,13 @@
 package handler
 
 import (
+	"bytes"
 	"context"
-	"github.com/envoyproxy/xds-relay/internal/pkg/log"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-	"go.uber.org/zap/zaptest/observer"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
 	"github.com/envoyproxy/xds-relay/internal/app/orchestrator"
@@ -184,32 +183,36 @@ func TestGetParam_Malformed(t *testing.T) {
 
 func TestAdminServer_LogLevelHandler(t *testing.T) {
 	ctx := context.Background()
-	obsLogger, logs := log.NewMock("info")
-	assert.Equal(t, 0, logs.Len(), "Expected empty ObservedLogs to have zero length.")
-	assert.Equal(t, []observer.LoggedEntry{}, logs.All(), "Unexpected LoggedEntries in empty ObservedLogs.")
-	obsLogger.Info(ctx, "foo")
-	obsLogger.Debug(ctx, "bar")
-	want := []observer.LoggedEntry{{
-		Entry:   zapcore.Entry{Level: zap.InfoLevel, Message: "foo"},
-		Context: []zapcore.Field{zap.Int("i", 1)},
-	}}
-	assert.Equal(t, 1, logs.Len(), "Unexpected observed logs Len.")
-	assert.Equal(t, want, logs.AllUntimed(), "Unexpected contents from AllUntimed.")
+	var buf bytes.Buffer
+	logger := log.NewMock("error", &buf)
+	assert.Equal(t, 0, buf.Len())
+
+	logger.Error(ctx, "foo")
+	logger.Debug(ctx, "bar")
+	output := buf.String()
+	assert.Contains(t, output, "foo")
+	assert.NotContains(t, output, "bar")
 
 	req, err := http.NewRequest("POST", "/log_level/debug", nil)
 	assert.NoError(t, err)
 
 	rr := httptest.NewRecorder()
-	handler := logLevelHandler(obsLogger)
+	handler := logLevelHandler(logger)
 
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
+	logger.Debug(ctx, "bar")
+	output = buf.String()
+	assert.Contains(t, output, "bar")
 
-	obsLogger.Info(ctx, "bar")
-	//want := []observer.LoggedEntry{{
-	//	Entry:   zapcore.Entry{Level: zap.InfoLevel, Message: "foo"},
-	//	Context: []zapcore.Field{zap.Int("i", 1)},
-	//}}
-	assert.Equal(t, 1, logs.Len(), "Unexpected observed logs Len.")
-	assert.Equal(t, want, logs.AllUntimed(), "Unexpected contents from AllUntimed.")
+	req, err = http.NewRequest("POST", "/log_level/info", nil)
+	assert.NoError(t, err)
+
+	handler.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	logger.Debug(ctx, "baz")
+	logger.Info(ctx, "qux")
+	output = buf.String()
+	assert.NotContains(t, output, "baz")
+	assert.Contains(t, output, "qux")
 }

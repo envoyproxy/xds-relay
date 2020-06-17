@@ -2,11 +2,12 @@ package handler
 
 import (
 	"fmt"
-	"github.com/envoyproxy/xds-relay/internal/pkg/log"
-	"github.com/envoyproxy/xds-relay/internal/pkg/log/zap"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/envoyproxy/xds-relay/internal/pkg/log"
+	"github.com/envoyproxy/xds-relay/internal/pkg/log/zap"
 
 	"github.com/envoyproxy/xds-relay/internal/pkg/util/stringify"
 
@@ -24,7 +25,9 @@ type Handler struct {
 	handler     http.HandlerFunc
 }
 
-func getHandlers(bootstrap *bootstrapv1.Bootstrap, orchestrator *orchestrator.Orchestrator, logger log.Logger) []Handler {
+func getHandlers(bootstrap *bootstrapv1.Bootstrap,
+	orchestrator *orchestrator.Orchestrator,
+	logger log.Logger) []Handler {
 	handlers := []Handler{
 		{
 			"/",
@@ -52,7 +55,9 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap, orchestrator *orchestrator.Or
 	return handlers
 }
 
-func RegisterHandlers(bootstrapConfig *bootstrapv1.Bootstrap, orchestrator *orchestrator.Orchestrator, logger log.Logger) {
+func RegisterHandlers(bootstrapConfig *bootstrapv1.Bootstrap,
+	orchestrator *orchestrator.Orchestrator,
+	logger log.Logger) {
 	for _, handler := range getHandlers(bootstrapConfig, orchestrator, logger) {
 		http.Handle(handler.prefix, handler.handler)
 	}
@@ -146,7 +151,8 @@ func logLevelHandler(l log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Method == "POST" {
 			logLevel, _ := getParam(req.URL.Path)
-			_, parseLogLevelErr := zap.ParseLogLevel(logLevel); if parseLogLevelErr != nil {
+			_, parseLogLevelErr := zap.ParseLogLevel(logLevel)
+			if parseLogLevelErr != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				fmt.Fprintf(w, "Invalid log level: %s\n", logLevel)
 				return

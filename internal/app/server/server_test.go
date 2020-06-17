@@ -57,3 +57,4 @@ func (l *logger) Error(ctx context.Context, template string, args ...interface{}
 	l.lastErr = fmt.Sprintf(template+"%v", args...)
 	l.blockedCh <- true
 }
+func (l *logger) UpdateLogLevel(logLevel string) {}

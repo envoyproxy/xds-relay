@@ -9,7 +9,8 @@ import (
 )
 
 type logger struct {
-	zap *z.SugaredLogger
+	zap     *z.SugaredLogger
+	writeTo io.Writer
 }
 
 // New returns an instance of Logger implemented using the Zap logging framework.
@@ -32,9 +33,11 @@ func New(logLevel string, writeTo io.Writer) Logger {
 		// Log an invalid log level error and set the default level to info.
 		log.Error("cannot set logger to desired log level")
 	}
-	return &logger{zap: log.Sugar()}
+	return &logger{zap: log.Sugar(), writeTo: writeTo}
 }
 
+// UpdateLevel updates the logging level for the logger instance by
+// internally creating a new logger at the new level.
 func (l *logger) UpdateLogLevel(logLevel string) {
 	zLevel, parseLogLevelErr := zap.ParseLogLevel(logLevel)
 
@@ -43,6 +46,7 @@ func (l *logger) UpdateLogLevel(logLevel string) {
 		// CallerSkip skips 1 number of callers, otherwise the file that gets
 		// logged will always be the wrapped file. In this case, log.go.
 		zap.AddCallerSkip(1),
+		zap.WriteTo(l.writeTo),
 	)
 
 	if parseLogLevelErr != nil {
