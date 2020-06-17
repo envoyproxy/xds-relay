@@ -69,7 +69,6 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	} else {
 		logger = log.New(bootstrapConfig.Logging.Level.String(), writeTo)
 	}
-
 	// Initialize metrics sink. For now we default to statsd.
 	statsdPort := strconv.FormatUint(uint64(bootstrapConfig.MetricsSink.GetStatsd().Address.PortValue), 10)
 	statsdAddress := net.JoinHostPort(bootstrapConfig.MetricsSink.GetStatsd().Address.Address, statsdPort)
@@ -116,7 +115,7 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	adminServer := &http.Server{
 		Addr: adminAddress,
 	}
-	handler.RegisterHandlers(bootstrapConfig, &orchestrator)
+	handler.RegisterHandlers(bootstrapConfig, &orchestrator, logger)
 
 	// Start server.
 	gcpServer := gcp.NewServer(ctx, orchestrator, nil)

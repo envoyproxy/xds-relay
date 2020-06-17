@@ -1,9 +1,13 @@
 package handler
 
 import (
+	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
 	"github.com/envoyproxy/xds-relay/internal/app/orchestrator"
@@ -176,25 +180,61 @@ func TestAdminServer_CacheDumpHandler_NotFound(t *testing.T) {
 	assert.Equal(t, "no resource for key cds found in cache.\n", rr.Body.String())
 }
 
-func TestGetCacheKeyParam(t *testing.T) {
+func TestGetParam(t *testing.T) {
 	path := "127.0.0.1:6070/cache/foo_production_*"
-	cacheKey, err := getCacheKeyParam(path)
+	cacheKey, err := getParam(path)
 	assert.NoError(t, err)
 	assert.Equal(t, "foo_production_*", cacheKey)
 }
 
-func TestGetCacheKeyParam_NoKey(t *testing.T) {
+func TestGetParam_Empty(t *testing.T) {
 	path := "127.0.0.1:6070/cache/"
-	cacheKey, err := getCacheKeyParam(path)
+	cacheKey, err := getParam(path)
 	assert.NoError(t, err)
 	assert.Equal(t, "", cacheKey)
 }
 
-func TestGetCacheKeyParam_Malformed(t *testing.T) {
+func TestGetParam_Malformed(t *testing.T) {
 	path := "127.0.0.1:6070"
-	cacheKey, err := getCacheKeyParam(path)
+	cacheKey, err := getParam(path)
 	assert.Error(t, err, "")
 	assert.Equal(t, "", cacheKey)
+}
+
+func TestAdminServer_LogLevelHandler(t *testing.T) {
+	ctx := context.Background()
+	var buf bytes.Buffer
+	logger := log.NewMock("error", &buf)
+	assert.Equal(t, 0, buf.Len())
+
+	logger.Error(ctx, "foo")
+	logger.Debug(ctx, "bar")
+	output := buf.String()
+	assert.Contains(t, output, "foo")
+	assert.NotContains(t, output, "bar")
+
+	req, err := http.NewRequest("POST", "/log_level/debug", nil)
+	assert.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler := logLevelHandler(logger)
+
+	handler.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	logger.Debug(ctx, "bar")
+	output = buf.String()
+	assert.Contains(t, output, "bar")
+
+	req, err = http.NewRequest("POST", "/log_level/info", nil)
+	assert.NoError(t, err)
+
+	handler.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	logger.Debug(ctx, "baz")
+	logger.Info(ctx, "qux")
+	output = buf.String()
+	assert.NotContains(t, output, "baz")
+	assert.Contains(t, output, "qux")
 }
 
 func TestMarshalResources(t *testing.T) {
