@@ -41,7 +41,7 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 		},
 		{
 			"/log_level/",
-			"update the log level. usage: `/log_level/<level>`",
+			"update the log level to `debug`, `info`, `warn`, or `error`. usage: `/log_level/<level>`",
 			logLevelHandler(logger),
 		},
 		{
@@ -150,7 +150,11 @@ func getParam(path string) (string, error) {
 func logLevelHandler(l log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Method == "POST" {
-			logLevel, _ := getParam(req.URL.Path)
+			logLevel, err := getParam(req.URL.Path)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				fmt.Fprintf(w, "unable to parse log level from path: %s", err.Error())
+			}
 			_, parseLogLevelErr := zap.ParseLogLevel(logLevel)
 			if parseLogLevelErr != nil {
 				w.WriteHeader(http.StatusBadRequest)
