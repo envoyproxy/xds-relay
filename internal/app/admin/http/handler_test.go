@@ -140,7 +140,8 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
         }
       ],
       "Secrets": null,
-      "Runtimes": null
+      "Runtimes": null,
+      "Unmarshalled": null
     },
     "Canary": false,
     "TypeURL": "type.googleapis.com/envoy.api.v2.Listener",

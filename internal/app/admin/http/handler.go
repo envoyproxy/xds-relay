@@ -143,12 +143,13 @@ type marshalledDiscoveryResponse struct {
 }
 
 type xDSResources struct {
-	Endpoints []*v2.ClusterLoadAssignment
-	Clusters  []*v2.Cluster
-	Routes    []*v2.RouteConfiguration
-	Listeners []*v2.Listener
-	Secrets   []*envoy_api_v2_auth.Secret
-	Runtimes  []*envoy_service_discovery_v2.Runtime
+	Endpoints    []*v2.ClusterLoadAssignment
+	Clusters     []*v2.Cluster
+	Routes       []*v2.RouteConfiguration
+	Listeners    []*v2.Listener
+	Secrets      []*envoy_api_v2_auth.Secret
+	Runtimes     []*envoy_service_discovery_v2.Runtime
+	Unmarshalled []*any.Any
 }
 
 func marshalDiscoveryResponse(resp *v2.DiscoveryResponse) *marshalledDiscoveryResponse {
@@ -175,38 +176,51 @@ func marshalResources(Resources []*any.Any) *xDSResources {
 			err := ptypes.UnmarshalAny(resource, e)
 			if err == nil {
 				marshalledResources.Endpoints = append(marshalledResources.Endpoints, e)
+			} else {
+				marshalledResources.Unmarshalled = append(marshalledResources.Unmarshalled, resource)
 			}
 		case resource2.ClusterType:
 			c := &v2.Cluster{}
 			err := ptypes.UnmarshalAny(resource, c)
 			if err == nil {
 				marshalledResources.Clusters = append(marshalledResources.Clusters, c)
+			} else {
+				marshalledResources.Unmarshalled = append(marshalledResources.Unmarshalled, resource)
 			}
 		case resource2.RouteType:
 			r := &v2.RouteConfiguration{}
 			err := ptypes.UnmarshalAny(resource, r)
 			if err == nil {
 				marshalledResources.Routes = append(marshalledResources.Routes, r)
+			} else {
+				marshalledResources.Unmarshalled = append(marshalledResources.Unmarshalled, resource)
 			}
 		case resource2.ListenerType:
 			l := &v2.Listener{}
 			err := ptypes.UnmarshalAny(resource, l)
 			if err == nil {
 				marshalledResources.Listeners = append(marshalledResources.Listeners, l)
+			} else {
+				marshalledResources.Unmarshalled = append(marshalledResources.Unmarshalled, resource)
 			}
 		case resource2.SecretType:
 			s := &envoy_api_v2_auth.Secret{}
 			err := ptypes.UnmarshalAny(resource, s)
 			if err == nil {
 				marshalledResources.Secrets = append(marshalledResources.Secrets, s)
+			} else {
+				marshalledResources.Unmarshalled = append(marshalledResources.Unmarshalled, resource)
 			}
 		case resource2.RuntimeType:
 			r := &envoy_service_discovery_v2.Runtime{}
 			err := ptypes.UnmarshalAny(resource, r)
 			if err == nil {
 				marshalledResources.Runtimes = append(marshalledResources.Runtimes, r)
+			} else {
+				marshalledResources.Unmarshalled = append(marshalledResources.Unmarshalled, resource)
 			}
 		default:
+			marshalledResources.Unmarshalled = append(marshalledResources.Unmarshalled, resource)
 		}
 	}
 	return &marshalledResources
