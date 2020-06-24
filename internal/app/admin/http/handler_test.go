@@ -180,6 +180,130 @@ func TestAdminServer_CacheDumpHandler_NotFound(t *testing.T) {
 	assert.Equal(t, "no resource for key cds found in cache.\n", rr.Body.String())
 }
 
+func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
+	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
+	mapper := mapper.NewMock(t)
+	mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
+	orchestrator := orchestrator.NewMock(t, mapper,
+		mockSimpleUpstreamClient{responseChan: upstreamResponseChannel}, mockScope)
+	assert.NotNil(t, orchestrator)
+
+	gcpReq := gcp.Request{
+		TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
+	}
+	ldsRespChannel, cancelLDSWatch := orchestrator.CreateWatch(gcpReq)
+	assert.NotNil(t, ldsRespChannel)
+
+	gcpReq = gcp.Request{
+		TypeUrl: "type.googleapis.com/envoy.api.v2.Cluster",
+	}
+	cdsRespChannel, cancelCDSWatch := orchestrator.CreateWatch(gcpReq)
+	assert.NotNil(t, cdsRespChannel)
+
+	listener := &v2.Listener{
+		Name: "lds resource",
+	}
+	listenerAny, err := ptypes.MarshalAny(listener)
+	assert.NoError(t, err)
+	resp := v2.DiscoveryResponse{
+		VersionInfo: "1",
+		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
+		Resources: []*any.Any{
+			listenerAny,
+		},
+	}
+	upstreamResponseChannel <- &resp
+	gotResponse := <-ldsRespChannel
+	gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
+	assert.NoError(t, err)
+	assert.Equal(t, resp, *gotDiscoveryResponse)
+
+	cluster := &v2.Cluster{
+		Name: "cds resource",
+	}
+	clusterAny, err := ptypes.MarshalAny(cluster)
+	assert.NoError(t, err)
+	resp = v2.DiscoveryResponse{
+		VersionInfo: "2",
+		TypeUrl:     "type.googleapis.com/envoy.api.v2.Cluster",
+		Resources: []*any.Any{
+			clusterAny,
+		},
+	}
+	upstreamResponseChannel <- &resp
+	gotResponse = <-cdsRespChannel
+	gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
+	assert.NoError(t, err)
+	assert.Equal(t, resp, *gotDiscoveryResponse)
+
+	req, err := http.NewRequest("GET", "/cache/", nil)
+	assert.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler := cacheDumpHandler(&orchestrator)
+
+	handler.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), `{
+  "Resp": {
+    "VersionInfo": "1",
+    "Resources": {
+      "Endpoints": null,
+      "Clusters": null,
+      "Routes": null,
+      "Listeners": [
+        {
+          "name": "lds resource"
+        }
+      ],
+      "Secrets": null,
+      "Runtimes": null,
+      "Unmarshalled": null
+    },
+    "Canary": false,
+    "TypeURL": "type.googleapis.com/envoy.api.v2.Listener",
+    "Nonce": "",
+    "ControlPlane": null
+  },
+  "Requests": [
+    {
+      "type_url": "type.googleapis.com/envoy.api.v2.Listener"
+    }
+  ],
+  "ExpirationTime": "`)
+	assert.Contains(t, rr.Body.String(), `{
+  "Resp": {
+    "VersionInfo": "2",
+    "Resources": {
+      "Endpoints": null,
+      "Clusters": [
+        {
+          "name": "cds resource",
+          "ClusterDiscoveryType": null,
+          "LbConfig": null
+        }
+      ],
+      "Routes": null,
+      "Listeners": null,
+      "Secrets": null,
+      "Runtimes": null,
+      "Unmarshalled": null
+    },
+    "Canary": false,
+    "TypeURL": "type.googleapis.com/envoy.api.v2.Cluster",
+    "Nonce": "",
+    "ControlPlane": null
+  },
+  "Requests": [
+    {
+      "type_url": "type.googleapis.com/envoy.api.v2.Cluster"
+    }
+  ],
+  "ExpirationTime": "`)
+	cancelLDSWatch()
+	cancelCDSWatch()
+}
+
 func TestGetParam(t *testing.T) {
 	path := "127.0.0.1:6070/cache/foo_production_*"
 	cacheKey, err := getParam(path)

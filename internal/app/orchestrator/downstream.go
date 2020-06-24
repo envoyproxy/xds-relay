@@ -14,6 +14,8 @@ package orchestrator
 import (
 	"sync"
 
+	"github.com/envoyproxy/xds-relay/internal/app/mapper"
+
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	"github.com/uber-go/tally"
 )
@@ -85,4 +87,19 @@ func (d *downstreamResponseMap) deleteAll(watchers map[*gcp.Request]bool) {
 			delete(d.responseChannels, watch)
 		}
 	}
+}
+
+func (d *downstreamResponseMap) keys(m *mapper.Mapper) []string {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	var keys []string
+	for request := range d.responseChannels {
+		key, err := mapper.Mapper.GetKey(*m, *request)
+		if err != nil {
+			// TODO(lisalu): Log warning.
+		} else {
+			keys = append(keys, key)
+		}
+	}
+	return keys
 }

@@ -59,6 +59,8 @@ type Orchestrator interface {
 	shutdown(ctx context.Context)
 
 	GetReadOnlyCache() cache.ReadOnlyCache
+
+	GetKeys() []string
 }
 
 type orchestrator struct {
@@ -208,6 +210,10 @@ func (o *orchestrator) Fetch(context.Context, discovery.DiscoveryRequest) (gcp.R
 
 func (o *orchestrator) GetReadOnlyCache() cache.ReadOnlyCache {
 	return o.cache.GetReadOnlyCache()
+}
+
+func (o *orchestrator) GetKeys() []string {
+	return o.downstreamResponseMap.keys(&o.mapper)
 }
 
 // watchUpstream is intended to be called in a go routine, to receive incoming
