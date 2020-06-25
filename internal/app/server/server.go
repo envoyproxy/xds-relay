@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/envoyproxy/xds-relay/internal/app/metrics"
+
 	handler "github.com/envoyproxy/xds-relay/internal/app/admin/http"
 	"github.com/envoyproxy/xds-relay/internal/pkg/stats"
 
@@ -26,12 +28,6 @@ import (
 	api "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	gcp "github.com/envoyproxy/go-control-plane/pkg/server/v2"
 	"google.golang.org/grpc"
-)
-
-const (
-	metricSubscope             = "server"
-	metricSubscopeOrchestrator = "orchestrator"
-	metricServerAlive          = "alive"
 )
 
 // Run instantiates a running gRPC server for accepting incoming xDS-based requests.
@@ -103,11 +99,10 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	}
 
 	// Initialize request aggregation mapper component.
-	requestMapper := mapper.New(aggregationRulesConfig)
+	requestMapper := mapper.New(aggregationRulesConfig, scope)
 
 	// Initialize orchestrator.
-	orchestrator := orchestrator.New(ctx, logger, scope.SubScope(metricSubscopeOrchestrator), requestMapper,
-		upstreamClient, bootstrapConfig.Cache)
+	orchestrator := orchestrator.New(ctx, logger, scope, requestMapper, upstreamClient, bootstrapConfig.Cache)
 
 	// Configure admin server.
 	adminPort := strconv.FormatUint(uint64(bootstrapConfig.Admin.Address.PortValue), 10)
@@ -140,8 +135,7 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 
 	registerShutdownHandler(ctx, cancel, server.GracefulStop, adminServer.Shutdown, logger, time.Second*30)
 	logger.With("address", listener.Addr()).Info(ctx, "Initializing server")
-	serverScope := scope.SubScope(metricSubscope)
-	serverScope.Counter(metricServerAlive).Inc(1)
+	scope.SubScope(metrics.ScopeServer).Counter(metrics.ServerAlive).Inc(1)
 
 	if err := server.Serve(listener); err != nil {
 		logger.With("err", err).Fatal(ctx, "failed to initialize server")

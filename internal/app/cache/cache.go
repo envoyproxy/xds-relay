@@ -10,7 +10,9 @@ import (
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/golang/groupcache/lru"
+	"github.com/uber-go/tally"
 
+	"github.com/envoyproxy/xds-relay/internal/app/metrics"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 )
 
@@ -42,6 +44,7 @@ type cache struct {
 	ttl     time.Duration
 
 	logger log.Logger
+	scope  tally.Scope
 }
 
 type Resource struct {
@@ -53,7 +56,7 @@ type Resource struct {
 // OnEvictFunc is a callback function for each eviction. Receives the key and cache value when called.
 type OnEvictFunc func(key string, value Resource)
 
-func NewCache(maxEntries int, onEvicted OnEvictFunc, ttl time.Duration, logger log.Logger) (Cache, error) {
+func NewCache(maxEntries int, onEvicted OnEvictFunc, ttl time.Duration, logger log.Logger, scope tally.Scope) (Cache, error) {
 	if ttl < 0 {
 		return nil, fmt.Errorf("ttl must be nonnegative but was set to %v", ttl)
 	}
@@ -77,6 +80,7 @@ func NewCache(maxEntries int, onEvicted OnEvictFunc, ttl time.Duration, logger l
 		// Duration before which an item is evicted for expiring. Zero means no expiration time.
 		ttl:    ttl,
 		logger: logger.Named("cache"),
+		scope:  scope.SubScope(metrics.ScopeCache),
 	}, nil
 }
 
@@ -94,13 +98,16 @@ func (c *cache) FetchReadOnly(key string) (Resource, error) {
 
 func (c *cache) Fetch(key string) (*Resource, error) {
 	c.cacheMu.RLock()
+	metrics.CacheFetchSubscope(c.scope, key).Counter(metrics.CacheFetchAttempt).Inc(1)
 	value, found := c.cache.Get(key)
 	c.cacheMu.RUnlock()
 	if !found {
+		metrics.CacheFetchSubscope(c.scope, key).Counter(metrics.CacheFetchMiss).Inc(1)
 		return nil, fmt.Errorf("no value found for key: %s", key)
 	}
 	resource, ok := value.(Resource)
 	if !ok {
+		metrics.CacheFetchSubscope(c.scope, key).Counter(metrics.CacheFetchError).Inc(1)
 		return nil, fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
 	// Lazy eviction based on TTL occurs here. Fetch does not increase the lifespan of the key.
@@ -114,12 +121,14 @@ func (c *cache) Fetch(key string) (*Resource, error) {
 		}
 		resource, ok = value.(Resource)
 		if !ok {
+			metrics.CacheFetchSubscope(c.scope, key).Counter(metrics.CacheFetchError).Inc(1)
 			return nil, fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 		}
 		// This second check for expiration is required in case a recent SetResponse call was made to the same key
 		// from another goroutine, extending the deadline for eviction. Without it, a key that was recently refreshed
 		// may be prematurely removed by the goroutine calling Fetch.
 		if resource.isExpired(time.Now()) {
+			metrics.CacheFetchSubscope(c.scope, key).Counter(metrics.CacheFetchExpired).Inc(1)
 			c.cache.Remove(key)
 			return nil, nil
 		}
@@ -136,6 +145,7 @@ func (c *cache) Fetch(key string) (*Resource, error) {
 func (c *cache) SetResponse(key string, response v2.DiscoveryResponse) (map[*v2.DiscoveryRequest]bool, error) {
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
+	metrics.CacheSetSubscope(c.scope, key).Counter(metrics.CacheSetAttempt).Inc(1)
 	value, found := c.cache.Get(key)
 	if !found {
 		resource := Resource{
@@ -144,23 +154,27 @@ func (c *cache) SetResponse(key string, response v2.DiscoveryResponse) (map[*v2.
 			Requests:       make(map[*v2.DiscoveryRequest]bool),
 		}
 		c.cache.Add(key, resource)
+		metrics.CacheSetSubscope(c.scope, key).Counter(metrics.CacheSetSuccess).Inc(1)
 		c.logger.With("key", key, "response url", response.GetTypeUrl()).Debug(context.Background(), "set response")
 		return nil, nil
 	}
 	resource, ok := value.(Resource)
 	if !ok {
+		metrics.CacheSetSubscope(c.scope, key).Counter(metrics.CacheSetError).Inc(1)
 		return nil, fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
 	resource.Resp = &response
 	resource.ExpirationTime = c.getExpirationTime(time.Now())
 	c.cache.Add(key, resource)
 	c.logger.With("key", key, "response url", response.GetTypeUrl()).Debug(context.Background(), "set response")
+	metrics.CacheSetSubscope(c.scope, key).Counter(metrics.CacheSetSuccess).Inc(1)
 	return resource.Requests, nil
 }
 
 func (c *cache) AddRequest(key string, req *v2.DiscoveryRequest) error {
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
+	metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheAddAttempt).Inc(1)
 	value, found := c.cache.Get(key)
 	if !found {
 		requests := make(map[*v2.DiscoveryRequest]bool)
@@ -175,10 +189,12 @@ func (c *cache) AddRequest(key string, req *v2.DiscoveryRequest) error {
 			"node ID", req.GetNode().GetId(),
 			"request type", req.GetTypeUrl(),
 		).Debug(context.Background(), "request added")
+		metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheAddSuccess).Inc(1)
 		return nil
 	}
 	resource, ok := value.(Resource)
 	if !ok {
+		metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheAddError).Inc(1)
 		return fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
 	resource.Requests[req] = true
@@ -188,18 +204,21 @@ func (c *cache) AddRequest(key string, req *v2.DiscoveryRequest) error {
 		"node ID", req.GetNode().GetId(),
 		"request type", req.GetTypeUrl(),
 	).Debug(context.Background(), "request added")
+	metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheAddSuccess).Inc(1)
 	return nil
 }
 
 func (c *cache) DeleteRequest(key string, req *v2.DiscoveryRequest) error {
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
+	metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheDeleteAttempt).Inc(1)
 	value, found := c.cache.Get(key)
 	if !found {
 		return nil
 	}
 	resource, ok := value.(Resource)
 	if !ok {
+		metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheDeleteError).Inc(1)
 		return fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
 	delete(resource.Requests, req)
@@ -209,6 +228,7 @@ func (c *cache) DeleteRequest(key string, req *v2.DiscoveryRequest) error {
 		"node ID", req.GetNode().GetId(),
 		"request type", req.GetTypeUrl(),
 	).Debug(context.Background(), "request deleted")
+	metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheDeleteSuccess).Inc(1)
 	return nil
 }
 
