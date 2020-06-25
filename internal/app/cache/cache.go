@@ -56,7 +56,8 @@ type Resource struct {
 // OnEvictFunc is a callback function for each eviction. Receives the key and cache value when called.
 type OnEvictFunc func(key string, value Resource)
 
-func NewCache(maxEntries int, onEvicted OnEvictFunc, ttl time.Duration, logger log.Logger, scope tally.Scope) (Cache, error) {
+func NewCache(maxEntries int, onEvicted OnEvictFunc, ttl time.Duration,
+	logger log.Logger, scope tally.Scope) (Cache, error) {
 	if ttl < 0 {
 		return nil, fmt.Errorf("ttl must be nonnegative but was set to %v", ttl)
 	}

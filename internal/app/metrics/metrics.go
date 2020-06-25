@@ -47,19 +47,19 @@ const (
 	// scope: .cache.$aggregated_key.set_response.*
 	ScopeCacheSet   = "set_response"
 	CacheSetAttempt = "attempt" // counter, # of cache sets called
-	CacheSetSuccess = "success" // counter, # of cache sets suceeded
+	CacheSetSuccess = "success" // counter, # of cache sets succeeded
 	CacheSetError   = "error"   // counter, # of errors while calling cache set
 
 	// scope: .cache.$aggregated_key.add_request.*
 	ScopeCacheAdd   = "add_request"
 	CacheAddAttempt = "attempt" // counter, # of cache add requests called
-	CacheAddSuccess = "success" // counter, # of cache add requests suceeded
+	CacheAddSuccess = "success" // counter, # of cache add requests succeeded
 	CacheAddError   = "error"   // counter, # of errors while calling cache add
 
 	// scope: .cache.$aggregated_key.delete_request.*
 	ScopeCacheDelete   = "delete_request"
 	CacheDeleteAttempt = "attempt" // counter, # of cache delete requests called
-	CacheDeleteSuccess = "success" // counter, # of cache delete requests suceeded
+	CacheDeleteSuccess = "success" // counter, # of cache delete requests succeeded
 	CacheDeleteError   = "error"   // counter, # of errors while calling cache delete
 )
 

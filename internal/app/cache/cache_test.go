@@ -92,14 +92,18 @@ func TestAddRequestAndFetch(t *testing.T) {
 
 	err = cache.AddRequest(testKeyA, &testRequestA)
 	assert.NoError(t, err)
-	testutils.AssertCounterValue(t, mockScope.Snapshot().Counters(), fmt.Sprintf("cache.%s.add_request.attempt", testKeyA), 1)
-	testutils.AssertCounterValue(t, mockScope.Snapshot().Counters(), fmt.Sprintf("cache.%s.add_request.success", testKeyA), 1)
+	testutils.AssertCounterValue(
+		t, mockScope.Snapshot().Counters(), fmt.Sprintf("cache.%s.add_request.attempt", testKeyA), 1)
+	testutils.AssertCounterValue(
+		t, mockScope.Snapshot().Counters(), fmt.Sprintf("cache.%s.add_request.success", testKeyA), 1)
 
 	resource, err = cache.Fetch(testKeyA)
 	assert.NoError(t, err)
 	assert.Nil(t, resource.Resp)
-	testutils.AssertCounterValue(t, mockScope.Snapshot().Counters(), fmt.Sprintf("cache.%s.fetch.attempt", testKeyA), 2)
-	testutils.AssertCounterValue(t, mockScope.Snapshot().Counters(), fmt.Sprintf("cache.%s.fetch.miss", testKeyA), 1)
+	testutils.AssertCounterValue(
+		t, mockScope.Snapshot().Counters(), fmt.Sprintf("cache.%s.fetch.attempt", testKeyA), 2)
+	testutils.AssertCounterValue(
+		t, mockScope.Snapshot().Counters(), fmt.Sprintf("cache.%s.fetch.miss", testKeyA), 1)
 }
 
 func TestSetResponseAndFetch(t *testing.T) {

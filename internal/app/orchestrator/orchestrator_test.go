@@ -133,7 +133,8 @@ func TestGoldenPath(t *testing.T) {
 	assert.NoError(t, err)
 
 	respChannel, cancelWatch := orchestrator.CreateWatch(req)
-	testutils.AssertCounterValue(t, mockScope.Snapshot().Counters(), fmt.Sprintf("mock_orchestrator.%s.watch.created", aggregatedKey), 1)
+	testutils.AssertCounterValue(t, mockScope.Snapshot().Counters(),
+		fmt.Sprintf("mock_orchestrator.%s.watch.created", aggregatedKey), 1)
 	assert.NotNil(t, respChannel)
 	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.responseChannels))
 	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
@@ -155,7 +156,8 @@ func TestGoldenPath(t *testing.T) {
 
 	gotResponse := <-respChannel
 	assertEqualResponse(t, gotResponse, resp, req)
-	testutils.AssertCounterValue(t, mockScope.Snapshot().Counters(), fmt.Sprintf("mock_orchestrator.%s.watch.fanout", aggregatedKey), 1)
+	testutils.AssertCounterValue(t, mockScope.Snapshot().Counters(),
+		fmt.Sprintf("mock_orchestrator.%s.watch.fanout", aggregatedKey), 1)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -163,7 +165,8 @@ func TestGoldenPath(t *testing.T) {
 	testutils.AssertSyncMapLen(t, 0, orchestrator.upstreamResponseMap.internal)
 
 	cancelWatch()
-	testutils.AssertCounterValue(t, mockScope.Snapshot().Counters(), fmt.Sprintf("mock_orchestrator.%s.watch.canceled", aggregatedKey), 1)
+	testutils.AssertCounterValue(t, mockScope.Snapshot().Counters(),
+		fmt.Sprintf("mock_orchestrator.%s.watch.canceled", aggregatedKey), 1)
 	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.responseChannels))
 }
 
