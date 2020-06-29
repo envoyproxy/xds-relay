@@ -15,7 +15,7 @@ const (
 
 // .orchestrator
 const (
-	// scope: .orchestrator.$aggregated_key.watch.*
+	// scope: .orchestrator.$aggregated_key.*
 	ScopeOrchestrator = "orchestrator"
 
 	// scope: .orchestrator.$aggregated_key.watch.*
@@ -30,6 +30,23 @@ const (
 	ErrorChannelFull             = "channel_full" // counter, # of response fanout failures due to blocked channels
 	ErrorUpstreamFailure         = "upstream"     // counter, # of errors as a result of a problem upstream
 	ErrorCacheMiss               = "cache_miss"   // counter, # of errors due to a fanout attempt with no cached response
+)
+
+// .upstream
+const (
+	// scope: .upstream.$xds.*
+	ScopeUpstream = "upstream"
+
+	// scope: .upstream.lds.*
+	ScopeUpstreamLDS = "lds"
+	// scope: .upstream.cds.*
+	ScopeUpstreamCDS = "cds"
+	// scope: .upstream.rds.*
+	ScopeUpstreamRDS = "rds"
+	// scope: .upstream.eds.*
+	ScopeUpstreamEDS = "eds"
+
+	UpstreamStreamOpened = "stream_opened" // counter, # of times a gRPC stream was opened to the origin server.
 )
 
 // .cache

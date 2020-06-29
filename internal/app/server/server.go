@@ -93,6 +93,7 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 		upstreamAddress,
 		upstream.CallOptions{Timeout: time.Minute},
 		logger,
+		scope,
 	)
 	if err != nil {
 		logger.With("error", err).Panic(ctx, "failed to initialize upstream client")

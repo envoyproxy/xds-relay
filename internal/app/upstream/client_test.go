@@ -25,7 +25,7 @@ func TestOpenStreamShouldReturnErrorForInvalidTypeUrl(t *testing.T) {
 	assert.Nil(t, respCh)
 }
 
-func TestOpenStreamShouldResturnErrorOnStreamCreationFailure(t *testing.T) {
+func TestOpenStreamShouldReturnErrorOnStreamCreationFailure(t *testing.T) {
 	client := createMockClientWithError()
 
 	typeURLs := []string{

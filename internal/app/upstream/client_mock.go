@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/envoyproxy/xds-relay/internal/pkg/stats"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 
@@ -27,6 +29,7 @@ func NewMockClient(
 		cdsClient:   cdsClient,
 		callOptions: callOptions,
 		logger:      log.MockLogger,
+		scope:       stats.NewMockScope("mock"),
 	}
 }
 

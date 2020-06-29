@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/envoyproxy/xds-relay/internal/app/metrics"
+
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 	"github.com/envoyproxy/xds-relay/internal/pkg/util"
+	"github.com/uber-go/tally"
 	"google.golang.org/grpc"
 )
 
@@ -58,7 +61,9 @@ type client struct {
 	edsClient   v2.EndpointDiscoveryServiceClient
 	cdsClient   v2.ClusterDiscoveryServiceClient
 	callOptions CallOptions
-	logger      log.Logger
+
+	logger log.Logger
+	scope  tally.Scope
 }
 
 // CallOptions contains grpc client call options
@@ -78,7 +83,13 @@ type version struct {
 //
 // The method does not block until the underlying connection is up.
 // Returns immediately and connecting the server happens in background
-func New(ctx context.Context, url string, callOptions CallOptions, logger log.Logger) (Client, error) {
+func New(
+	ctx context.Context,
+	url string,
+	callOptions CallOptions,
+	logger log.Logger,
+	scope tally.Scope,
+) (Client, error) {
 	namedLogger := logger.Named("upstream_client")
 	namedLogger.With("address", url).Info(ctx, "Initiating upstream connection")
 	// TODO: configure grpc options.https://github.com/envoyproxy/xds-relay/issues/55
@@ -101,22 +112,30 @@ func New(ctx context.Context, url string, callOptions CallOptions, logger log.Lo
 		cdsClient:   cdsClient,
 		callOptions: callOptions,
 		logger:      namedLogger,
+		scope:       scope.SubScope(metrics.ScopeUpstream),
 	}, nil
 }
 
 func (m *client) OpenStream(request v2.DiscoveryRequest) (<-chan *v2.DiscoveryResponse, func(), error) {
 	ctx, cancel := context.WithCancel(context.Background())
-	var stream grpc.ClientStream
-	var err error
+	var (
+		stream grpc.ClientStream
+		err    error
+		scope  tally.Scope
+	)
 	switch request.GetTypeUrl() {
 	case ListenerTypeURL:
 		stream, err = m.ldsClient.StreamListeners(ctx)
+		scope = m.scope.SubScope(metrics.ScopeUpstreamLDS)
 	case ClusterTypeURL:
 		stream, err = m.cdsClient.StreamClusters(ctx)
+		scope = m.scope.SubScope(metrics.ScopeUpstreamCDS)
 	case RouteTypeURL:
 		stream, err = m.rdsClient.StreamRoutes(ctx)
+		scope = m.scope.SubScope(metrics.ScopeUpstreamRDS)
 	case EndpointTypeURL:
 		stream, err = m.edsClient.StreamEndpoints(ctx)
+		scope = m.scope.SubScope(metrics.ScopeUpstreamEDS)
 	default:
 		defer cancel()
 		m.logger.Error(ctx, "Unsupported Type Url %s", request.GetTypeUrl())
@@ -127,6 +146,7 @@ func (m *client) OpenStream(request v2.DiscoveryRequest) (<-chan *v2.DiscoveryRe
 		defer cancel()
 		return nil, nil, err
 	}
+	scope.Counter(metrics.UpstreamStreamOpened).Inc(1)
 
 	signal := make(chan *version, 1)
 	// The xds protocol https://www.envoyproxy.io/docs/envoy/latest/api-docs/xds_protocol#ack
