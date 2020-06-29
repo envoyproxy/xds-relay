@@ -1,8 +1,13 @@
 package cache
 
 import (
+	"fmt"
 	"testing"
 	"time"
+
+	"github.com/envoyproxy/xds-relay/internal/pkg/util/testutils"
+
+	"github.com/envoyproxy/xds-relay/internal/pkg/stats"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
@@ -75,23 +80,34 @@ var testResource = Resource{
 }
 
 func TestAddRequestAndFetch(t *testing.T) {
-	cache, err := NewCache(1, testOnEvict, time.Second*60, log.MockLogger)
+	mockScope := stats.NewMockScope("")
+	cache, err := NewCache(1, testOnEvict, time.Second*60, log.MockLogger, mockScope)
 	assert.NoError(t, err)
 
 	resource, err := cache.Fetch(testKeyA)
+	testutils.AssertCounterValue(t, mockScope.Snapshot().Counters(), fmt.Sprintf("cache.%s.fetch.attempt", testKeyA), 1)
+	testutils.AssertCounterValue(t, mockScope.Snapshot().Counters(), fmt.Sprintf("cache.%s.fetch.miss", testKeyA), 1)
 	assert.EqualError(t, err, "no value found for key: key_A")
 	assert.Nil(t, resource)
 
 	err = cache.AddRequest(testKeyA, &testRequestA)
 	assert.NoError(t, err)
+	testutils.AssertCounterValue(
+		t, mockScope.Snapshot().Counters(), fmt.Sprintf("cache.%s.add_request.attempt", testKeyA), 1)
+	testutils.AssertCounterValue(
+		t, mockScope.Snapshot().Counters(), fmt.Sprintf("cache.%s.add_request.success", testKeyA), 1)
 
 	resource, err = cache.Fetch(testKeyA)
 	assert.NoError(t, err)
 	assert.Nil(t, resource.Resp)
+	testutils.AssertCounterValue(
+		t, mockScope.Snapshot().Counters(), fmt.Sprintf("cache.%s.fetch.attempt", testKeyA), 2)
+	testutils.AssertCounterValue(
+		t, mockScope.Snapshot().Counters(), fmt.Sprintf("cache.%s.fetch.miss", testKeyA), 1)
 }
 
 func TestSetResponseAndFetch(t *testing.T) {
-	cache, err := NewCache(1, testOnEvict, time.Second*60, log.MockLogger)
+	cache, err := NewCache(1, testOnEvict, time.Second*60, log.MockLogger, stats.NewMockScope("cache"))
 	assert.NoError(t, err)
 
 	// Simulate cache miss and setting of new response.
@@ -109,7 +125,7 @@ func TestSetResponseAndFetch(t *testing.T) {
 }
 
 func TestAddRequestAndSetResponse(t *testing.T) {
-	cache, err := NewCache(2, testOnEvict, time.Second*60, log.MockLogger)
+	cache, err := NewCache(2, testOnEvict, time.Second*60, log.MockLogger, stats.NewMockScope("cache"))
 	assert.NoError(t, err)
 
 	err = cache.AddRequest(testKeyA, &testRequestA)
@@ -130,7 +146,7 @@ func TestAddRequestAndSetResponse(t *testing.T) {
 }
 
 func TestMaxEntries(t *testing.T) {
-	cache, err := NewCache(1, testOnEvict, time.Second*60, log.MockLogger)
+	cache, err := NewCache(1, testOnEvict, time.Second*60, log.MockLogger, stats.NewMockScope("cache"))
 	assert.NoError(t, err)
 
 	_, err = cache.SetResponse(testKeyA, testDiscoveryResponse)
@@ -158,7 +174,7 @@ func TestMaxEntries(t *testing.T) {
 }
 
 func TestTTL_Enabled(t *testing.T) {
-	cache, err := NewCache(1, testOnEvict, time.Millisecond*10, log.MockLogger)
+	cache, err := NewCache(1, testOnEvict, time.Millisecond*10, log.MockLogger, stats.NewMockScope("cache"))
 	assert.NoError(t, err)
 
 	_, err = cache.SetResponse(testKeyA, testDiscoveryResponse)
@@ -185,7 +201,7 @@ func TestTTL_Enabled(t *testing.T) {
 
 func TestTTL_Disabled(t *testing.T) {
 	gomega.RegisterTestingT(t)
-	cache, err := NewCache(1, testOnEvict, 0, log.MockLogger)
+	cache, err := NewCache(1, testOnEvict, 0, log.MockLogger, stats.NewMockScope("cache"))
 	assert.NoError(t, err)
 
 	_, err = cache.SetResponse(testKeyA, testDiscoveryResponse)
@@ -201,7 +217,7 @@ func TestTTL_Disabled(t *testing.T) {
 }
 
 func TestTTL_Negative(t *testing.T) {
-	cache, err := NewCache(1, testOnEvict, -1, log.MockLogger)
+	cache, err := NewCache(1, testOnEvict, -1, log.MockLogger, stats.NewMockScope("cache"))
 	assert.EqualError(t, err, "ttl must be nonnegative but was set to -1ns")
 	assert.Nil(t, cache)
 }
@@ -233,7 +249,7 @@ func TestGetExpirationTime(t *testing.T) {
 }
 
 func TestDeleteRequest(t *testing.T) {
-	cache, err := NewCache(1, testOnEvict, time.Second*60, log.MockLogger)
+	cache, err := NewCache(1, testOnEvict, time.Second*60, log.MockLogger, stats.NewMockScope("cache"))
 	assert.NoError(t, err)
 
 	err = cache.AddRequest(testKeyA, &testRequestA)

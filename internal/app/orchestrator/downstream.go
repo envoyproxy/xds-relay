@@ -15,11 +15,6 @@ import (
 	"sync"
 
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
-	"github.com/uber-go/tally"
-)
-
-const (
-	metricCreateChannel = "create_channel"
 )
 
 // downstreamResponseMap is a map of downstream xDS client requests to response
@@ -27,13 +22,11 @@ const (
 type downstreamResponseMap struct {
 	mu               sync.RWMutex
 	responseChannels map[*gcp.Request]chan gcp.Response
-	scope            tally.Scope
 }
 
-func newDownstreamResponseMap(scope tally.Scope) downstreamResponseMap {
+func newDownstreamResponseMap() downstreamResponseMap {
 	return downstreamResponseMap{
 		responseChannels: make(map[*gcp.Request]chan gcp.Response),
-		scope:            scope,
 	}
 }
 
@@ -45,7 +38,6 @@ func (d *downstreamResponseMap) createChannel(req *gcp.Request) chan gcp.Respons
 	if _, ok := d.responseChannels[req]; !ok {
 		d.responseChannels[req] = make(chan gcp.Response, 1)
 	}
-	d.scope.Counter(metricCreateChannel).Inc(1)
 	return d.responseChannels[req]
 }
 

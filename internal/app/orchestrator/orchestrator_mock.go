@@ -30,11 +30,11 @@ func NewMockOrchestrator(t *testing.T,
 		scope:                 scope,
 		mapper:                mapper,
 		upstreamClient:        upstreamClient,
-		downstreamResponseMap: newDownstreamResponseMap(scope),
+		downstreamResponseMap: newDownstreamResponseMap(),
 		upstreamResponseMap:   newUpstreamResponseMap(),
 	}
 
-	cache, err := cache.NewCache(1000, orchestrator.onCacheEvicted, 10*time.Second, log.MockLogger)
+	cache, err := cache.NewCache(1000, orchestrator.onCacheEvicted, 10*time.Second, log.MockLogger, scope)
 	assert.NoError(t, err)
 	orchestrator.cache = cache
 
