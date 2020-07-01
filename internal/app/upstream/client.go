@@ -93,7 +93,7 @@ func New(
 	namedLogger := logger.Named("upstream_client")
 	namedLogger.With("address", url).Info(ctx, "Initiating upstream connection")
 	// TODO: configure grpc options.https://github.com/envoyproxy/xds-relay/issues/55
-	conn, err := grpc.Dial(url, grpc.WithInsecure())
+	conn, err := grpc.Dial(url, grpc.WithInsecure(), grpc.WithStreamInterceptor(RetryClientStreamInterceptor(namedLogger)))
 	if err != nil {
 		return nil, err
 	}
