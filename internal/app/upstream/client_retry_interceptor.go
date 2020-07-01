@@ -3,9 +3,13 @@ package upstream
 import (
 	"context"
 
+	backoff "github.com/cenkalti/backoff"
+	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 func RetryClientStreamInterceptor(logger log.Logger) grpc.StreamClientInterceptor {
@@ -36,7 +40,26 @@ func (wcs *wrappedClientStream) SendMsg(m interface{}) error {
 
 func (wcs *wrappedClientStream) RecvMsg(m interface{}) error {
 	wcs.logger.Info(wcs.ctx, "wrapped RecvMsg")
-	return wcs.inner.RecvMsg(m)
+	if err := wcs.inner.RecvMsg(m); err != nil {
+		return backoff.Retry(func() error {
+			resp := new(v2.DiscoveryResponse)
+			wcs.logger.Info(wcs.ctx, "wrapped RecvMsg - retry")
+			if err := wcs.inner.RecvMsg(resp); err != nil {
+				if isErrorRetryable(err) {
+					return err
+				}
+				return backoff.Permanent(err)
+			}
+			wcs.logger.Info(wcs.ctx, "successful retry")
+			return nil
+		}, backoff.NewExponentialBackOff())
+	}
+	return nil
+}
+
+func isErrorRetryable(err error) bool {
+	errorCode := status.Code(err)
+	return errorCode == codes.Unavailable || errorCode == codes.Unknown
 }
 
 func (wcs *wrappedClientStream) CloseSend() error {

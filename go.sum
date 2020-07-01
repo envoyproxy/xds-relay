@@ -11,6 +11,9 @@ github.com/cactus/go-statsd-client v1.0.1 h1:R58kYEe8CS4Dg7zNgGi8J0nFhYIGaBvIC7S
 github.com/cactus/go-statsd-client v3.2.0+incompatible h1:ZJpQV7zHnerDzsEQS1wnI38tpR7wX3QFmL7WzTerEmY=
 github.com/cactus/go-statsd-client/statsd v0.0.0-20200322202804-24fc78943200 h1:2eYrbdmQNneh58YXyXBgvy8RKfAE8U3R6aN32yPmKoQ=
 github.com/cactus/go-statsd-client/statsd v0.0.0-20200322202804-24fc78943200/go.mod h1:l/bIBLeOl9eX+wxJAzxS4TveKRtAqlyDpHjhkfO0MEI=
+github.com/cenkalti/backoff v1.1.0 h1:QnvVp8ikKCDWOsFheytRCoYWYPO/ObCTBGxT19Hc+yE=
+github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
+github.com/cenkalti/backoff v2.2.1+incompatible/go.mod h1:90ReRw6GdpyfrHakVjL/QHaoyV4aDUVVkXQJJJ3NXXM=
 github.com/census-instrumentation/opencensus-proto v0.2.1 h1:glEXhBS5PSLLv4IXzLA5yPRVX4bilULVyxxbrfOtDAk=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/cespare/xxhash v1.1.0/go.mod h1:XrSqR1VqqWfGrhpAt58auRo0WTKS1nRRg3ghfAqPWnc=
