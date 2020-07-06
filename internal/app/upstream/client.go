@@ -7,7 +7,6 @@ import (
 
 	"github.com/envoyproxy/xds-relay/internal/app/metrics"
 
-	"github.com/cenkalti/backoff"
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 	"github.com/envoyproxy/xds-relay/internal/pkg/util"
@@ -158,7 +157,7 @@ func (m *client) OpenStream(request v2.DiscoveryRequest) (<-chan *v2.DiscoveryRe
 	response := make(chan *v2.DiscoveryResponse)
 
 	go send(ctx, m.logger, cancel, &request, stream, signal, m.callOptions)
-	go recv(ctx, cancel, m.logger, &request, response, stream, signal)
+	go recv(ctx, cancel, m.logger, response, stream, signal)
 
 	m.logger.With("type", request.GetTypeUrl()).Info(ctx, "stream opened")
 
@@ -187,36 +186,14 @@ func send(
 			if !ok {
 				return
 			}
-
-			// TODO: retry with exponential backoff
-			logger.Info(ctx, "after SendMsg")
-			err := backoff.Retry(func() error {
-				request.ResponseNonce = sig.nonce
-				request.VersionInfo = sig.version
-				// Ref: https://github.com/grpc/grpc-go/issues/1229#issuecomment-302755717
-				// Call SendMsg in a timeout because it can block in some cases.
-				logger.Info(ctx, "before SendMsg")
-				err := util.DoWithTimeout(ctx, func() error {
-					return stream.SendMsg(request)
-				}, callOptions.Timeout)
-				logger.With("error", err).Info(ctx, "after SendMsg")
-				if err != nil {
-					logger.Info(ctx, "before isRetryable - send")
-					if isRetryable(err) {
-						logger.Info(ctx, "yes - send")
-						return err
-					} else {
-						logger.Info(ctx, "no - send")
-						return backoff.Permanent(err)
-					}
-				}
-
-				return nil
-			}, backoff.NewExponentialBackOff())
-
-			// TODO: errors after exponential backoff
+			request.ResponseNonce = sig.nonce
+			request.VersionInfo = sig.version
+			// Ref: https://github.com/grpc/grpc-go/issues/1229#issuecomment-302755717
+			// Call SendMsg in a timeout because it can block in some cases.
+			err := util.DoWithTimeout(ctx, func() error {
+				return stream.SendMsg(request)
+			}, callOptions.Timeout)
 			if err != nil {
-				logger.Info(ctx, "err after SendMsg")
 				handleError(ctx, logger, "Error in SendMsg", cancelFunc, err)
 				return
 			}
@@ -238,54 +215,30 @@ func recv(
 	ctx context.Context,
 	cancelFunc context.CancelFunc,
 	logger log.Logger,
-	request *v2.DiscoveryRequest,
 	response chan *v2.DiscoveryResponse,
 	stream grpc.ClientStream,
 	signal chan *version) {
 	for {
-		err := backoff.Retry(func() error {
-			resp := new(v2.DiscoveryResponse)
-			logger.Info(ctx, "before RecvMsg")
-			err := stream.RecvMsg(resp)
-			logger.Info(ctx, "after RecvMsg")
-			if err != nil {
-				logger.With("error", err).Info(ctx, "before isRetryable - recv")
-				if isRetryable(err) {
-					logger.Info(ctx, "yes! - recv")
-					signal <- &version{version: request.GetVersionInfo(), nonce: request.GetResponseNonce()}
-					return err
-				} else {
-					logger.Info(ctx, "no! - recv")
-					return backoff.Permanent(err)
-				}
-			}
-			logger.With(
-				"version", resp.GetVersionInfo(),
-				"type_url", resp.GetTypeUrl(),
-				"resource length", len(resp.GetResources()),
-			).Debug(context.Background(), "received message")
-			select {
-			case <-ctx.Done():
-				break
-			default:
-				response <- resp
-				signal <- &version{version: resp.GetVersionInfo(), nonce: resp.GetNonce()}
-			}
-			return nil
-		}, backoff.NewExponentialBackOff())
-
-		// TODO: we failed after all the retries.
-		if err != nil {
-			handleError(ctx, logger, "failures in RecvMsg after all retries", cancelFunc, err)
+		resp := new(v2.DiscoveryResponse)
+		if err := stream.RecvMsg(resp); err != nil {
+			handleError(ctx, logger, "Error in RecvMsg", cancelFunc, err)
+			break
+		}
+		logger.With(
+			"version", resp.GetVersionInfo(),
+			"type_url", resp.GetTypeUrl(),
+			"resource length", len(resp.GetResources()),
+		).Debug(context.Background(), "received message")
+		select {
+		case <-ctx.Done():
+			break
+		default:
+			response <- resp
+			signal <- &version{version: resp.GetVersionInfo(), nonce: resp.GetNonce()}
 		}
 	}
 	closeChannels(signal, response)
 }
-
-// func isRetryable(err error) bool {
-// 	errorCode := status.Code(err)
-// 	return errorCode == codes.Unavailable || errorCode == codes.Unknown
-// }
 
 func handleError(ctx context.Context, logger log.Logger, errMsg string, cancelFunc context.CancelFunc, err error) {
 	defer cancelFunc()
