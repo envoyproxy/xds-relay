@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/envoyproxy/xds-relay/internal/pkg/stats"
+
 	gcpcachev2 "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	gcpserverv2 "github.com/envoyproxy/go-control-plane/pkg/server/v2"
 	gcpserverv3 "github.com/envoyproxy/go-control-plane/pkg/server/v3"
@@ -153,7 +155,9 @@ func TestClientContextCancellationShouldCloseAllResponseChannels(t *testing.T) {
 		clientCtx,
 		strings.Join([]string{"127.0.0.1", strconv.Itoa(originServerPort)}, ":"),
 		upstream.CallOptions{Timeout: time.Minute},
-		log.MockLogger)
+		log.MockLogger,
+		stats.NewMockScope("mock"),
+	)
 	respCh1, _, _ := client.OpenStream(v2.DiscoveryRequest{
 		TypeUrl: upstream.ClusterTypeURL,
 		Node: &corev2.Node{
@@ -208,7 +212,9 @@ func setup(
 		context.Background(),
 		strings.Join([]string{"127.0.0.1", strconv.Itoa(originServerPort)}, ":"),
 		upstream.CallOptions{Timeout: time.Minute},
-		logger)
+		logger,
+		stats.NewMockScope("mock"),
+	)
 	if err != nil {
 		logger.Error(ctx, "NewClient failed %s", err.Error())
 		return nil, nil, err

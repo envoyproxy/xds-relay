@@ -19,6 +19,7 @@ import (
 
 	"github.com/envoyproxy/xds-relay/internal/app/cache"
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
+	"github.com/envoyproxy/xds-relay/internal/app/metrics"
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 )
@@ -88,10 +89,10 @@ func New(
 ) Orchestrator {
 	orchestrator := &orchestrator{
 		logger:                logger.Named(component),
-		scope:                 scope,
+		scope:                 scope.SubScope(metrics.ScopeOrchestrator),
 		mapper:                mapper,
 		upstreamClient:        upstreamClient,
-		downstreamResponseMap: newDownstreamResponseMap(scope.SubScope("downstream")),
+		downstreamResponseMap: newDownstreamResponseMap(),
 		upstreamResponseMap:   newUpstreamResponseMap(),
 	}
 
@@ -101,6 +102,7 @@ func New(
 		orchestrator.onCacheEvicted,
 		time.Duration(cacheConfig.Ttl.Nanos)*time.Nanosecond,
 		logger,
+		scope,
 	)
 	if err != nil {
 		orchestrator.logger.With("error", err).Panic(ctx, "failed to initialize cache")
@@ -158,9 +160,11 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) 
 		// closing the response channel.
 		o.logger.With("err", err).With("key", aggregatedKey).With(
 			"req node", req.GetNode()).Error(ctx, "failed to add watch")
+		metrics.OrchestratorWatchErrorsSubscope(o.scope, aggregatedKey).Counter(metrics.ErrorRegisterWatch).Inc(1)
 		closedChannel := o.downstreamResponseMap.delete(&req)
 		return closedChannel, nil
 	}
+	metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchCreated).Inc(1)
 
 	// Check if we have a cached response first.
 	cached, err := o.cache.Fetch(aggregatedKey)
@@ -172,7 +176,10 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) 
 	if cached != nil && cached.Resp != nil && cached.Resp.GetVersionInfo() != req.GetVersionInfo() {
 		// If we have a cached response and the version is different,
 		// immediately push the result to the response channel.
-		go func() { responseChannel <- convertToGcpResponse(cached.Resp, req) }()
+		go func() {
+			responseChannel <- convertToGcpResponse(cached.Resp, req)
+			metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchFanouts).Inc(1)
+		}()
 	}
 
 	// Check if we have a upstream stream open for this aggregated key. If not,
@@ -252,6 +259,7 @@ func (o *orchestrator) watchUpstream(
 				// TODO implement retry/back-off logic on error scenario.
 				// https://github.com/envoyproxy/xds-relay/issues/68
 				o.logger.With("key", aggregatedKey).Error(ctx, "upstream error")
+				metrics.OrchestratorWatchErrorsSubscope(o.scope, aggregatedKey).Counter(metrics.ErrorUpstreamFailure).Inc(1)
 				return
 			}
 			// Cache the response.
@@ -260,7 +268,7 @@ func (o *orchestrator) watchUpstream(
 				// TODO if set fails, we may need to retry upstream as well.
 				// Currently the fallback is to rely on a future response, but
 				// that probably isn't ideal.
-				// https://github.com/envoyproxy/xds-relay/issues/70
+				// https://github.com/envoyproxy/xds-relay/issues/70s
 				//
 				// If we fail to cache the new response, log and return the old one.
 				o.logger.With("err", err).With("key", aggregatedKey).
@@ -283,6 +291,7 @@ func (o *orchestrator) watchUpstream(
 					// just set the response, but it's a rare scenario that can
 					// happen if the cache TTL is set very short.
 					o.logger.With("key", aggregatedKey).Error(ctx, "attempted to fan out with no cached response")
+					metrics.OrchestratorWatchErrorsSubscope(o.scope, aggregatedKey).Counter(metrics.ErrorCacheMiss).Inc(1)
 				} else {
 					// Goldenpath.
 					o.logger.With(
@@ -319,12 +328,14 @@ func (o *orchestrator) fanout(resp *discovery.DiscoveryResponse, watchers map[*g
 						"response version", resp.GetVersionInfo(),
 						"response type", resp.GetTypeUrl(),
 					).Debug(context.Background(), "response sent")
+					metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchFanouts).Inc(1)
 				default:
 					// If the channel is blocked, we simply drop subsequent requests and error.
 					// Alternative possibilities are discussed here:
 					// https://github.com/envoyproxy/xds-relay/pull/53#discussion_r420325553
 					o.logger.With("key", aggregatedKey).With("node ID", watch.GetNode().GetId()).
 						Error(context.Background(), "channel blocked during fanout")
+					metrics.OrchestratorWatchErrorsSubscope(o.scope, aggregatedKey).Counter(metrics.ErrorChannelFull).Inc(1)
 				}
 			}
 		}(watch)
@@ -347,6 +358,7 @@ func (o *orchestrator) onCacheEvicted(key string, resource cache.Resource) {
 func (o *orchestrator) onCancelWatch(aggregatedKey string, req *gcp.Request) func() {
 	return func() {
 		o.downstreamResponseMap.delete(req)
+		metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchCanceled).Inc(1)
 		if err := o.cache.DeleteRequest(aggregatedKey, req); err != nil {
 			o.logger.With("key", aggregatedKey).With("err", err).Warn(context.Background(), "Failed to delete from cache")
 		}

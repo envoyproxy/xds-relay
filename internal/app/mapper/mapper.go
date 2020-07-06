@@ -5,8 +5,12 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/envoyproxy/xds-relay/internal/app/metrics"
+
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	"github.com/uber-go/tally"
+
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
 )
 
@@ -27,6 +31,8 @@ type Mapper interface {
 
 type mapper struct {
 	config *aggregationv1.KeyerConfiguration
+
+	scope tally.Scope
 }
 
 const (
@@ -34,15 +40,17 @@ const (
 )
 
 // New constructs a concrete implementation for the Mapper interface
-func New(config *aggregationv1.KeyerConfiguration) Mapper {
+func New(config *aggregationv1.KeyerConfiguration, scope tally.Scope) Mapper {
 	return &mapper{
 		config: config,
+		scope:  scope.SubScope(metrics.ScopeMapper),
 	}
 }
 
 // GetKey converts a request into an aggregated key
 func (mapper *mapper) GetKey(request v2.DiscoveryRequest) (string, error) {
 	if request.GetTypeUrl() == "" {
+		mapper.scope.Counter(metrics.MapperError).Inc(1)
 		return "", fmt.Errorf("typeURL is empty")
 	}
 
@@ -53,11 +61,13 @@ func (mapper *mapper) GetKey(request v2.DiscoveryRequest) (string, error) {
 			matchPredicate := fragmentRule.GetMatch()
 			isMatch, err := isMatch(matchPredicate, request.GetTypeUrl(), request.GetNode())
 			if err != nil {
+				mapper.scope.Counter(metrics.MapperError).Inc(1)
 				return "", err
 			}
 			if isMatch {
 				result, err := getResult(fragmentRule, request.GetNode(), request.GetResourceNames())
 				if err != nil {
+					mapper.scope.Counter(metrics.MapperError).Inc(1)
 					return "", err
 				}
 				resultFragments = append(resultFragments, result)
@@ -66,9 +76,11 @@ func (mapper *mapper) GetKey(request v2.DiscoveryRequest) (string, error) {
 	}
 
 	if len(resultFragments) == 0 {
+		mapper.scope.Counter(metrics.MapperError).Inc(1)
 		return "", fmt.Errorf("Cannot map the input to a key")
 	}
 
+	mapper.scope.Counter(metrics.MapperSuccess).Inc(1)
 	return strings.Join(resultFragments, separator), nil
 }
 

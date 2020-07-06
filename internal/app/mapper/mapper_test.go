@@ -5,6 +5,7 @@ import (
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	"github.com/envoyproxy/xds-relay/internal/pkg/stats"
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -1103,10 +1104,12 @@ var _ = Describe("GetKey", func() {
 					},
 				},
 			}
-			mapper := New(&protoConfig)
+			mockScope := stats.NewMockScope("mock")
+			mapper := New(&protoConfig, mockScope)
 			request := getDiscoveryRequest()
 			request.TypeUrl = typeurl
 			key, err := mapper.GetKey(request)
+			Expect(mockScope.Snapshot().Counters()["mock.mapper.success+"].Value()).To(Equal(int64(1)))
 			Expect(key).To(Equal(assert))
 			Expect(err).Should(BeNil())
 		}, positiveTests...)
@@ -1125,8 +1128,10 @@ var _ = Describe("GetKey", func() {
 					},
 				},
 			}
-			mapper := New(&protoConfig)
+			mockScope := stats.NewMockScope("mock")
+			mapper := New(&protoConfig, mockScope)
 			key, err := mapper.GetKey(request)
+			Expect(mockScope.Snapshot().Counters()["mock.mapper.error+"].Value()).To(Equal(int64(1)))
 			Expect(key).To(Equal(""))
 			Expect(err).Should(Equal(fmt.Errorf("Cannot map the input to a key")))
 		},
@@ -1158,7 +1163,7 @@ var _ = Describe("GetKey", func() {
 					},
 				},
 			}
-			mapper := New(&protoConfig)
+			mapper := New(&protoConfig, stats.NewMockScope(""))
 			key, err := mapper.GetKey(getDiscoveryRequest())
 			Expect(expectedKey).To(Equal(key))
 			Expect(err).Should(BeNil())
@@ -1187,7 +1192,7 @@ var _ = Describe("GetKey", func() {
 					},
 				},
 			}
-			mapper := New(&protoConfig)
+			mapper := New(&protoConfig, stats.NewMockScope(""))
 			key, err := mapper.GetKey(getDiscoveryRequest())
 			Expect(key).To(Equal(""))
 			Expect(err).Should(Equal(fmt.Errorf("Cannot map the input to a key")))
@@ -1208,7 +1213,7 @@ var _ = Describe("GetKey", func() {
 					},
 				},
 			}
-			mapper := New(&protoConfig)
+			mapper := New(&protoConfig, stats.NewMockScope(""))
 			key, err := mapper.GetKey(getDiscoveryRequest())
 			Expect(key).To(Equal(""))
 			Expect(err.Error()).Should(Equal("error parsing regexp: invalid UTF-8: `\xbd\xb2`"))
@@ -1237,7 +1242,7 @@ var _ = Describe("GetKey", func() {
 					},
 				},
 			}
-			mapper := New(&protoConfig)
+			mapper := New(&protoConfig, stats.NewMockScope(""))
 			key, err := mapper.GetKey(getDiscoveryRequest())
 			Expect(key).To(Equal(""))
 			Expect(err.Error()).Should(Equal("error parsing regexp: invalid UTF-8: `\xbd\xb2`"))
@@ -1258,7 +1263,7 @@ var _ = Describe("GetKey", func() {
 					},
 				},
 			}
-			mapper := New(&protoConfig)
+			mapper := New(&protoConfig, stats.NewMockScope(""))
 			key, err := mapper.GetKey(request)
 			Expect(key).To(Equal(""))
 			Expect(err).Should(Equal(fmt.Errorf(assert)))
@@ -1266,7 +1271,7 @@ var _ = Describe("GetKey", func() {
 		emptyFragmentErrorCases...)
 
 	It("TypeUrl should not be empty", func() {
-		mapper := New(&KeyerConfiguration{})
+		mapper := New(&KeyerConfiguration{}, stats.NewMockScope(""))
 		request := getDiscoveryRequest()
 		request.TypeUrl = ""
 		key, err := mapper.GetKey(request)
