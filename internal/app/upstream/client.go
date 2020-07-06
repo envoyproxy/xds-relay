@@ -120,30 +120,23 @@ func New(
 func (m *client) OpenStream(request v2.DiscoveryRequest) (<-chan *v2.DiscoveryResponse, func(), error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	var (
-		// stream      grpc.ClientStream
-		newStreamer func() (grpc.ClientStream, error)
-		err         error
-		scope       tally.Scope
+		stream grpc.ClientStream
+		err    error
+		scope  tally.Scope
 	)
 	switch request.GetTypeUrl() {
 	case ListenerTypeURL:
-		// stream, err = m.ldsClient.StreamListeners(ctx)
-		newStreamer = func() (grpc.ClientStream, error) {
-			return m.ldsClient.StreamListeners(ctx)
-		}
+		stream, err = m.ldsClient.StreamListeners(ctx)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamLDS)
 	case ClusterTypeURL:
-		// stream, err = m.cdsClient.StreamClusters(ctx)
-		newStreamer = func() (grpc.ClientStream, error) {
-			return m.cdsClient.StreamClusters(ctx)
-		}
+		stream, err = m.cdsClient.StreamClusters(ctx)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamCDS)
-	// case RouteTypeURL:
-	// 	stream, err = m.rdsClient.StreamRoutes(ctx)
-	// 	scope = m.scope.SubScope(metrics.ScopeUpstreamRDS)
-	// case EndpointTypeURL:
-	// 	stream, err = m.edsClient.StreamEndpoints(ctx)
-	// 	scope = m.scope.SubScope(metrics.ScopeUpstreamEDS)
+	case RouteTypeURL:
+		stream, err = m.rdsClient.StreamRoutes(ctx)
+		scope = m.scope.SubScope(metrics.ScopeUpstreamRDS)
+	case EndpointTypeURL:
+		stream, err = m.edsClient.StreamEndpoints(ctx)
+		scope = m.scope.SubScope(metrics.ScopeUpstreamEDS)
 	default:
 		defer cancel()
 		m.logger.Error(ctx, "Unsupported Type Url %s", request.GetTypeUrl())
@@ -163,10 +156,9 @@ func (m *client) OpenStream(request v2.DiscoveryRequest) (<-chan *v2.DiscoveryRe
 	signal <- &version{nonce: "", version: ""}
 
 	response := make(chan *v2.DiscoveryResponse)
-	streamChannel := make(chan grpc.ClientStream)
 
-	go send(ctx, m.logger, cancel, &request, newStreamer, streamChannel, signal, m.callOptions)
-	go recv(ctx, cancel, m.logger, streamChannel, &request, response, signal)
+	go send(ctx, m.logger, cancel, &request, stream, signal, m.callOptions)
+	go recv(ctx, cancel, m.logger, &request, response, stream, signal)
 
 	m.logger.With("type", request.GetTypeUrl()).Info(ctx, "stream opened")
 
@@ -186,13 +178,10 @@ func send(
 	logger log.Logger,
 	cancelFunc context.CancelFunc,
 	request *v2.DiscoveryRequest,
-	newStreamer func() (grpc.ClientStream, error),
-	streamChannel chan grpc.ClientStream,
+	stream grpc.ClientStream,
 	signal chan *version,
 	callOptions CallOptions) {
 	for {
-		var stream grpc.ClientStream
-
 		select {
 		case sig, ok := <-signal:
 			if !ok {
@@ -208,15 +197,6 @@ func send(
 				// Call SendMsg in a timeout because it can block in some cases.
 				logger.Info(ctx, "before SendMsg")
 				err := util.DoWithTimeout(ctx, func() error {
-					logger.Info(ctx, "before instantiating new ClientStream")
-					stream, err := newStreamer()
-					logger.With("error", err).Info(ctx, "after instantiating new ClientStream")
-					if err != nil {
-						return err
-					}
-					logger.Info(ctx, "sending new stream")
-					streamChannel <- stream
-					logger.Info(ctx, "sending new message")
 					return stream.SendMsg(request)
 				}, callOptions.Timeout)
 				logger.With("error", err).Info(ctx, "after SendMsg")
@@ -246,9 +226,7 @@ func send(
 				"version", request.GetVersionInfo(),
 			).Debug(ctx, "sent message")
 		case <-ctx.Done():
-			if stream != nil {
-				_ = stream.CloseSend()
-			}
+			_ = stream.CloseSend()
 			return
 		}
 	}
@@ -260,13 +238,12 @@ func recv(
 	ctx context.Context,
 	cancelFunc context.CancelFunc,
 	logger log.Logger,
-	streamChannel chan grpc.ClientStream,
 	request *v2.DiscoveryRequest,
 	response chan *v2.DiscoveryResponse,
+	stream grpc.ClientStream,
 	signal chan *version) {
 	for {
 		err := backoff.Retry(func() error {
-			stream := <-streamChannel
 			resp := new(v2.DiscoveryResponse)
 			logger.Info(ctx, "before RecvMsg")
 			err := stream.RecvMsg(resp)
@@ -300,7 +277,6 @@ func recv(
 		// TODO: we failed after all the retries.
 		if err != nil {
 			handleError(ctx, logger, "failures in RecvMsg after all retries", cancelFunc, err)
-			break
 		}
 	}
 	closeChannels(signal, response)
