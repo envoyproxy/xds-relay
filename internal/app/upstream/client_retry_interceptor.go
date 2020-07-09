@@ -58,6 +58,12 @@ func (wcs *wrappedClientStream) SendMsg(m interface{}) error {
 func (wcs *wrappedClientStream) RecvMsg(m interface{}) error {
 	if err := wcs.getStream().RecvMsg(m); err != nil {
 		wcs.logger.Info(wcs.ctx, "retry RecvMsg")
+		exponentialBackoff := backoff.NewExponentialBackOff()
+		exponentialBackoff.InitialInterval = 1 * time.Second
+		exponentialBackoff.Multiplier = 2.0
+		exponentialBackoff.MaxInterval = 1 * time.Second
+		exponentialBackoff.MaxElapsedTime = 5 * time.Second
+
 		return backoff.Retry(func() error {
 			wcs.logger.Info(wcs.ctx, "inside backoff retry RecvMsg")
 			if err := wcs.retrySend(); err != nil {
@@ -73,7 +79,7 @@ func (wcs *wrappedClientStream) RecvMsg(m interface{}) error {
 				return backoff.Permanent(err)
 			}
 			return nil
-		}, backoff.NewExponentialBackOff()) // TODO: parametrize
+		}, exponentialBackoff) // TODO: parametrize
 	}
 	return nil
 }
