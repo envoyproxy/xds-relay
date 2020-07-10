@@ -159,7 +159,7 @@ func (m *client) OpenStream(request v2.DiscoveryRequest) (<-chan *v2.DiscoveryRe
 	go send(ctx, m.logger, cancel, &request, stream, signal, m.callOptions)
 	go recv(ctx, cancel, m.logger, response, stream, signal)
 
-	m.logger.With("type", request.GetTypeUrl()).Info(ctx, "stream opened")
+	m.logger.With("request_type", request.GetTypeUrl()).Info(ctx, "stream opened")
 
 	// We use context cancellation over using a separate channel for signalling stream shutdown.
 	// The reason is cancelling a context tied with the stream is straightforward to signal closure.
@@ -198,9 +198,9 @@ func send(
 				return
 			}
 			logger.With(
-				"node ID", request.GetNode().GetId(),
-				"type URL", request.GetTypeUrl(),
-				"version", request.GetVersionInfo(),
+				"node_id", request.GetNode().GetId(),
+				"request_type", request.GetTypeUrl(),
+				"request_version", request.GetVersionInfo(),
 			).Debug(ctx, "sent message")
 		case <-ctx.Done():
 			_ = stream.CloseSend()
@@ -225,9 +225,9 @@ func recv(
 			break
 		}
 		logger.With(
-			"version", resp.GetVersionInfo(),
-			"type_url", resp.GetTypeUrl(),
-			"resource length", len(resp.GetResources()),
+			"response_version", resp.GetVersionInfo(),
+			"response_type", resp.GetTypeUrl(),
+			"resource_length", len(resp.GetResources()),
 		).Debug(context.Background(), "received message")
 		select {
 		case <-ctx.Done():

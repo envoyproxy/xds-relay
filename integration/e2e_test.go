@@ -108,7 +108,7 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 
 	// TODO(https://github.com/envoyproxy/xds-relay/issues/66): figure out a way to only only copy
 	// envoy logs in case of failures.
-	testLogger.With("envoy logs", envoyLogsBuffer.String()).Debug(ctx, "captured envoy logs")
+	testLogger.With("envoy_logs", envoyLogsBuffer.String()).Debug(ctx, "captured envoy logs")
 }
 
 func startSnapshotCache(ctx context.Context, port uint) (gcpcachev2.SnapshotCache, chan struct{}) {
@@ -209,7 +209,7 @@ func callLocalService(port uint, nListeners int) (int, int) {
 		if out == nil {
 			ok++
 		} else {
-			testLogger.With("err", out).Info(context.Background(), "envoy request error")
+			testLogger.With("error", out).Info(context.Background(), "envoy request error")
 			failed++
 		}
 		if ok+failed == nListeners {
