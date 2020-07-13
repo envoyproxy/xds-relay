@@ -236,18 +236,6 @@ func recv(
 			response <- resp
 			signal <- &version{version: resp.GetVersionInfo(), nonce: resp.GetNonce()}
 		}
-		logger.With(
-			"version", resp.GetVersionInfo(),
-			"type_url", resp.GetTypeUrl(),
-			"resource length", len(resp.GetResources()),
-		).Debug(context.Background(), "received message")
-		select {
-		case <-ctx.Done():
-			break
-		default:
-			response <- resp
-			signal <- &version{version: resp.GetVersionInfo(), nonce: resp.GetNonce()}
-		}
 	}
 	closeChannels(signal, response)
 }
