@@ -33,6 +33,8 @@ func New(logLevel string, writeTo io.Writer) Logger {
 		// Log an invalid log level error and set the default level to info.
 		log.Error("cannot set logger to desired log level")
 	}
+
+	log = log.With(z.Namespace("json"))
 	return &logger{zap: log.Sugar(), writeTo: writeTo}
 }
 
@@ -54,6 +56,7 @@ func (l *logger) UpdateLogLevel(logLevel string) {
 		log.Error("cannot set logger to desired log level")
 	}
 
+	log = log.With(z.Namespace("json"))
 	l.zap = log.Sugar()
 }
 
