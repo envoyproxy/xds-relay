@@ -89,7 +89,7 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServer(t *testing.T) {
 func TestOpenStreamShouldSendErrorIfSendFails(t *testing.T) {
 	responseChan := make(chan *v2.DiscoveryResponse)
 	sendError := fmt.Errorf("")
-	client := createMockClientWithReponse(time.Second, responseChan, func(m interface{}) error {
+	client := createMockClientWithResponse(time.Second, responseChan, func(m interface{}) error {
 		return sendError
 	})
 
@@ -105,7 +105,7 @@ func TestOpenStreamShouldSendErrorIfSendFails(t *testing.T) {
 func TestOpenStreamShouldSendTheResponseOnTheChannel(t *testing.T) {
 	responseChan := make(chan *v2.DiscoveryResponse)
 	response := &v2.DiscoveryResponse{}
-	client := createMockClientWithReponse(time.Second, responseChan, func(m interface{}) error {
+	client := createMockClientWithResponse(time.Second, responseChan, func(m interface{}) error {
 		responseChan <- response
 		return nil
 	})
@@ -125,7 +125,7 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonce(t *testing
 	responseChan := make(chan *v2.DiscoveryResponse)
 	lastAppliedVersion := ""
 	index := 0
-	client := createMockClientWithReponse(time.Second, responseChan, func(m interface{}) error {
+	client := createMockClientWithResponse(time.Second, responseChan, func(m interface{}) error {
 		message := m.(*v2.DiscoveryRequest)
 
 		assert.Equal(t, message.GetVersionInfo(), lastAppliedVersion)
@@ -160,7 +160,7 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonce(t *testing
 func TestOpenStreamShouldSendErrorWhenSendMsgBlocks(t *testing.T) {
 	responseChan := make(chan *v2.DiscoveryResponse)
 	blockedCtx, cancel := context.WithCancel(context.Background())
-	client := createMockClientWithReponse(time.Nanosecond, responseChan, func(m interface{}) error {
+	client := createMockClientWithResponse(time.Nanosecond, responseChan, func(m interface{}) error {
 		// TODO: When stats are available, strengthen the test
 		// https://github.com/envoyproxy/xds-relay/issues/61
 		<-blockedCtx.Done()
@@ -198,7 +198,7 @@ func createMockClientWithError() upstream.Client {
 		func(m interface{}) error { return nil })
 }
 
-func createMockClientWithReponse(
+func createMockClientWithResponse(
 	t time.Duration,
 	r chan *v2.DiscoveryResponse,
 	sendCb func(m interface{}) error) upstream.Client {

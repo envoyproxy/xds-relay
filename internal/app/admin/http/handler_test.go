@@ -6,6 +6,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
+
+	"github.com/envoyproxy/xds-relay/internal/app/upstream"
 
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 
@@ -83,44 +86,19 @@ func TestAdminServer_ConfigDumpHandler(t *testing.T) {
 		rr.Body.String())
 }
 
-type mockSimpleUpstreamClient struct {
-	responseChan <-chan *v2.DiscoveryResponse
-}
-
-func (m mockSimpleUpstreamClient) OpenStream(req v2.DiscoveryRequest) (<-chan *v2.DiscoveryResponse, func(), error) {
-	return m.responseChan, func() {}, nil
-}
-
-type mockMultiStreamUpstreamClient struct {
-	ldsResponseChan <-chan *v2.DiscoveryResponse
-	cdsResponseChan <-chan *v2.DiscoveryResponse
-
-	t      *testing.T
-	mapper mapper.Mapper
-}
-
-func (m mockMultiStreamUpstreamClient) OpenStream(
-	req v2.DiscoveryRequest,
-) (<-chan *v2.DiscoveryResponse, func(), error) {
-	aggregatedKey, err := m.mapper.GetKey(req)
-	assert.NoError(m.t, err)
-
-	if aggregatedKey == "lds" {
-		return m.ldsResponseChan, func() {}, nil
-	} else if aggregatedKey == "cds" {
-		return m.cdsResponseChan, func() {}, nil
-	}
-
-	m.t.Errorf("Unsupported aggregated key, %s", aggregatedKey)
-	return nil, func() {}, nil
-}
-
 func TestAdminServer_CacheDumpHandler(t *testing.T) {
-	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
+	ctx := context.Background()
 	mapper := mapper.NewMock(t)
+	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
 	mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
-	orchestrator := orchestrator.NewMock(t, mapper,
-		mockSimpleUpstreamClient{responseChan: upstreamResponseChannel}, mockScope)
+	client := upstream.NewMock(
+		ctx,
+		upstream.CallOptions{Timeout: time.Second},
+		nil,
+		upstreamResponseChannel,
+		func(m interface{}) error { return nil },
+	)
+	orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
 	assert.NotNil(t, orchestrator)
 
 	gcpReq := gcp.Request{
@@ -186,11 +164,18 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 }
 
 func TestAdminServer_CacheDumpHandler_NotFound(t *testing.T) {
-	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
+	ctx := context.Background()
 	mapper := mapper.NewMock(t)
+	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
 	mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
-	orchestrator := orchestrator.NewMock(t, mapper,
-		mockSimpleUpstreamClient{responseChan: upstreamResponseChannel}, mockScope)
+	client := upstream.NewMock(
+		ctx,
+		upstream.CallOptions{Timeout: time.Second},
+		nil,
+		upstreamResponseChannel,
+		func(m interface{}) error { return nil },
+	)
+	orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
 	assert.NotNil(t, orchestrator)
 
 	req, err := http.NewRequest("GET", "/cache/cds", nil)
@@ -205,19 +190,18 @@ func TestAdminServer_CacheDumpHandler_NotFound(t *testing.T) {
 }
 
 func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
-	upstreamResponseChannelLDS := make(chan *v2.DiscoveryResponse)
-	upstreamResponseChannelCDS := make(chan *v2.DiscoveryResponse)
+	ctx := context.Background()
 	mapper := mapper.NewMock(t)
+	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
 	mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
-	orchestrator := orchestrator.NewMock(
-		t,
-		mapper,
-		mockMultiStreamUpstreamClient{
-			ldsResponseChan: upstreamResponseChannelLDS,
-			cdsResponseChan: upstreamResponseChannelCDS,
-			mapper:          mapper,
-			t:               t},
-		mockScope)
+	client := upstream.NewMock(
+		ctx,
+		upstream.CallOptions{Timeout: time.Second},
+		nil,
+		upstreamResponseChannel,
+		func(m interface{}) error { return nil },
+	)
+	orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
 	assert.NotNil(t, orchestrator)
 
 	gcpReq := gcp.Request{
@@ -244,7 +228,7 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
 			listenerAny,
 		},
 	}
-	upstreamResponseChannelLDS <- &resp
+	upstreamResponseChannel <- &resp
 	gotResponse := <-ldsRespChannel
 	gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
 	assert.NoError(t, err)
@@ -262,7 +246,7 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
 			clusterAny,
 		},
 	}
-	upstreamResponseChannelCDS <- &resp
+	upstreamResponseChannel <- &resp
 	gotResponse = <-cdsRespChannel
 	gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
 	assert.NoError(t, err)
