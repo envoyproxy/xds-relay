@@ -279,7 +279,7 @@ type Logging struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// Filepath where logs are emitted. If no filepath is specified, logs will be written to `/dev/null`.
+	// Filepath where logs are emitted. If no filepath is specified, logs will be written to stderr.
 	Path  string        `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
 	Level Logging_Level `protobuf:"varint,2,opt,name=level,proto3,enum=bootstrap.Logging_Level" json:"level,omitempty"`
 }

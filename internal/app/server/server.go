@@ -120,7 +120,7 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	serverAddress := net.JoinHostPort(bootstrapConfig.Server.Address.Address, serverPort)
 	listener, err := net.Listen("tcp", serverAddress) // #nosec
 	if err != nil {
-		logger.With("err", err).Fatal(ctx, "failed to bind server to listener")
+		logger.With("error", err).Fatal(ctx, "failed to bind server to listener")
 	}
 
 	api.RegisterEndpointDiscoveryServiceServer(server, gcpServer)
@@ -139,7 +139,7 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	scope.SubScope(metrics.ScopeServer).Counter(metrics.ServerAlive).Inc(1)
 
 	if err := server.Serve(listener); err != nil {
-		logger.With("err", err).Fatal(ctx, "failed to initialize server")
+		logger.With("error", err).Fatal(ctx, "failed to initialize server")
 	}
 }
 
@@ -158,7 +158,7 @@ func registerShutdownHandler(
 		err := util.DoWithTimeout(ctx, func() error {
 			logger.Info(ctx, "initiating admin server shutdown")
 			if shutdownErr := adminShutdown(ctx); shutdownErr != nil {
-				logger.With("err", shutdownErr).Error(ctx, "admin shutdown error: ", shutdownErr.Error())
+				logger.With("error", shutdownErr).Error(ctx, "admin shutdown error: ", shutdownErr.Error())
 			}
 			logger.Info(ctx, "initiating grpc graceful stop")
 			gracefulStop()

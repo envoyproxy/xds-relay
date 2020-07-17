@@ -135,10 +135,10 @@ func (c *cache) Fetch(key string) (*Resource, error) {
 		}
 	}
 	c.logger.With(
-		"key", key,
-		"version", resource.Resp.GetVersionInfo(),
-		"type_url", resource.Resp.GetTypeUrl(),
-		"resource length", len(resource.Resp.GetResources()),
+		"aggregated_key", key,
+		"response_version", resource.Resp.GetVersionInfo(),
+		"response_type", resource.Resp.GetTypeUrl(),
+		"resource_length", len(resource.Resp.GetResources()),
 	).Debug(context.Background(), "fetch")
 	return &resource, nil
 }
@@ -156,7 +156,10 @@ func (c *cache) SetResponse(key string, response v2.DiscoveryResponse) (map[*v2.
 		}
 		c.cache.Add(key, resource)
 		metrics.CacheSetSubscope(c.scope, key).Counter(metrics.CacheSetSuccess).Inc(1)
-		c.logger.With("key", key, "response url", response.GetTypeUrl()).Debug(context.Background(), "set response")
+		c.logger.With(
+			"aggregated_key", key,
+			"response_type", response.GetTypeUrl(),
+		).Debug(context.Background(), "set response")
 		return nil, nil
 	}
 	resource, ok := value.(Resource)
@@ -167,7 +170,9 @@ func (c *cache) SetResponse(key string, response v2.DiscoveryResponse) (map[*v2.
 	resource.Resp = &response
 	resource.ExpirationTime = c.getExpirationTime(time.Now())
 	c.cache.Add(key, resource)
-	c.logger.With("key", key, "response url", response.GetTypeUrl()).Debug(context.Background(), "set response")
+	c.logger.With(
+		"aggregated_key", key, "response_type", response.GetTypeUrl(),
+	).Debug(context.Background(), "set response")
 	metrics.CacheSetSubscope(c.scope, key).Counter(metrics.CacheSetSuccess).Inc(1)
 	return resource.Requests, nil
 }
@@ -186,9 +191,9 @@ func (c *cache) AddRequest(key string, req *v2.DiscoveryRequest) error {
 		}
 		c.cache.Add(key, resource)
 		c.logger.With(
-			"key", key,
-			"node ID", req.GetNode().GetId(),
-			"request type", req.GetTypeUrl(),
+			"aggregated_key", key,
+			"node_id", req.GetNode().GetId(),
+			"request_type", req.GetTypeUrl(),
 		).Debug(context.Background(), "request added")
 		metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheAddSuccess).Inc(1)
 		return nil
@@ -201,9 +206,9 @@ func (c *cache) AddRequest(key string, req *v2.DiscoveryRequest) error {
 	resource.Requests[req] = true
 	c.cache.Add(key, resource)
 	c.logger.With(
-		"key", key,
-		"node ID", req.GetNode().GetId(),
-		"request type", req.GetTypeUrl(),
+		"aggregated_key", key,
+		"node_id", req.GetNode().GetId(),
+		"request_type", req.GetTypeUrl(),
 	).Debug(context.Background(), "request added")
 	metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheAddSuccess).Inc(1)
 	return nil
@@ -225,9 +230,9 @@ func (c *cache) DeleteRequest(key string, req *v2.DiscoveryRequest) error {
 	delete(resource.Requests, req)
 	c.cache.Add(key, resource)
 	c.logger.With(
-		"key", key,
-		"node ID", req.GetNode().GetId(),
-		"request type", req.GetTypeUrl(),
+		"aggregated_key", key,
+		"node_id", req.GetNode().GetId(),
+		"request_type", req.GetTypeUrl(),
 	).Debug(context.Background(), "request deleted")
 	metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheDeleteSuccess).Inc(1)
 	return nil
