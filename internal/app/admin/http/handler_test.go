@@ -276,7 +276,7 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
 
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), `{
+	assert.Contains(t, rr.Body.String(), `lds: {
   "Resp": {
     "VersionInfo": "1",
     "Resources": {
@@ -303,7 +303,7 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
     }
   ],
   "ExpirationTime": "`)
-	assert.Contains(t, rr.Body.String(), `{
+	assert.Contains(t, rr.Body.String(), `cds: {
   "Resp": {
     "VersionInfo": "2",
     "Resources": {

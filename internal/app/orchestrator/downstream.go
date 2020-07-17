@@ -81,17 +81,16 @@ func (d *downstreamResponseMap) deleteAll(watchers map[*gcp.Request]bool) {
 	}
 }
 
-func (d *downstreamResponseMap) keys(m *mapper.Mapper) []string {
+func (d *downstreamResponseMap) keys(m *mapper.Mapper) ([]string, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	var keys []string
 	for request := range d.responseChannels {
 		key, err := mapper.Mapper.GetKey(*m, *request)
 		if err != nil {
-			// TODO(lisalu): Log warning.
-		} else {
-			keys = append(keys, key)
+			return nil, err
 		}
+		keys = append(keys, key)
 	}
-	return keys
+	return keys, nil
 }

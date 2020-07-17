@@ -61,7 +61,7 @@ type Orchestrator interface {
 
 	GetReadOnlyCache() cache.ReadOnlyCache
 
-	GetKeys() []string
+	GetKeys() ([]string, error)
 }
 
 type orchestrator struct {
@@ -222,8 +222,12 @@ func (o *orchestrator) GetReadOnlyCache() cache.ReadOnlyCache {
 	return o.cache.GetReadOnlyCache()
 }
 
-func (o *orchestrator) GetKeys() []string {
-	return o.downstreamResponseMap.keys(&o.mapper)
+func (o *orchestrator) GetKeys() ([]string, error) {
+	keys, err := o.downstreamResponseMap.keys(&o.mapper)
+	if err != nil {
+		o.logger.With("error", err).Error(context.Background(), "Unable to get keys")
+	}
+	return keys, err
 }
 
 // watchUpstream is intended to be called in a go routine, to receive incoming

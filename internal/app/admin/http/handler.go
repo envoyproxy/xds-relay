@@ -110,13 +110,18 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 
 		// If no key is provided, output the entire cache.
 		if cacheKey == "" {
-			keys := orchestrator.Orchestrator.GetKeys(*o)
+			keys, err := orchestrator.Orchestrator.GetKeys(*o)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprintf(w, "error in getting cache keys: %s", err.Error())
+				return
+			}
 			for _, key := range keys {
 				resource, err := cache.FetchReadOnly(key)
 				if err == nil {
 					resourceString, err := resourceToString(resource)
 					if err == nil {
-						fmt.Fprint(w, resourceString)
+						fmt.Fprintf(w, "%s: %s\n", key, resourceString)
 					}
 				}
 			}
