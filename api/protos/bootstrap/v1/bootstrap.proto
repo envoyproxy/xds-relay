@@ -43,7 +43,7 @@ message Upstream {
 
 // [#next-free-field: 3]
 message Logging {
-    // Filepath where logs are emitted. If no filepath is specified, logs will be written to `/dev/null`.
+    // Filepath where logs are emitted. If no filepath is specified, logs will be written to stderr.
     string path = 1;
 
     // The logging level. If no logging level is set, the default is INFO.
