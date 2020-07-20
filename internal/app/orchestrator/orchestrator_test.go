@@ -88,6 +88,9 @@ func TestNew(t *testing.T) {
 		upstream.CallOptions{},
 		nil,
 		nil,
+		nil,
+		nil,
+		nil,
 		func(m interface{}) error { return nil },
 	)
 

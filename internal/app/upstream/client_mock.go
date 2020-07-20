@@ -38,14 +38,17 @@ func NewMock(
 	ctx context.Context,
 	callOptions CallOptions,
 	errorOnCreate error,
-	receiveChan chan *v2.DiscoveryResponse,
+	ldsReceiveChan chan *v2.DiscoveryResponse,
+	rdsReceiveChan chan *v2.DiscoveryResponse,
+	edsReceiveChan chan *v2.DiscoveryResponse,
+	cdsReceiveChan chan *v2.DiscoveryResponse,
 	sendCb func(m interface{}) error) Client {
 	return NewMockClient(
 		ctx,
-		createMockLdsClient(errorOnCreate, receiveChan, sendCb),
-		createMockRdsClient(errorOnCreate, receiveChan, sendCb),
-		createMockEdsClient(errorOnCreate, receiveChan, sendCb),
-		createMockCdsClient(errorOnCreate, receiveChan, sendCb),
+		createMockLdsClient(errorOnCreate, ldsReceiveChan, sendCb),
+		createMockRdsClient(errorOnCreate, rdsReceiveChan, sendCb),
+		createMockEdsClient(errorOnCreate, edsReceiveChan, sendCb),
+		createMockCdsClient(errorOnCreate, cdsReceiveChan, sendCb),
 		callOptions,
 	)
 }

@@ -96,6 +96,9 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 		upstream.CallOptions{Timeout: time.Second},
 		nil,
 		upstreamResponseChannel,
+		nil,
+		nil,
+		nil,
 		func(m interface{}) error { return nil },
 	)
 	orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
@@ -172,6 +175,9 @@ func TestAdminServer_CacheDumpHandler_NotFound(t *testing.T) {
 		ctx,
 		upstream.CallOptions{Timeout: time.Second},
 		nil,
+		nil,
+		nil,
+		nil,
 		upstreamResponseChannel,
 		func(m interface{}) error { return nil },
 	)
@@ -192,13 +198,17 @@ func TestAdminServer_CacheDumpHandler_NotFound(t *testing.T) {
 func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
 	ctx := context.Background()
 	mapper := mapper.NewMock(t)
-	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
+	upstreamResponseChannelLDS := make(chan *v2.DiscoveryResponse)
+	upstreamResponseChannelCDS := make(chan *v2.DiscoveryResponse)
 	mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
 	client := upstream.NewMock(
 		ctx,
 		upstream.CallOptions{Timeout: time.Second},
 		nil,
-		upstreamResponseChannel,
+		upstreamResponseChannelLDS,
+		nil,
+		nil,
+		upstreamResponseChannelCDS,
 		func(m interface{}) error { return nil },
 	)
 	orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
@@ -228,7 +238,7 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
 			listenerAny,
 		},
 	}
-	upstreamResponseChannel <- &resp
+	upstreamResponseChannelLDS <- &resp
 	gotResponse := <-ldsRespChannel
 	gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
 	assert.NoError(t, err)
@@ -246,7 +256,7 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
 			clusterAny,
 		},
 	}
-	upstreamResponseChannel <- &resp
+	upstreamResponseChannelCDS <- &resp
 	gotResponse = <-cdsRespChannel
 	gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
 	assert.NoError(t, err)

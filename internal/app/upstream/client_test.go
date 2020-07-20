@@ -67,6 +67,9 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServer(t *testing.T) {
 		CallOptions{Timeout: time.Nanosecond},
 		nil,
 		responseChan,
+		responseChan,
+		responseChan,
+		responseChan,
 		func(m interface{}) error {
 			message = m.(*v2.DiscoveryRequest)
 			wait <- true
@@ -186,14 +189,21 @@ func createMockClient() upstream.Client {
 		CallOptions{Timeout: time.Nanosecond},
 		nil,
 		make(chan *v2.DiscoveryResponse),
+		make(chan *v2.DiscoveryResponse),
+		make(chan *v2.DiscoveryResponse),
+		make(chan *v2.DiscoveryResponse),
 		func(m interface{}) error { return nil })
 }
 
 func createMockClientWithError() upstream.Client {
+
 	return upstream.NewMock(
 		context.Background(),
 		CallOptions{Timeout: time.Nanosecond},
 		fmt.Errorf("error"),
+		make(chan *v2.DiscoveryResponse),
+		make(chan *v2.DiscoveryResponse),
+		make(chan *v2.DiscoveryResponse),
 		make(chan *v2.DiscoveryResponse),
 		func(m interface{}) error { return nil })
 }
@@ -202,5 +212,5 @@ func createMockClientWithResponse(
 	t time.Duration,
 	r chan *v2.DiscoveryResponse,
 	sendCb func(m interface{}) error) upstream.Client {
-	return upstream.NewMock(context.Background(), CallOptions{Timeout: t}, nil, r, sendCb)
+	return upstream.NewMock(context.Background(), CallOptions{Timeout: t}, nil, r, r, r, r, sendCb)
 }
