@@ -92,8 +92,9 @@ func New(
 ) (Client, error) {
 	namedLogger := logger.Named("upstream_client")
 	namedLogger.With("address", url).Info(ctx, "Initiating upstream connection")
+	subScope := scope.SubScope(metrics.ScopeUpstream)
 	// TODO: configure grpc options.https://github.com/envoyproxy/xds-relay/issues/55
-	conn, err := grpc.Dial(url, grpc.WithInsecure())
+	conn, err := grpc.Dial(url, grpc.WithInsecure(), grpc.WithStreamInterceptor(ErrorClientStreamInterceptor(namedLogger, subScope)))
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +113,7 @@ func New(
 		cdsClient:   cdsClient,
 		callOptions: callOptions,
 		logger:      namedLogger,
-		scope:       scope.SubScope(metrics.ScopeUpstream),
+		scope:       subScope,
 	}, nil
 }
 

@@ -89,6 +89,15 @@ const (
 	MapperError   = "error"   // counter, # of errors when converting a request to an aggregated key
 )
 
+// .error_interceptor
+const (
+	// scope: .error_interceptor.*
+	ScopeErrorInterceptor = "error_interceptor"
+
+	ErrorInterceptorErrorSendMsg = "error_sendmsg"
+	ErrorInterceptorErrorRecvMsg = "error_recvmsg"
+)
+
 // OrchestratorWatchSubscope gets the orchestor watch subscope for the aggregated key.
 // ex: .orchestrator.$aggregated_key.watch
 func OrchestratorWatchSubscope(parent tally.Scope, aggregatedKey string) tally.Scope {
