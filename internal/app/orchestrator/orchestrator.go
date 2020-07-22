@@ -61,7 +61,7 @@ type Orchestrator interface {
 
 	GetReadOnlyCache() cache.ReadOnlyCache
 
-	GetKeys() ([]string, error)
+	GetDownstreamAggregatedKeys() (map[string]bool, error)
 }
 
 type orchestrator struct {
@@ -218,12 +218,14 @@ func (o *orchestrator) Fetch(context.Context, discovery.DiscoveryRequest) (gcp.R
 	return nil, fmt.Errorf("Not implemented")
 }
 
+// GetReadOnlyCache returns the request/response cache with only read-only methods exposed.
 func (o *orchestrator) GetReadOnlyCache() cache.ReadOnlyCache {
 	return o.cache.GetReadOnlyCache()
 }
 
-func (o *orchestrator) GetKeys() ([]string, error) {
-	keys, err := o.downstreamResponseMap.keys(&o.mapper)
+// GetDownstreamAggregatedKeys returns the aggregated keys for all requests stored in the downstream response map.
+func (o *orchestrator) GetDownstreamAggregatedKeys() (map[string]bool, error) {
+	keys, err := o.downstreamResponseMap.getAggregatedKeys(&o.mapper)
 	if err != nil {
 		o.logger.With("error", err).Error(context.Background(), "Unable to get keys")
 	}
