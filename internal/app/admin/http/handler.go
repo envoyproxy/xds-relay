@@ -116,7 +116,7 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 				fmt.Fprintf(w, "error in getting cache keys: %s", err.Error())
 				return
 			}
-			for key, _ := range keys {
+			for key := range keys {
 				resource, err := cache.FetchReadOnly(key)
 				if err == nil {
 					resourceString, err := resourceToString(resource)
