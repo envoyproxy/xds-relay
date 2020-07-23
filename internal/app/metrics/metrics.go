@@ -89,9 +89,9 @@ const (
 	MapperError   = "error"   // counter, # of errors when converting a request to an aggregated key
 )
 
-// .error_interceptor
+// .upstream.error_interceptor
 const (
-	// scope: .error_interceptor.*
+	// scope: .upstream.error_interceptor.*
 	ScopeErrorInterceptor = "error_interceptor"
 
 	ErrorInterceptorErrorSendMsg = "error_sendmsg"
