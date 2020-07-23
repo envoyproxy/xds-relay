@@ -14,6 +14,8 @@ package orchestrator
 import (
 	"sync"
 
+	"github.com/envoyproxy/xds-relay/internal/app/mapper"
+
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 )
 
@@ -77,4 +79,20 @@ func (d *downstreamResponseMap) deleteAll(watchers map[*gcp.Request]bool) {
 			delete(d.responseChannels, watch)
 		}
 	}
+}
+
+// getAggregatedKeys returns a list of aggregated keys for all requests in the downstream response map.
+func (d *downstreamResponseMap) getAggregatedKeys(m *mapper.Mapper) (map[string]bool, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	// Since multiple requests can map to the same cache key, we use a map to ensure unique entries.
+	keys := make(map[string]bool)
+	for request := range d.responseChannels {
+		key, err := mapper.Mapper.GetKey(*m, *request)
+		if err != nil {
+			return nil, err
+		}
+		keys[key] = true
+	}
+	return keys, nil
 }

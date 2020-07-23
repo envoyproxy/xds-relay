@@ -60,6 +60,8 @@ type Orchestrator interface {
 	shutdown(ctx context.Context)
 
 	GetReadOnlyCache() cache.ReadOnlyCache
+
+	GetDownstreamAggregatedKeys() (map[string]bool, error)
 }
 
 type orchestrator struct {
@@ -216,8 +218,18 @@ func (o *orchestrator) Fetch(context.Context, discovery.DiscoveryRequest) (gcp.R
 	return nil, fmt.Errorf("Not implemented")
 }
 
+// GetReadOnlyCache returns the request/response cache with only read-only methods exposed.
 func (o *orchestrator) GetReadOnlyCache() cache.ReadOnlyCache {
 	return o.cache.GetReadOnlyCache()
+}
+
+// GetDownstreamAggregatedKeys returns the aggregated keys for all requests stored in the downstream response map.
+func (o *orchestrator) GetDownstreamAggregatedKeys() (map[string]bool, error) {
+	keys, err := o.downstreamResponseMap.getAggregatedKeys(&o.mapper)
+	if err != nil {
+		o.logger.With("error", err).Error(context.Background(), "Unable to get keys")
+	}
+	return keys, err
 }
 
 // watchUpstream is intended to be called in a go routine, to receive incoming
