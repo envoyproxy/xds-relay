@@ -42,7 +42,7 @@ type wrappedStream struct {
 func (w *wrappedStream) RecvMsg(m interface{}) error {
 	err := w.ClientStream.RecvMsg(m)
 	if err != nil {
-		w.logger.With("message", m).Warn(w.ctx, "error in RecvMsg")
+		w.logger.With("message", m, "error", err).Warn(w.ctx, "error in RecvMsg")
 		w.scope.Counter(metrics.ErrorInterceptorErrorRecvMsg).Inc(1)
 	}
 	return err
@@ -51,7 +51,7 @@ func (w *wrappedStream) RecvMsg(m interface{}) error {
 func (w *wrappedStream) SendMsg(m interface{}) error {
 	err := w.ClientStream.SendMsg(m)
 	if err != nil {
-		w.logger.With("message", m).Warn(w.ctx, "error in SendMsg")
+		w.logger.With("message", m, "error", err).Warn(w.ctx, "error in SendMsg")
 		w.scope.Counter(metrics.ErrorInterceptorErrorSendMsg).Inc(1)
 	}
 	return err
