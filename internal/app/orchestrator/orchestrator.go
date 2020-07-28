@@ -177,7 +177,7 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) 
 		// If we have a cached response and the version is different,
 		// immediately push the result to the response channel.
 		go func() {
-			responseChannel <- convertToGcpResponse(cached.Resp, req)
+			responseChannel.addResponse(convertToGcpResponse(cached.Resp, req))
 			metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchFanouts).Inc(1)
 		}()
 	}
@@ -210,7 +210,7 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) 
 		}
 	}
 
-	return responseChannel, o.onCancelWatch(aggregatedKey, &req)
+	return responseChannel.channel, o.onCancelWatch(aggregatedKey, &req)
 }
 
 // Fetch implements the polling method of the config cache using a non-empty request.
@@ -329,23 +329,22 @@ func (o *orchestrator) fanout(resp *discovery.DiscoveryResponse, watchers map[*g
 		go func(watch *gcp.Request) {
 			defer wg.Done()
 			if channel, ok := o.downstreamResponseMap.get(watch); ok {
-				select {
-				case channel <- convertToGcpResponse(resp, *watch):
-					o.logger.With(
-						"aggregated_key", aggregatedKey,
-						"node_id", watch.GetNode().GetId(),
-						"response_version", resp.GetVersionInfo(),
-						"response_type", resp.GetTypeUrl(),
-					).Debug(context.Background(), "response sent")
-					metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchFanouts).Inc(1)
-				default:
+				if err := channel.addResponse(convertToGcpResponse(resp, *watch)); err != nil {
 					// If the channel is blocked, we simply drop subsequent requests and error.
 					// Alternative possibilities are discussed here:
 					// https://github.com/envoyproxy/xds-relay/pull/53#discussion_r420325553
 					o.logger.With("aggregated_key", aggregatedKey).With("node_id", watch.GetNode().GetId()).
 						Error(context.Background(), "channel blocked during fanout")
 					metrics.OrchestratorWatchErrorsSubscope(o.scope, aggregatedKey).Counter(metrics.ErrorChannelFull).Inc(1)
+					return
 				}
+				o.logger.With(
+					"aggregated_key", aggregatedKey,
+					"node_id", watch.GetNode().GetId(),
+					"response_version", resp.GetVersionInfo(),
+					"response_type", resp.GetTypeUrl(),
+				).Debug(context.Background(), "response sent")
+				metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchFanouts).Inc(1)
 			}
 		}(watch)
 	}
