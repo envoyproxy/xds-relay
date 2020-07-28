@@ -177,8 +177,17 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) 
 		// If we have a cached response and the version is different,
 		// immediately push the result to the response channel.
 		go func() {
-			responseChannel.addResponse(convertToGcpResponse(cached.Resp, req))
-			metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchFanouts).Inc(1)
+			err := responseChannel.addResponse(convertToGcpResponse(cached.Resp, req))
+			if err != nil {
+				// Sanity check that the channel isn't blocked. This shouldn't
+				// ever happen since the channel is newly created. Regardless,
+				// continue to create the watch.
+				o.logger.With("aggregated_key", aggregatedKey, "error", err).Warn(context.Background(),
+					"failed to push cached response")
+				metrics.OrchestratorWatchErrorsSubscope(o.scope, aggregatedKey).Counter(metrics.ErrorChannelFull).Inc(1)
+			} else {
+				metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchFanouts).Inc(1)
+			}
 		}()
 	}
 
