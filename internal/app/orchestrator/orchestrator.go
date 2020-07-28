@@ -136,7 +136,11 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) 
 	if err != nil {
 		// Can't map the request to an aggregated key. Log and continue to
 		// propagate the response upstream without aggregation.
-		o.logger.With("error", err, "request_type", req.GetTypeUrl()).Warn(ctx, "failed to map to aggregated key")
+		o.logger.With(
+			"error", err,
+			"request_type", req.GetTypeUrl(),
+			"request", req,
+		).Warn(ctx, "failed to map to aggregated key")
 		// Mimic the aggregated key.
 		// TODO (https://github.com/envoyproxy/xds-relay/issues/56). Can we
 		// condense this key but still make it granular enough to uniquely
