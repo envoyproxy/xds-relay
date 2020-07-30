@@ -20,9 +20,10 @@ const (
 
 	// scope: .orchestrator.$aggregated_key.watch.*
 	ScopeOrchestratorWatch    = "watch"
-	OrchestratorWatchCreated  = "created"  // counter, # of watches created per aggregated key
-	OrchestratorWatchCanceled = "canceled" // counter, # of watch cancels initiated per aggregated key
-	OrchestratorWatchFanouts  = "fanout"   // counter, # of responses pushed downstream
+	OrchestratorWatchCreated  = "created"     // counter, # of watches created per aggregated key
+	OrchestratorWatchCanceled = "canceled"    // counter, # of watch cancels initiated per aggregated key
+	OrchestratorWatchFanouts  = "fanout"      // counter, # of responses pushed downstream
+	OrchestratorOnCacheEvict  = "cache_evict" // counter, # of times cache evict is called
 
 	// scope: .orchestrator.$aggregated_key.watch.errors.*
 	ScopeOrchestratorWatchErrors = "errors"

@@ -337,10 +337,12 @@ func (o *orchestrator) fanout(resp *discovery.DiscoveryResponse, watchers map[*g
 		wg.Add(1)
 		go func(watch *gcp.Request) {
 			defer wg.Done()
+			// TODO https://github.com/envoyproxy/xds-relay/issues/119
 			if channel, ok := o.downstreamResponseMap.get(watch); ok {
 				if err := channel.addResponse(convertToGcpResponse(resp, *watch)); err != nil {
-					// If the channel is blocked, we simply drop subsequent requests and error.
-					// Alternative possibilities are discussed here:
+					// If the channel is blocked, we simply drop subsequent
+					// requests and error. Alternative possibilities are
+					// discussed here:
 					// https://github.com/envoyproxy/xds-relay/pull/53#discussion_r420325553
 					o.logger.With("aggregated_key", aggregatedKey).With("node_id", watch.GetNode().GetId()).
 						Error(context.Background(), "channel blocked during fanout")
@@ -367,6 +369,8 @@ func (o *orchestrator) fanout(resp *discovery.DiscoveryResponse, watchers map[*g
 func (o *orchestrator) onCacheEvicted(key string, resource cache.Resource) {
 	// TODO Potential for improvements here to handle the thundering herd
 	// problem: https://github.com/envoyproxy/xds-relay/issues/71
+	metrics.OrchestratorWatchSubscope(o.scope, key).Counter(metrics.OrchestratorOnCacheEvict).Inc(1)
+	o.logger.With("aggregated_key", key, "resource", resource).Debug(context.Background(), "cache eviction called")
 	o.downstreamResponseMap.deleteAll(resource.Requests)
 	o.upstreamResponseMap.delete(key)
 }
