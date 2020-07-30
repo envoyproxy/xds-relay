@@ -27,7 +27,7 @@ const (
 	// scope: .orchestrator.$aggregated_key.cache_evict.*
 	ScopeOrchestratorCacheEvict            = "cache_evict"
 	OrcheestratorCacheEvictCount           = "calls"            // counter, # of times cache evict is called
-	OrchestratorOnCacheEvictedRequestCount = "requests_evicted" // counter, # of requests that were evicted for this aggregated key.
+	OrchestratorOnCacheEvictedRequestCount = "requests_evicted" // counter, # of requests that were evicted
 
 	// scope: .orchestrator.$aggregated_key.watch.errors.*
 	ScopeOrchestratorWatchErrors = "errors"
