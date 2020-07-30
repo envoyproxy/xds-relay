@@ -20,10 +20,14 @@ const (
 
 	// scope: .orchestrator.$aggregated_key.watch.*
 	ScopeOrchestratorWatch    = "watch"
-	OrchestratorWatchCreated  = "created"     // counter, # of watches created per aggregated key
-	OrchestratorWatchCanceled = "canceled"    // counter, # of watch cancels initiated per aggregated key
-	OrchestratorWatchFanouts  = "fanout"      // counter, # of responses pushed downstream
-	OrchestratorOnCacheEvict  = "cache_evict" // counter, # of times cache evict is called
+	OrchestratorWatchCreated  = "created"  // counter, # of watches created per aggregated key
+	OrchestratorWatchCanceled = "canceled" // counter, # of watch cancels initiated per aggregated key
+	OrchestratorWatchFanouts  = "fanout"   // counter, # of responses pushed downstream
+
+	// scope: .orchestrator.$aggregated_key.cache_evict.*
+	ScopeOrchestratorCacheEvict            = "cache_evict"
+	OrcheestratorCacheEvictCount           = "calls"            // counter, # of times cache evict is called
+	OrchestratorOnCacheEvictedRequestCount = "requests_evicted" // counter, # of requests that were evicted for this aggregated key.
 
 	// scope: .orchestrator.$aggregated_key.watch.errors.*
 	ScopeOrchestratorWatchErrors = "errors"
@@ -109,6 +113,12 @@ func OrchestratorWatchSubscope(parent tally.Scope, aggregatedKey string) tally.S
 // ex: .orchestrator.$aggregated_key.watch.errors
 func OrchestratorWatchErrorsSubscope(parent tally.Scope, aggregatedKey string) tally.Scope {
 	return parent.SubScope(aggregatedKey).SubScope(ScopeOrchestratorWatch).SubScope(ScopeOrchestratorWatchErrors)
+}
+
+// OrchestratorCacheEvictSubscope gets the orchestor cache evict subscope for the aggregated key.
+// ex: .orchestrator.$aggregated_key.cache_evict
+func OrchestratorCacheEvictSubscope(parent tally.Scope, aggregatedKey string) tally.Scope {
+	return parent.SubScope(aggregatedKey).SubScope(ScopeOrchestratorCacheEvict)
 }
 
 // CacheFetchSubscope gets the cache fetch subscope for the aggregated key.

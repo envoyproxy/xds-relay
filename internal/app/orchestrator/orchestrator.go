@@ -369,8 +369,9 @@ func (o *orchestrator) fanout(resp *discovery.DiscoveryResponse, watchers map[*g
 func (o *orchestrator) onCacheEvicted(key string, resource cache.Resource) {
 	// TODO Potential for improvements here to handle the thundering herd
 	// problem: https://github.com/envoyproxy/xds-relay/issues/71
-	metrics.OrchestratorWatchSubscope(o.scope, key).Counter(metrics.OrchestratorOnCacheEvict).Inc(1)
-	o.logger.With("aggregated_key", key, "resource", resource).Debug(context.Background(), "cache eviction called")
+	metrics.OrchestratorCacheEvictSubscope(o.scope, key).Counter(metrics.OrcheestratorCacheEvictCount).Inc(1)
+	metrics.OrchestratorCacheEvictSubscope(o.scope, key).Counter(metrics.OrchestratorOnCacheEvictedRequestCount).Inc(len(resource.Requests))
+	o.logger.With("aggregated_key", key).Debug(context.Background(), "cache eviction called")
 	o.downstreamResponseMap.deleteAll(resource.Requests)
 	o.upstreamResponseMap.delete(key)
 }
