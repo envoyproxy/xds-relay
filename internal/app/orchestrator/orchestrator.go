@@ -10,11 +10,11 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	discovery "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/uber-go/tally"
 
 	"github.com/envoyproxy/xds-relay/internal/app/cache"
@@ -97,10 +97,14 @@ func New(
 	}
 
 	// Initialize cache.
+	ttl, err := ptypes.Duration(cacheConfig.Ttl)
+	if err != nil {
+		orchestrator.logger.With("error", err).Panic(ctx, "failed to convert ttl from durationpb.Duration to time.Duration")
+	}
 	cache, err := cache.NewCache(
 		int(cacheConfig.MaxEntries),
 		orchestrator.onCacheEvicted,
-		time.Duration(cacheConfig.Ttl.Nanos)*time.Nanosecond,
+		ttl,
 		logger,
 		scope,
 	)
