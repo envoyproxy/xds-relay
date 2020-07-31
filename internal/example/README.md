@@ -1,14 +1,16 @@
 # Example
 
-TODO: mention `example-management-server` and the need to assume an envoy binary located at `/usr/local/bin/envoy` (mention https://www.getenvoy.io/).
+In this example we're going to run an instance of a management server that emits xDS data every 10 seconds which will be relayed by an instance of `xds-relay` to 2 instances of envoy.
 
 ## Requirements
 
-- envoy present in the PATH
-- jq
+- envoy present in the PATH (Go to https://www.getenvoy.io/ and follow the guide on how to install an envoy version)
+- [jq](https://stedolan.github.io/jq/)
+- [curl](https://curl.haxx.se/)
 
 ## Steps
 
+### Management Server
 First build the example management server:
 
     make build-example-management-server
@@ -19,6 +21,7 @@ Open a window on your terminal and simply run:
 
     ./bin/example-management-server
 
+### xds-relay instance
 Next step is to configure the `xds-relay` server. For that we need to provide 2 files: 
   - an aggregation rules file
   - a bootstrap file
@@ -29,6 +32,7 @@ You're now ready to run `xds-relay` locally. Open another window in your termina
 
     ./bin/xds-relay -a internal/example/config-files/aggregation-rules.yaml -c internal/example/config-files/xds-relay-bootstrap.yaml -m serve
 
+### Two envoy instances
 As a final step, it's time to connect 2 envoy clients to `xds-relay`. You're going to find 2 files named `envoy-bootstrap-1.yaml` and `envoy-bootstrap-2.yaml` that we're going to use to connect the envoy instances to `xds-relay`. Open 2 terminal windows and run:
 
     envoy -c internal/example/config-files/envoy-bootstrap-1.yaml  --service-node xds-relay-1 --service-cluster cluster1  # on the first window
