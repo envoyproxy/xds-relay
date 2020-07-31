@@ -3,7 +3,7 @@ admin:
   address:
     socket_address:
       address: 127.0.0.1
-      port_value: 19000
+      port_value: 19001
 dynamic_resources:
   cds_config:
     api_config_source:
@@ -12,16 +12,6 @@ dynamic_resources:
       - envoy_grpc:
           cluster_name: xds_cluster
       set_node_on_first_message_only: true
-  lds_config:
-    api_config_source:
-      api_type: GRPC
-      grpc_services:
-      - envoy_grpc:
-          cluster_name: xds_cluster
-      set_node_on_first_message_only: true
-node:
-  cluster: dev
-  id: envoy-1
 static_resources:
   clusters:
   - connect_timeout: 1s

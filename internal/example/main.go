@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"os"
 	"time"
 
 	"google.golang.org/grpc"
@@ -31,7 +32,6 @@ func generateTestSnapshotNewVersion(snapshotCache cache.SnapshotCache) {
 	s1 := rand.NewSource(time.Now().UnixNano())
 	r1 := rand.New(s1)
 
-	// TODO: parametrize
 	for i := 0; i < 100; i++ {
 		fmt.Println("wait 10s before generating the new version")
 		time.Sleep(10 * time.Second)
@@ -48,6 +48,9 @@ func generateTestSnapshotNewVersion(snapshotCache cache.SnapshotCache) {
 			fmt.Printf("set snapshot error %q for %+v", err, snapshot)
 		}
 	}
+
+	fmt.Println("reached the end of the xDS generation data. Exiting the program.")
+	os.Exit(0)
 }
 
 func runServer(snapshotCache cache.SnapshotCache, port int) {
@@ -67,7 +70,6 @@ func runServer(snapshotCache cache.SnapshotCache, port int) {
 }
 
 func main() {
-	// TODO: parametrize
 	managementServerPort := 18000
 
 	snapshotCache := cache.NewSnapshotCache(false, cache.IDHash{}, nil)
