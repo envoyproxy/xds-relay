@@ -1,4 +1,4 @@
-# Example
+# Description
 
 In this example we're going to run an instance of a management server that emits xDS data every 10 seconds which will be relayed by an instance of `xds-relay` to 2 instances of envoy.
 
