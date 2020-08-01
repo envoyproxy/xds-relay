@@ -2,6 +2,8 @@
 
 In this example we're going to run an instance of a management server that emits xDS data every 10 seconds which will be relayed by an instance of `xds-relay` to 2 instances of envoy.
 
+The goal of this example is to have the envoy instances mapped to the same key in `xds-relay`, namely the cache key `cluster1_cds`.
+
 ## Requirements
 
 - envoy present in the PATH (Go to https://www.getenvoy.io/ and follow the guide on how to install an envoy version)
