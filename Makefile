@@ -42,7 +42,7 @@ lint: ## Run golangci-lint
 
 .PHONY: build-example-management-server
 build-example-management-server: compile  ## Build example management server
-	go build -o ./bin/example-management-server internal/example/main.go
+	go build -o ./bin/example-management-server example/main.go
 
 # Absolutely awesome: http://marmelab.com/blog/2016/02/29/auto-documented-makefile.html
 help:
