@@ -37,8 +37,8 @@ You're now ready to run `xds-relay` locally. Open another window in your termina
 ### Two envoy instances
 As a final step, it's time to connect 2 envoy clients to `xds-relay`. You're going to find 2 files named `envoy-bootstrap-1.yaml` and `envoy-bootstrap-2.yaml` that we're going to use to connect the envoy instances to `xds-relay`. Open 2 terminal windows and run:
 
-    envoy -c example/config-files/envoy-bootstrap-1.yaml  --service-node xds-relay-1 --service-cluster cluster1  # on the first window
-    envoy -c example/config-files/envoy-bootstrap-2.yaml  --service-node xds-relay-2 --service-cluster cluster1  # on the second window
+    envoy -c example/config-files/envoy-bootstrap-1.yaml # on the first window
+    envoy -c example/config-files/envoy-bootstrap-2.yaml # on the second window
 
 And voilà! You should be seeing logs flowing in both the terminal window where you're running `xds-relay` and on each of the envoy ones. 
 
@@ -46,24 +46,39 @@ And voilà! You should be seeing logs flowing in both the terminal window where 
 
 We expose the contents of the cache in `xds-relay` via an endpoint, so we can use that to verify what are the contents of the cache for the keys being requested by the two envoy clients:
 
-    curl 0:6070/cache/cluster1_cds | jq '(.Requests | map({"version_info": .version_info, "node.id": .node.id, "node.cluster": .node.cluster})) as $reqs | {"response": .Resp.VersionInfo, "requests": $reqs}'
+    curl -s 0:6070/cache/cluster1_cds | jq '(.Resp.Resources.Clusters | map({"name": .name})) as $resp_clusters | (.Requests | map({"version_info": .version_info, "node.id": .node.id, "node.cluster": .node.cluster})) as $reqs | {"response": {"version": .Resp.VersionInfo, "clusters": $resp_clusters}, "requests": $reqs}'
 
 Sample result:
 
 ``` shellsession
-❯ curl -s 0:6070/cache/cluster1_cds | jq '(.Requests | map({"node.id": .node.id, "node.cluster": .node.cluster})) as $reqs | {"response": .Resp.VersionInfo, "requests": $reqs}'
+❯ curl -s 0:6070/cache/cluster1_cds | jq '(.Resp.Resources.Clusters | map({"name": .name})) as $resp_clusters | (.Requests | map({"version_info": .version_info, "node.id": .node.id, "node.cluster": .node.cluster})) as $reqs | {"response": {"version": .Resp.VersionInfo, "clusters": $resp_clusters}, "requests": $reqs}'
 {
-  "response": "v56870",
-  "requests": [
-    {
-      "node.id": "xds-relay2",
-      "node.cluster": "cluster1"
-    },
-    {
-      "node.id": "xds-relay",
-      "node.cluster": "cluster1"
-    }
-  ]
+  "response": {
+    "version": "v66936",
+    "clusters": [
+      {
+        "name": "cluster-v66936-0"
+      },
+      {
+        "name": "cluster-v66936-1"
+      },
+      {
+        "name": "cluster-v66936-2"
+      }
+    ],
+    "requests": [
+      {
+        "version_info": "v66936",
+        "node.id": "xds-relay",
+        "node.cluster": "cluster1"
+      },
+      {
+        "version_info": "v66936",
+        "node.id": "xds-relay-2",
+        "node.cluster": "cluster1"
+      }
+    ]
+  }
 }
 ```
 
@@ -92,3 +107,7 @@ Sample result:
   ]
 }
 ```
+
+This is a gif of a tmux session demonstrating this example:
+
+![xds-relay-demo](./xds-relay-demo.gif)

@@ -1,3 +1,6 @@
+node:
+  id: xds-relay
+  cluster: cluster1
 admin:
   access_log_path: /dev/null
   address:
