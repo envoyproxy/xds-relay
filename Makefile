@@ -40,6 +40,10 @@ build-docker-image: ## Build docker image for use in e2e tests
 lint: ## Run golangci-lint
 	golangci-lint run
 
+.PHONY: build-example-management-server
+build-example-management-server: compile  ## Build example management server
+	go build -o ./bin/example-management-server example/main.go
+
 # Absolutely awesome: http://marmelab.com/blog/2016/02/29/auto-documented-makefile.html
 help:
 	@grep -E '^[[:alnum:]-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
