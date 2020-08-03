@@ -110,4 +110,4 @@ Sample result:
 
 This is a gif of a tmux session demonstrating this example:
 
-![xds-relay-demo](./xds-relay-demo.gif)
+![demo](xds-relay-demo.gif)
