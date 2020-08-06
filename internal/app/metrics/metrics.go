@@ -105,22 +105,25 @@ const (
 	ErrorInterceptorErrorRecvMsg = "error_recvmsg"
 )
 
-// OrchestratorWatchSubscope gets the orchestor watch subscope for the aggregated key.
-// ex: .orchestrator.$aggregated_key.watch
+// OrchestratorWatchSubscope gets the orchestor watch subscope and adds the aggregated key as a point tag.
+// ex: .orchestrator.watch+key=$aggregated_key
 func OrchestratorWatchSubscope(parent tally.Scope, aggregatedKey string) tally.Scope {
-	return parent.SubScope(aggregatedKey).SubScope(ScopeOrchestratorWatch)
+	return parent.SubScope(ScopeOrchestratorWatch).Tagged(map[string]string{TagName: aggregatedKey})
 }
 
-// OrchestratorWatchErrorsSubscope gets the orchestor watch errora subscope for the aggregated key.
-// ex: .orchestrator.$aggregated_key.watch.errors
+// OrchestratorWatchErrorsSubscope gets the orchestor watch errors subscope and adds the aggregated key
+// as a point tag.
+// ex: .orchestrator.watch.errors+key=$aggregated_key.
 func OrchestratorWatchErrorsSubscope(parent tally.Scope, aggregatedKey string) tally.Scope {
-	return parent.SubScope(aggregatedKey).SubScope(ScopeOrchestratorWatch).SubScope(ScopeOrchestratorWatchErrors)
+	watchErrorsSubScope := parent.SubScope(ScopeOrchestratorWatch).SubScope(ScopeOrchestratorWatchErrors)
+	return watchErrorsSubScope.Tagged(map[string]string{TagName: aggregatedKey})
 }
 
-// OrchestratorCacheEvictSubscope gets the orchestor cache evict subscope for the aggregated key.
-// ex: .orchestrator.$aggregated_key.cache_evict
+// OrchestratorCacheEvictSubscope gets the orchestor cache evict subscope and adds the aggregated key
+// as a point tag.
+// ex: .orchestrator.cache_evict+key=$aggregated_key.
 func OrchestratorCacheEvictSubscope(parent tally.Scope, aggregatedKey string) tally.Scope {
-	return parent.SubScope(aggregatedKey).SubScope(ScopeOrchestratorCacheEvict)
+	return parent.SubScope(ScopeOrchestratorCacheEvict).Tagged(map[string]string{TagName: aggregatedKey})
 }
 
 // CacheFetchSubscope gets the cache fetch subscope and adds the aggregated key as a point tag.
