@@ -5,6 +5,8 @@ import (
 	"github.com/uber-go/tally"
 )
 
+const TagName = "key"
+
 // .server
 const (
 	// scope: .server.*
@@ -133,10 +135,11 @@ func CacheSetSubscope(parent tally.Scope, aggregatedKey string) tally.Scope {
 	return parent.SubScope(aggregatedKey).SubScope(ScopeCacheSet)
 }
 
-// CacheAddRequestSubscope gets the cache add request subscope for the aggregated key.
-// ex: .cache.$aggregated_key.add_request
+// CacheAddRequestSubscope gets the cache add request subscope and adds the the aggregated key
+// as a point tag.
+// ex: .cache.add_request+key=$aggregated_key
 func CacheAddRequestSubscope(parent tally.Scope, aggregatedKey string) tally.Scope {
-	return parent.SubScope(ScopeCacheAdd).Tagged(map[string]string{"key": aggregatedKey})
+	return parent.SubScope(ScopeCacheAdd).Tagged(map[string]string{TagName: aggregatedKey})
 }
 
 // CacheDeleteRequestSubscope gets the cache delete request subscope for the aggregated key.
