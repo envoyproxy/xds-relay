@@ -129,21 +129,22 @@ func CacheFetchSubscope(parent tally.Scope, aggregatedKey string) tally.Scope {
 	return parent.SubScope(aggregatedKey).SubScope(ScopeCacheFetch)
 }
 
-// CacheSetSubscope gets the cache set subscope for the aggregated key.
-// ex: .cache.$aggregated_key.set_response
+// CacheSetSubscope gets the cache set subscope and adds the aggregated key as a point tag.
+// ex: .cache.set_response+key=$aggregated_key
 func CacheSetSubscope(parent tally.Scope, aggregatedKey string) tally.Scope {
-	return parent.SubScope(aggregatedKey).SubScope(ScopeCacheSet)
+	return parent.SubScope(ScopeCacheSet).Tagged(map[string]string{TagName: aggregatedKey})
 }
 
-// CacheAddRequestSubscope gets the cache add request subscope and adds the the aggregated key
+// CacheAddRequestSubscope gets the cache add request subscope and adds the aggregated key
 // as a point tag.
 // ex: .cache.add_request+key=$aggregated_key
 func CacheAddRequestSubscope(parent tally.Scope, aggregatedKey string) tally.Scope {
 	return parent.SubScope(ScopeCacheAdd).Tagged(map[string]string{TagName: aggregatedKey})
 }
 
-// CacheDeleteRequestSubscope gets the cache delete request subscope for the aggregated key.
-// ex: .cache.$aggregated_key.delete_request
+// CacheDeleteRequestSubscope gets the cache delete request subscope and adds the aggregated key
+// as a point tag.
+// ex: .cache.delete_request+key=$aggregated_key
 func CacheDeleteRequestSubscope(parent tally.Scope, aggregatedKey string) tally.Scope {
-	return parent.SubScope(aggregatedKey).SubScope(ScopeCacheDelete)
+	return parent.SubScope(ScopeCacheDelete).Tagged(map[string]string{TagName: aggregatedKey})
 }
