@@ -5,8 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/envoyproxy/xds-relay/internal/pkg/util/testutils"
-
 	"github.com/envoyproxy/xds-relay/internal/pkg/stats"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
@@ -85,15 +83,17 @@ func TestAddRequestAndFetch(t *testing.T) {
 	assert.NoError(t, err)
 
 	resource, err := cache.Fetch(testKeyA)
-	testutils.AssertCounterValue(t, mockScope.Snapshot().Counters(), fmt.Sprintf("cache.%s.fetch.attempt", testKeyA), 1)
-	testutils.AssertCounterValue(t, mockScope.Snapshot().Counters(), fmt.Sprintf("cache.%s.fetch.miss", testKeyA), 1)
+	countersSnapshot := mockScope.Snapshot().Counters()
+	assert.EqualValues(
+		t, 1, countersSnapshot[fmt.Sprintf("cache.fetch.attempt+key=%v", testKeyA)].Value())
+	assert.EqualValues(
+		t, 1, countersSnapshot[fmt.Sprintf("cache.fetch.miss+key=%v", testKeyA)].Value())
 	assert.EqualError(t, err, "no value found for key: key_A")
 	assert.Nil(t, resource)
 
 	err = cache.AddRequest(testKeyA, &testRequestA)
 	assert.NoError(t, err)
-	countersSnapshot := mockScope.Snapshot().Counters()
-	fmt.Println(countersSnapshot)
+	countersSnapshot = mockScope.Snapshot().Counters()
 	assert.EqualValues(
 		t, 1, countersSnapshot[fmt.Sprintf("cache.add_request.attempt+key=%v", testKeyA)].Value())
 	assert.EqualValues(
@@ -102,10 +102,11 @@ func TestAddRequestAndFetch(t *testing.T) {
 	resource, err = cache.Fetch(testKeyA)
 	assert.NoError(t, err)
 	assert.Nil(t, resource.Resp)
-	testutils.AssertCounterValue(
-		t, mockScope.Snapshot().Counters(), fmt.Sprintf("cache.%s.fetch.attempt", testKeyA), 2)
-	testutils.AssertCounterValue(
-		t, mockScope.Snapshot().Counters(), fmt.Sprintf("cache.%s.fetch.miss", testKeyA), 1)
+	countersSnapshot = mockScope.Snapshot().Counters()
+	assert.EqualValues(
+		t, 2, countersSnapshot[fmt.Sprintf("cache.fetch.attempt+key=%v", testKeyA)].Value())
+	assert.EqualValues(
+		t, 1, countersSnapshot[fmt.Sprintf("cache.fetch.miss+key=%v", testKeyA)].Value())
 }
 
 func TestSetResponseAndFetch(t *testing.T) {

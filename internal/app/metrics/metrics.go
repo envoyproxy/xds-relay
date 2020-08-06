@@ -123,10 +123,10 @@ func OrchestratorCacheEvictSubscope(parent tally.Scope, aggregatedKey string) ta
 	return parent.SubScope(aggregatedKey).SubScope(ScopeOrchestratorCacheEvict)
 }
 
-// CacheFetchSubscope gets the cache fetch subscope for the aggregated key.
-// ex: .cache.$aggregated_key.fetch
+// CacheFetchSubscope gets the cache fetch subscope and adds the aggregated key as a point tag.
+// ex: .cache.fetch+key=$aggregated_key
 func CacheFetchSubscope(parent tally.Scope, aggregatedKey string) tally.Scope {
-	return parent.SubScope(aggregatedKey).SubScope(ScopeCacheFetch)
+	return parent.SubScope(ScopeCacheFetch).Tagged(map[string]string{TagName: aggregatedKey})
 }
 
 // CacheSetSubscope gets the cache set subscope and adds the aggregated key as a point tag.
