@@ -92,10 +92,12 @@ func TestAddRequestAndFetch(t *testing.T) {
 
 	err = cache.AddRequest(testKeyA, &testRequestA)
 	assert.NoError(t, err)
-	testutils.AssertCounterValue(
-		t, mockScope.Snapshot().Counters(), fmt.Sprintf("cache.%s.add_request.attempt", testKeyA), 1)
-	testutils.AssertCounterValue(
-		t, mockScope.Snapshot().Counters(), fmt.Sprintf("cache.%s.add_request.success", testKeyA), 1)
+	countersSnapshot := mockScope.Snapshot().Counters()
+	fmt.Println(countersSnapshot)
+	assert.EqualValues(
+		t, 1, countersSnapshot[fmt.Sprintf("cache.add_request.attempt+key=%v", testKeyA)].Value())
+	assert.EqualValues(
+		t, 1, countersSnapshot[fmt.Sprintf("cache.add_request.success+key=%v", testKeyA)].Value())
 
 	resource, err = cache.Fetch(testKeyA)
 	assert.NoError(t, err)

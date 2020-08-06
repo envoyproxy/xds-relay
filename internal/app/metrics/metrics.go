@@ -136,7 +136,7 @@ func CacheSetSubscope(parent tally.Scope, aggregatedKey string) tally.Scope {
 // CacheAddRequestSubscope gets the cache add request subscope for the aggregated key.
 // ex: .cache.$aggregated_key.add_request
 func CacheAddRequestSubscope(parent tally.Scope, aggregatedKey string) tally.Scope {
-	return parent.SubScope(aggregatedKey).SubScope(ScopeCacheAdd)
+	return parent.SubScope(ScopeCacheAdd).Tagged(map[string]string{"key": aggregatedKey})
 }
 
 // CacheDeleteRequestSubscope gets the cache delete request subscope for the aggregated key.
