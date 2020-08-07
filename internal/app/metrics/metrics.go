@@ -5,6 +5,8 @@ import (
 	"github.com/uber-go/tally"
 )
 
+const TagName = "key"
+
 // .server
 const (
 	// scope: .server.*
@@ -103,44 +105,49 @@ const (
 	ErrorInterceptorErrorRecvMsg = "error_recvmsg"
 )
 
-// OrchestratorWatchSubscope gets the orchestor watch subscope for the aggregated key.
-// ex: .orchestrator.$aggregated_key.watch
+// OrchestratorWatchSubscope gets the orchestor watch subscope and adds the aggregated key as a point tag.
+// ex: .orchestrator.watch+key=$aggregated_key
 func OrchestratorWatchSubscope(parent tally.Scope, aggregatedKey string) tally.Scope {
-	return parent.SubScope(aggregatedKey).SubScope(ScopeOrchestratorWatch)
+	return parent.SubScope(ScopeOrchestratorWatch).Tagged(map[string]string{TagName: aggregatedKey})
 }
 
-// OrchestratorWatchErrorsSubscope gets the orchestor watch errora subscope for the aggregated key.
-// ex: .orchestrator.$aggregated_key.watch.errors
+// OrchestratorWatchErrorsSubscope gets the orchestor watch errors subscope and adds the aggregated key
+// as a point tag.
+// ex: .orchestrator.watch.errors+key=$aggregated_key.
 func OrchestratorWatchErrorsSubscope(parent tally.Scope, aggregatedKey string) tally.Scope {
-	return parent.SubScope(aggregatedKey).SubScope(ScopeOrchestratorWatch).SubScope(ScopeOrchestratorWatchErrors)
+	watchErrorsSubScope := parent.SubScope(ScopeOrchestratorWatch).SubScope(ScopeOrchestratorWatchErrors)
+	return watchErrorsSubScope.Tagged(map[string]string{TagName: aggregatedKey})
 }
 
-// OrchestratorCacheEvictSubscope gets the orchestor cache evict subscope for the aggregated key.
-// ex: .orchestrator.$aggregated_key.cache_evict
+// OrchestratorCacheEvictSubscope gets the orchestor cache evict subscope and adds the aggregated key
+// as a point tag.
+// ex: .orchestrator.cache_evict+key=$aggregated_key.
 func OrchestratorCacheEvictSubscope(parent tally.Scope, aggregatedKey string) tally.Scope {
-	return parent.SubScope(aggregatedKey).SubScope(ScopeOrchestratorCacheEvict)
+	return parent.SubScope(ScopeOrchestratorCacheEvict).Tagged(map[string]string{TagName: aggregatedKey})
 }
 
-// CacheFetchSubscope gets the cache fetch subscope for the aggregated key.
-// ex: .cache.$aggregated_key.fetch
+// CacheFetchSubscope gets the cache fetch subscope and adds the aggregated key as a point tag.
+// ex: .cache.fetch+key=$aggregated_key
 func CacheFetchSubscope(parent tally.Scope, aggregatedKey string) tally.Scope {
-	return parent.SubScope(aggregatedKey).SubScope(ScopeCacheFetch)
+	return parent.SubScope(ScopeCacheFetch).Tagged(map[string]string{TagName: aggregatedKey})
 }
 
-// CacheSetSubscope gets the cache set subscope for the aggregated key.
-// ex: .cache.$aggregated_key.set_response
+// CacheSetSubscope gets the cache set subscope and adds the aggregated key as a point tag.
+// ex: .cache.set_response+key=$aggregated_key
 func CacheSetSubscope(parent tally.Scope, aggregatedKey string) tally.Scope {
-	return parent.SubScope(aggregatedKey).SubScope(ScopeCacheSet)
+	return parent.SubScope(ScopeCacheSet).Tagged(map[string]string{TagName: aggregatedKey})
 }
 
-// CacheAddRequestSubscope gets the cache add request subscope for the aggregated key.
-// ex: .cache.$aggregated_key.add_request
+// CacheAddRequestSubscope gets the cache add request subscope and adds the aggregated key
+// as a point tag.
+// ex: .cache.add_request+key=$aggregated_key
 func CacheAddRequestSubscope(parent tally.Scope, aggregatedKey string) tally.Scope {
-	return parent.SubScope(aggregatedKey).SubScope(ScopeCacheAdd)
+	return parent.SubScope(ScopeCacheAdd).Tagged(map[string]string{TagName: aggregatedKey})
 }
 
-// CacheDeleteRequestSubscope gets the cache delete request subscope for the aggregated key.
-// ex: .cache.$aggregated_key.delete_request
+// CacheDeleteRequestSubscope gets the cache delete request subscope and adds the aggregated key
+// as a point tag.
+// ex: .cache.delete_request+key=$aggregated_key
 func CacheDeleteRequestSubscope(parent tally.Scope, aggregatedKey string) tally.Scope {
-	return parent.SubScope(aggregatedKey).SubScope(ScopeCacheDelete)
+	return parent.SubScope(ScopeCacheDelete).Tagged(map[string]string{TagName: aggregatedKey})
 }

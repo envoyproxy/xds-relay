@@ -68,7 +68,7 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	// Initialize metrics sink. For now we default to statsd.
 	statsdPort := strconv.FormatUint(uint64(bootstrapConfig.MetricsSink.GetStatsd().Address.PortValue), 10)
 	statsdAddress := net.JoinHostPort(bootstrapConfig.MetricsSink.GetStatsd().Address.Address, statsdPort)
-	scope, scopeCloser, err := stats.NewScope(stats.Config{
+	scope, scopeCloser, err := stats.NewRootScope(stats.Config{
 		StatsdAddress: statsdAddress,
 		RootPrefix:    bootstrapConfig.MetricsSink.GetStatsd().RootPrefix,
 		FlushInterval: time.Duration(bootstrapConfig.MetricsSink.GetStatsd().FlushInterval.Nanos),
