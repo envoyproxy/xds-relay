@@ -10,7 +10,6 @@ import (
 
 	"github.com/cactus/go-statsd-client/statsd"
 	"github.com/uber-go/tally"
-	tallystatsd "github.com/uber-go/tally/statsd"
 )
 
 // Config holds the configuration options for stats reporting.
@@ -23,9 +22,9 @@ type Config struct {
 	FlushInterval time.Duration
 }
 
-// NewScope creates a new root Scope with the set of configured options and
+// NewRootScope creates a new root Scope with the set of configured options and
 // statsd reporter.
-func NewScope(config Config) (tally.Scope, io.Closer, error) {
+func NewRootScope(config Config) (tally.Scope, io.Closer, error) {
 	// Configure statsd client for reporting stats.
 	statsdClient, err := statsd.NewClientWithConfig(&statsd.ClientConfig{
 		Address:       config.StatsdAddress,
@@ -36,7 +35,7 @@ func NewScope(config Config) (tally.Scope, io.Closer, error) {
 		return nil, nil, err
 	}
 
-	reporter := tallystatsd.NewReporter(statsdClient, tallystatsd.Options{})
+	reporter := NewStatsdPointTagsReporter(statsdClient)
 
 	scope, closer := tally.NewRootScope(tally.ScopeOptions{
 		Prefix:   config.RootPrefix,
