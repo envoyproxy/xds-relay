@@ -58,3 +58,4 @@ func (l *logger) Error(ctx context.Context, template string, args ...interface{}
 	l.blockedCh <- true
 }
 func (l *logger) UpdateLogLevel(logLevel string) {}
+func (l *logger) GetLevel() string               { return "" }

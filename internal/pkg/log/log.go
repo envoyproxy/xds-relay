@@ -60,5 +60,9 @@ type Logger interface {
 	// Sync flushes any buffered log entries.
 	Sync() error
 
+	// UpdateLogLevel reinitializes the logger at the given level.
 	UpdateLogLevel(logLevel string)
+
+	// GetLevel returns the logger's level as a human-readable string.
+	GetLevel() string
 }
