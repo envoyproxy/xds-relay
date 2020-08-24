@@ -11,6 +11,7 @@ import (
 type logger struct {
 	zap     *z.SugaredLogger
 	writeTo io.Writer
+	level   string
 }
 
 // New returns an instance of Logger implemented using the Zap logging framework.
@@ -35,7 +36,7 @@ func New(logLevel string, writeTo io.Writer) Logger {
 	}
 
 	log = log.With(z.Namespace("json"))
-	return &logger{zap: log.Sugar(), writeTo: writeTo}
+	return &logger{zap: log.Sugar(), writeTo: writeTo, level: zLevel.String()}
 }
 
 // UpdateLevel updates the logging level for the logger instance by
@@ -58,6 +59,12 @@ func (l *logger) UpdateLogLevel(logLevel string) {
 
 	log = log.With(z.Namespace("json"))
 	l.zap = log.Sugar()
+	l.level = zLevel.String()
+}
+
+// GetLevel returns the logging level in human-readable string format.
+func (l *logger) GetLevel() string {
+	return l.level
 }
 
 func (l *logger) Named(name string) Logger {

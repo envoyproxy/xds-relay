@@ -27,7 +27,7 @@ import (
 )
 
 type Handler struct {
-	prefix      string
+	pattern     string
 	description string
 	handler     http.HandlerFunc
 }
@@ -42,13 +42,14 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 			func(http.ResponseWriter, *http.Request) {},
 		},
 		{
-			"/cache/",
-			"print cache entry for a given key. usage: `/cache/<key>`",
+			"/cache",
+			"print cache entry for a given key. Omitting the key outputs all cache entries. usage: `/cache/<key>`",
 			cacheDumpHandler(orchestrator),
 		},
 		{
-			"/log_level/",
-			"update the log level to `debug`, `info`, `warn`, or `error`. usage: `/log_level/<level>`",
+			"/log_level",
+			"update the log level to `debug`, `info`, `warn`, or `error`. " +
+				"Omitting the level outputs the current log level. usage: `/log_level/<level>`",
 			logLevelHandler(logger),
 		},
 		{
@@ -66,7 +67,10 @@ func RegisterHandlers(bootstrapConfig *bootstrapv1.Bootstrap,
 	orchestrator *orchestrator.Orchestrator,
 	logger log.Logger) {
 	for _, handler := range getHandlers(bootstrapConfig, orchestrator, logger) {
-		http.Handle(handler.prefix, handler.handler)
+		http.Handle(handler.pattern, handler.handler)
+		if !strings.HasSuffix(handler.pattern, "/") {
+			http.Handle(handler.pattern+"/", handler.handler)
+		}
 	}
 }
 
@@ -80,7 +84,7 @@ func defaultHandler(handlers []Handler) http.HandlerFunc {
 		}
 		fmt.Fprintf(w, "admin commands are:\n")
 		for _, handler := range handlers {
-			fmt.Fprintf(w, "  %s: %s\n", handler.prefix, handler.description)
+			fmt.Fprintf(w, "  %s: %s\n", handler.pattern, handler.description)
 		}
 	}
 }
@@ -100,12 +104,7 @@ func configDumpHandler(bootstrapConfig *bootstrapv1.Bootstrap) http.HandlerFunc 
 // TODO(lisalu): Support dump of matching resources when cache key regex is provided.
 func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		cacheKey, err := getParam(req.URL.Path)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, "unable to parse cache key from path: %s", err.Error())
-			return
-		}
+		cacheKey := getParam(req.URL.Path)
 		cache := orchestrator.Orchestrator.GetReadOnlyCache(*o)
 
 		// If no key is provided, output the entire cache.
@@ -261,24 +260,27 @@ func marshalResources(Resources []*any.Any) *xDSResources {
 	return &marshalledResources
 }
 
-func getParam(path string) (string, error) {
+func getParam(path string) string {
 	// Assumes that the URL is of the format `address/endpoint/parameter` and returns `parameter`.
 	splitPath := strings.SplitN(path, "/", 3)
 	if len(splitPath) == 3 {
-		return splitPath[2], nil
+		return splitPath[2]
 	}
-	return "", fmt.Errorf("unable to parse parameter from path: %s", path)
+	return ""
 }
 
 func logLevelHandler(l log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Method == "POST" {
-			logLevel, err := getParam(req.URL.Path)
-			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				fmt.Fprintf(w, "unable to parse log level from path: %s", err.Error())
+			logLevel := getParam(req.URL.Path)
+
+			// If no key is provided, output the current log level.
+			if logLevel == "" {
+				fmt.Fprintf(w, "Current log level: %s\n", l.GetLevel())
 				return
 			}
+
+			// Otherwise update the logging level.
 			_, parseLogLevelErr := zap.ParseLogLevel(logLevel)
 			if parseLogLevelErr != nil {
 				w.WriteHeader(http.StatusBadRequest)
@@ -286,6 +288,7 @@ func logLevelHandler(l log.Logger) http.HandlerFunc {
 				return
 			}
 			l.UpdateLogLevel(logLevel)
+			fmt.Fprintf(w, "Current log level: %s\n", l.GetLevel())
 		} else {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			fmt.Fprintf(w, "Only POST is supported\n")

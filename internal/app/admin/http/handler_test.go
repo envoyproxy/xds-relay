@@ -57,24 +57,24 @@ func TestAdminServer_DefaultHandler_NotFound(t *testing.T) {
 }
 
 func TestAdminServer_ConfigDumpHandler(t *testing.T) {
-	req, err := http.NewRequest("GET", "/server_info", nil)
-	assert.NoError(t, err)
+	for _, url := range []string{"/server_info", "/server_info/"} {
+		req, err := http.NewRequest("GET", url, nil)
+		assert.NoError(t, err)
+		rr := httptest.NewRecorder()
+		handler := configDumpHandler(&bootstrapv1.Bootstrap{
+			Server: &bootstrapv1.Server{Address: &bootstrapv1.SocketAddress{
+				Address:   "127.0.0.1",
+				PortValue: 9991,
+			}},
+			OriginServer: nil,
+			Logging:      nil,
+			Cache:        nil,
+		})
 
-	rr := httptest.NewRecorder()
-	handler := configDumpHandler(&bootstrapv1.Bootstrap{
-		Server: &bootstrapv1.Server{Address: &bootstrapv1.SocketAddress{
-			Address:   "127.0.0.1",
-			PortValue: 9991,
-		}},
-		OriginServer: nil,
-		Logging:      nil,
-		Cache:        nil,
-	})
-
-	handler.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Equal(t,
-		`{
+		handler.ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusOK, rr.Code)
+		assert.Equal(t,
+			`{
   "server": {
     "address": {
       "address": "127.0.0.1",
@@ -83,7 +83,8 @@ func TestAdminServer_ConfigDumpHandler(t *testing.T) {
   }
 }
 `,
-		rr.Body.String())
+			rr.Body.String())
+	}
 }
 
 func TestAdminServer_CacheDumpHandler(t *testing.T) {
@@ -196,81 +197,82 @@ func TestAdminServer_CacheDumpHandler_NotFound(t *testing.T) {
 }
 
 func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
-	ctx := context.Background()
-	mapper := mapper.NewMock(t)
-	upstreamResponseChannelLDS := make(chan *v2.DiscoveryResponse)
-	upstreamResponseChannelCDS := make(chan *v2.DiscoveryResponse)
-	mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
-	client := upstream.NewMock(
-		ctx,
-		upstream.CallOptions{Timeout: time.Second},
-		nil,
-		upstreamResponseChannelLDS,
-		nil,
-		nil,
-		upstreamResponseChannelCDS,
-		func(m interface{}) error { return nil },
-	)
-	orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
-	assert.NotNil(t, orchestrator)
+	for _, url := range []string{"/cache", "/cache/"} {
+		ctx := context.Background()
+		mapper := mapper.NewMock(t)
+		upstreamResponseChannelLDS := make(chan *v2.DiscoveryResponse)
+		upstreamResponseChannelCDS := make(chan *v2.DiscoveryResponse)
+		mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
+		client := upstream.NewMock(
+			ctx,
+			upstream.CallOptions{Timeout: time.Second},
+			nil,
+			upstreamResponseChannelLDS,
+			nil,
+			nil,
+			upstreamResponseChannelCDS,
+			func(m interface{}) error { return nil },
+		)
+		orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
+		assert.NotNil(t, orchestrator)
 
-	gcpReq := gcp.Request{
-		TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
-	}
-	ldsRespChannel, cancelLDSWatch := orchestrator.CreateWatch(gcpReq)
-	assert.NotNil(t, ldsRespChannel)
+		gcpReq := gcp.Request{
+			TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
+		}
+		ldsRespChannel, cancelLDSWatch := orchestrator.CreateWatch(gcpReq)
+		assert.NotNil(t, ldsRespChannel)
 
-	gcpReq = gcp.Request{
-		TypeUrl: "type.googleapis.com/envoy.api.v2.Cluster",
-	}
-	cdsRespChannel, cancelCDSWatch := orchestrator.CreateWatch(gcpReq)
-	assert.NotNil(t, cdsRespChannel)
+		gcpReq = gcp.Request{
+			TypeUrl: "type.googleapis.com/envoy.api.v2.Cluster",
+		}
+		cdsRespChannel, cancelCDSWatch := orchestrator.CreateWatch(gcpReq)
+		assert.NotNil(t, cdsRespChannel)
 
-	listener := &v2.Listener{
-		Name: "lds resource",
-	}
-	listenerAny, err := ptypes.MarshalAny(listener)
-	assert.NoError(t, err)
-	resp := v2.DiscoveryResponse{
-		VersionInfo: "1",
-		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
-		Resources: []*any.Any{
-			listenerAny,
-		},
-	}
-	upstreamResponseChannelLDS <- &resp
-	gotResponse := <-ldsRespChannel
-	gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
-	assert.NoError(t, err)
-	assert.Equal(t, resp, *gotDiscoveryResponse)
+		listener := &v2.Listener{
+			Name: "lds resource",
+		}
+		listenerAny, err := ptypes.MarshalAny(listener)
+		assert.NoError(t, err)
+		resp := v2.DiscoveryResponse{
+			VersionInfo: "1",
+			TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
+			Resources: []*any.Any{
+				listenerAny,
+			},
+		}
+		upstreamResponseChannelLDS <- &resp
+		gotResponse := <-ldsRespChannel
+		gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
+		assert.NoError(t, err)
+		assert.Equal(t, resp, *gotDiscoveryResponse)
 
-	cluster := &v2.Cluster{
-		Name: "cds resource",
-	}
-	clusterAny, err := ptypes.MarshalAny(cluster)
-	assert.NoError(t, err)
-	resp = v2.DiscoveryResponse{
-		VersionInfo: "2",
-		TypeUrl:     "type.googleapis.com/envoy.api.v2.Cluster",
-		Resources: []*any.Any{
-			clusterAny,
-		},
-	}
-	upstreamResponseChannelCDS <- &resp
-	gotResponse = <-cdsRespChannel
-	gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
-	assert.NoError(t, err)
-	assert.Equal(t, resp, *gotDiscoveryResponse)
+		cluster := &v2.Cluster{
+			Name: "cds resource",
+		}
+		clusterAny, err := ptypes.MarshalAny(cluster)
+		assert.NoError(t, err)
+		resp = v2.DiscoveryResponse{
+			VersionInfo: "2",
+			TypeUrl:     "type.googleapis.com/envoy.api.v2.Cluster",
+			Resources: []*any.Any{
+				clusterAny,
+			},
+		}
+		upstreamResponseChannelCDS <- &resp
+		gotResponse = <-cdsRespChannel
+		gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
+		assert.NoError(t, err)
+		assert.Equal(t, resp, *gotDiscoveryResponse)
 
-	req, err := http.NewRequest("GET", "/cache/", nil)
-	assert.NoError(t, err)
+		req, err := http.NewRequest("GET", url, nil)
+		assert.NoError(t, err)
 
-	rr := httptest.NewRecorder()
-	handler := cacheDumpHandler(&orchestrator)
+		rr := httptest.NewRecorder()
+		handler := cacheDumpHandler(&orchestrator)
 
-	handler.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), `lds: {
+		handler.ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusOK, rr.Code)
+		assert.Contains(t, rr.Body.String(), `lds: {
   "Resp": {
     "VersionInfo": "1",
     "Resources": {
@@ -297,7 +299,7 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
     }
   ],
   "ExpirationTime": "`)
-	assert.Contains(t, rr.Body.String(), `cds: {
+		assert.Contains(t, rr.Body.String(), `cds: {
   "Resp": {
     "VersionInfo": "2",
     "Resources": {
@@ -326,28 +328,26 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
     }
   ],
   "ExpirationTime": "`)
-	cancelLDSWatch()
-	cancelCDSWatch()
+		cancelLDSWatch()
+		cancelCDSWatch()
+	}
 }
 
 func TestGetParam(t *testing.T) {
 	path := "127.0.0.1:6070/cache/foo_production_*"
-	cacheKey, err := getParam(path)
-	assert.NoError(t, err)
+	cacheKey := getParam(path)
 	assert.Equal(t, "foo_production_*", cacheKey)
 }
 
 func TestGetParam_Empty(t *testing.T) {
 	path := "127.0.0.1:6070/cache/"
-	cacheKey, err := getParam(path)
-	assert.NoError(t, err)
+	cacheKey := getParam(path)
 	assert.Equal(t, "", cacheKey)
 }
 
 func TestGetParam_Malformed(t *testing.T) {
 	path := "127.0.0.1:6070"
-	cacheKey, err := getParam(path)
-	assert.Error(t, err, "")
+	cacheKey := getParam(path)
 	assert.Equal(t, "", cacheKey)
 }
 
@@ -371,6 +371,7 @@ func TestAdminServer_LogLevelHandler(t *testing.T) {
 
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, rr.Body.String(), "Current log level: debug\n")
 	logger.Debug(ctx, "bar")
 	output = buf.String()
 	assert.Contains(t, output, "bar")
@@ -380,11 +381,43 @@ func TestAdminServer_LogLevelHandler(t *testing.T) {
 
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Current log level: info\n")
 	logger.Debug(ctx, "baz")
 	logger.Info(ctx, "qux")
 	output = buf.String()
 	assert.NotContains(t, output, "baz")
 	assert.Contains(t, output, "qux")
+}
+
+func TestAdminServer_LogLevelHandler_GetLevel(t *testing.T) {
+	for _, url := range []string{"/log_level", "/log_level/"} {
+		var buf bytes.Buffer
+		logger := log.NewMock("error", &buf)
+		assert.Equal(t, 0, buf.Len())
+
+		req, err := http.NewRequest("POST", url, nil)
+		assert.NoError(t, err)
+
+		rr := httptest.NewRecorder()
+		handler := logLevelHandler(logger)
+
+		handler.ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusOK, rr.Code)
+		assert.Equal(t, rr.Body.String(), "Current log level: error\n")
+
+		req, err = http.NewRequest("POST", "/log_level/info", nil)
+		assert.NoError(t, err)
+
+		handler.ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusOK, rr.Code)
+
+		req, err = http.NewRequest("POST", url, nil)
+		assert.NoError(t, err)
+
+		handler.ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusOK, rr.Code)
+		assert.Contains(t, rr.Body.String(), "Current log level: info\n")
+	}
 }
 
 func TestMarshalResources(t *testing.T) {
