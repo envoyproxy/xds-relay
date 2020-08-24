@@ -62,7 +62,7 @@ func (l *logger) UpdateLogLevel(logLevel string) {
 	l.level = zLevel.String()
 }
 
-// GetLevel returns the logging level in human-readable string format..
+// GetLevel returns the logging level in human-readable string format.
 func (l *logger) GetLevel() string {
 	return l.level
 }

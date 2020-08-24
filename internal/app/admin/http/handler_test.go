@@ -371,6 +371,7 @@ func TestAdminServer_LogLevelHandler(t *testing.T) {
 
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, rr.Body.String(), "Current log level: debug\n")
 	logger.Debug(ctx, "bar")
 	output = buf.String()
 	assert.Contains(t, output, "bar")
@@ -380,6 +381,7 @@ func TestAdminServer_LogLevelHandler(t *testing.T) {
 
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Current log level: info\n")
 	logger.Debug(ctx, "baz")
 	logger.Info(ctx, "qux")
 	output = buf.String()

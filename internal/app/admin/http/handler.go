@@ -288,6 +288,7 @@ func logLevelHandler(l log.Logger) http.HandlerFunc {
 				return
 			}
 			l.UpdateLogLevel(logLevel)
+			fmt.Fprintf(w, "Current log level: %s\n", l.GetLevel())
 		} else {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			fmt.Fprintf(w, "Only POST is supported\n")
