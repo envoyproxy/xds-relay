@@ -307,6 +307,8 @@ func (m *Upstream) Validate() error {
 		}
 	}
 
+	// no validation rules for Ads
+
 	return nil
 }
 

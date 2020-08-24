@@ -39,6 +39,7 @@ message Server {
 message Upstream {
     // The address for the upstream cluster.
     SocketAddress address = 1 [(validate.rules).message.required = true];
+    bool ads = 2;
 }
 
 // [#next-free-field: 3]
