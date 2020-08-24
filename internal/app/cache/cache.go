@@ -18,7 +18,7 @@ import (
 
 type Cache interface {
 	// Fetch returns the cached resource if it exists.
-	Fetch(key string) (*Resource, error)
+	Fetch(key string, req *v2.DiscoveryRequest) (*Resource, error)
 
 	// SetResponse sets the cache response and returns the list of requests.
 	SetResponse(key string, resp v2.DiscoveryResponse) (map[*v2.DiscoveryRequest]bool, error)
@@ -35,7 +35,7 @@ type Cache interface {
 
 type ReadOnlyCache interface {
 	// Fetch returns the cached resource if it exists.
-	FetchReadOnly(key string) (Resource, error)
+	FetchReadOnly(key string, req *v2.DiscoveryRequest) (Resource, error)
 }
 
 type cache struct {
@@ -48,9 +48,19 @@ type cache struct {
 }
 
 type Resource struct {
+	responses      map[string]*v2.DiscoveryResponse
 	Resp           *v2.DiscoveryResponse
 	Requests       map[*v2.DiscoveryRequest]bool
 	ExpirationTime time.Time
+}
+
+func (r *Resource) Copy() *Resource {
+	return &Resource{
+		responses:      r.responses,
+		Resp:           r.Resp,
+		Requests:       r.Requests,
+		ExpirationTime: r.ExpirationTime,
+	}
 }
 
 // OnEvictFunc is a callback function for each eviction. Receives the key and cache value when called.
@@ -89,15 +99,15 @@ func (c *cache) GetReadOnlyCache() ReadOnlyCache {
 	return c
 }
 
-func (c *cache) FetchReadOnly(key string) (Resource, error) {
-	resource, err := c.Fetch(key)
+func (c *cache) FetchReadOnly(key string, req *v2.DiscoveryRequest) (Resource, error) {
+	resource, err := c.Fetch(key, req)
 	if resource == nil {
 		return Resource{}, err
 	}
 	return *resource, err
 }
 
-func (c *cache) Fetch(key string) (*Resource, error) {
+func (c *cache) Fetch(key string, req *v2.DiscoveryRequest) (*Resource, error) {
 	c.cacheMu.RLock()
 	metrics.CacheFetchSubscope(c.scope, key).Counter(metrics.CacheFetchAttempt).Inc(1)
 	value, found := c.cache.Get(key)
@@ -106,11 +116,13 @@ func (c *cache) Fetch(key string) (*Resource, error) {
 		metrics.CacheFetchSubscope(c.scope, key).Counter(metrics.CacheFetchMiss).Inc(1)
 		return nil, fmt.Errorf("no value found for key: %s", key)
 	}
+
 	resource, ok := value.(Resource)
 	if !ok {
 		metrics.CacheFetchSubscope(c.scope, key).Counter(metrics.CacheFetchError).Inc(1)
 		return nil, fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
+
 	// Lazy eviction based on TTL occurs here. Fetch does not increase the lifespan of the key.
 	if resource.isExpired(time.Now()) {
 		c.cacheMu.Lock()
@@ -134,6 +146,9 @@ func (c *cache) Fetch(key string) (*Resource, error) {
 			return nil, nil
 		}
 	}
+
+	resource.Resp = resource.responses[req.TypeUrl]
+
 	c.logger.With(
 		"aggregated_key", key,
 		"response_version", resource.Resp.GetVersionInfo(),
@@ -150,11 +165,13 @@ func (c *cache) SetResponse(key string, response v2.DiscoveryResponse) (map[*v2.
 	value, found := c.cache.Get(key)
 	if !found {
 		resource := Resource{
-			Resp:           &response,
+			responses:      map[string]*v2.DiscoveryResponse{response.TypeUrl: &response},
 			ExpirationTime: c.getExpirationTime(time.Now()),
 			Requests:       make(map[*v2.DiscoveryRequest]bool),
 		}
 		c.cache.Add(key, resource)
+
+		resource.Resp = &response
 		metrics.CacheSetSubscope(c.scope, key).Counter(metrics.CacheSetSuccess).Inc(1)
 		c.logger.With(
 			"aggregated_key", key,
@@ -162,14 +179,22 @@ func (c *cache) SetResponse(key string, response v2.DiscoveryResponse) (map[*v2.
 		).Debug(context.Background(), "set response")
 		return nil, nil
 	}
+
 	resource, ok := value.(Resource)
 	if !ok {
 		metrics.CacheSetSubscope(c.scope, key).Counter(metrics.CacheSetError).Inc(1)
 		return nil, fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
-	resource.Resp = &response
+
+	if resource.responses == nil {
+		resource.responses = make(map[string]*v2.DiscoveryResponse)
+	}
+
+	resource.responses[response.GetTypeUrl()] = &response
 	resource.ExpirationTime = c.getExpirationTime(time.Now())
 	c.cache.Add(key, resource)
+
+	resource.Resp = &response
 	c.logger.With(
 		"aggregated_key", key, "response_type", response.GetTypeUrl(),
 	).Debug(context.Background(), "set response")

@@ -118,6 +118,8 @@ func New(
 	return orchestrator
 }
 
+var _ gcp.Cache = &orchestrator{}
+
 // CreateWatch is managed by the underlying go-control-plane gRPC server.
 //
 // Orchestrator will populate the response channel with the corresponding
@@ -129,14 +131,14 @@ func New(
 //
 // Cancel is an optional function to release resources in the producer. If
 // provided, the consumer may call this function multiple times.
-func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) {
+func (o *orchestrator) CreateWatch(req *gcp.Request) (chan gcp.Response, func()) {
 	ctx := context.Background()
 
 	// If this is the first time we're seeing the request from the
 	// downstream client, initialize a channel to feed future responses.
-	responseChannel := o.downstreamResponseMap.createChannel(&req)
+	responseChannel := o.downstreamResponseMap.createChannel(req)
 
-	aggregatedKey, err := o.mapper.GetKey(req)
+	aggregatedKey, err := o.mapper.GetKey(*req)
 	if err != nil {
 		// Can't map the request to an aggregated key. Log and continue to
 		// propagate the response upstream without aggregation.
@@ -162,20 +164,20 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) 
 	).Debug(ctx, "creating watch")
 
 	// Register the watch for future responses.
-	err = o.cache.AddRequest(aggregatedKey, &req)
+	err = o.cache.AddRequest(aggregatedKey, req)
 	if err != nil {
 		// If we fail to register the watch, we need to kill this stream by
 		// closing the response channel.
 		o.logger.With("error", err).With("aggregated_key", aggregatedKey).With(
 			"request_node", req.GetNode()).Error(ctx, "failed to add watch")
 		metrics.OrchestratorWatchErrorsSubscope(o.scope, aggregatedKey).Counter(metrics.ErrorRegisterWatch).Inc(1)
-		closedChannel := o.downstreamResponseMap.delete(&req)
+		closedChannel := o.downstreamResponseMap.delete(req)
 		return closedChannel, nil
 	}
 	metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchCreated).Inc(1)
 
 	// Check if we have a cached response first.
-	cached, err := o.cache.Fetch(aggregatedKey)
+	cached, err := o.cache.Fetch(aggregatedKey, req)
 	if err != nil {
 		// Log, and continue to propagate the response upstream.
 		o.logger.With("error", err).With("aggregated_key", aggregatedKey).Warn(ctx, "failed to fetch aggregated key")
@@ -227,11 +229,11 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) 
 		}
 	}
 
-	return responseChannel.channel, o.onCancelWatch(aggregatedKey, &req)
+	return responseChannel.channel, o.onCancelWatch(aggregatedKey, req)
 }
 
 // Fetch implements the polling method of the config cache using a non-empty request.
-func (o *orchestrator) Fetch(context.Context, discovery.DiscoveryRequest) (gcp.Response, error) {
+func (o *orchestrator) Fetch(context.Context, *discovery.DiscoveryRequest) (gcp.Response, error) {
 	return nil, fmt.Errorf("Not implemented")
 }
 
@@ -305,7 +307,7 @@ func (o *orchestrator) watchUpstream(
 			// We retrieve from cache rather than directly fanning out the
 			// newly received response because the cache does additional
 			// resource serialization.
-			cached, err := o.cache.Fetch(aggregatedKey)
+			cached, err := o.cache.Fetch(aggregatedKey, &discovery.DiscoveryRequest{TypeUrl: x.TypeUrl})
 			if err != nil {
 				o.logger.With("error", err).With("aggregated_key", aggregatedKey).Error(ctx, "cache fetch failed")
 				// Can't do anything because we don't know who the watchers
@@ -347,7 +349,7 @@ func (o *orchestrator) fanout(resp *discovery.DiscoveryResponse, watchers map[*g
 			defer wg.Done()
 			// TODO https://github.com/envoyproxy/xds-relay/issues/119
 			if channel, ok := o.downstreamResponseMap.get(watch); ok {
-				if err := channel.addResponse(convertToGcpResponse(resp, *watch)); err != nil {
+				if err := channel.addResponse(convertToGcpResponse(resp, watch)); err != nil {
 					// If the channel is blocked, we simply drop subsequent
 					// requests and error. Alternative possibilities are
 					// discussed here:
@@ -407,7 +409,7 @@ func (o *orchestrator) shutdown(ctx context.Context) {
 
 // convertToGcpResponse constructs the go-control-plane response from the
 // cached response.
-func convertToGcpResponse(resp *discovery.DiscoveryResponse, req gcp.Request) gcp.PassthroughResponse {
+func convertToGcpResponse(resp *discovery.DiscoveryResponse, req *gcp.Request) gcp.PassthroughResponse {
 	return gcp.PassthroughResponse{
 		Request:           req,
 		DiscoveryResponse: resp,

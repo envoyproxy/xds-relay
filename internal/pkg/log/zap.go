@@ -6,6 +6,7 @@ import (
 
 	"github.com/envoyproxy/xds-relay/internal/pkg/log/zap"
 	z "go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type logger struct {
@@ -20,12 +21,17 @@ type logger struct {
 // Use os.Stderr if unsure.
 func New(logLevel string, writeTo io.Writer) Logger {
 	zLevel, parseLogLevelErr := zap.ParseLogLevel(logLevel)
+	encConfig := z.NewProductionEncoderConfig()
+	encConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	encConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+	encoder := zapcore.NewConsoleEncoder(encConfig)
 
 	log := zap.New(
+		zap.Encoder(encoder),
 		zap.Level(&zLevel),
 		// CallerSkip skips 1 number of callers, otherwise the file that gets
 		// logged will always be the wrapped file. In this case, log.go.
-		zap.AddCallerSkip(1),
+		zap.AddCallerSkip(2),
 		zap.WriteTo(writeTo),
 	)
 
@@ -34,7 +40,7 @@ func New(logLevel string, writeTo io.Writer) Logger {
 		log.Error("cannot set logger to desired log level")
 	}
 
-	log = log.With(z.Namespace("json"))
+	//log = log.With(z.Namespace("json"))
 	return &logger{zap: log.Sugar(), writeTo: writeTo}
 }
 

@@ -82,7 +82,7 @@ func TestAddRequestAndFetch(t *testing.T) {
 	cache, err := NewCache(1, testOnEvict, time.Second*60, log.MockLogger, mockScope)
 	assert.NoError(t, err)
 
-	resource, err := cache.Fetch(testKeyA)
+	resource, err := cache.Fetch(testKeyA, &v2.DiscoveryRequest{})
 	countersSnapshot := mockScope.Snapshot().Counters()
 	assert.EqualValues(
 		t, 1, countersSnapshot[fmt.Sprintf("cache.fetch.attempt+key=%v", testKeyA)].Value())
@@ -99,7 +99,7 @@ func TestAddRequestAndFetch(t *testing.T) {
 	assert.EqualValues(
 		t, 1, countersSnapshot[fmt.Sprintf("cache.add_request.success+key=%v", testKeyA)].Value())
 
-	resource, err = cache.Fetch(testKeyA)
+	resource, err = cache.Fetch(testKeyA, &testRequestA)
 	assert.NoError(t, err)
 	assert.Nil(t, resource.Resp)
 	countersSnapshot = mockScope.Snapshot().Counters()
@@ -114,7 +114,7 @@ func TestSetResponseAndFetch(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Simulate cache miss and setting of new response.
-	resource, err := cache.Fetch(testKeyA)
+	resource, err := cache.Fetch(testKeyA, &v2.DiscoveryRequest{})
 	assert.EqualError(t, err, "no value found for key: key_A")
 	assert.Nil(t, resource)
 
@@ -122,7 +122,7 @@ func TestSetResponseAndFetch(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Nil(t, requests)
 
-	resource, err = cache.Fetch(testKeyA)
+	resource, err = cache.Fetch(testKeyA, &v2.DiscoveryRequest{TypeUrl: testDiscoveryResponse.TypeUrl})
 	assert.NoError(t, err)
 	assert.Equal(t, testDiscoveryResponse, *resource.Resp)
 }
@@ -143,7 +143,7 @@ func TestAddRequestAndSetResponse(t *testing.T) {
 	assert.Equal(t, true, requests[&testRequestA])
 	assert.Equal(t, true, requests[&testRequestB])
 
-	resource, err := cache.Fetch(testKeyA)
+	resource, err := cache.Fetch(testKeyA, &v2.DiscoveryRequest{TypeUrl: testDiscoveryResponse.TypeUrl})
 	assert.NoError(t, err)
 	assert.Equal(t, testDiscoveryResponse, *resource.Resp)
 }
@@ -155,7 +155,7 @@ func TestMaxEntries(t *testing.T) {
 	_, err = cache.SetResponse(testKeyA, testDiscoveryResponse)
 	assert.NoError(t, err)
 
-	resource, err := cache.Fetch(testKeyA)
+	resource, err := cache.Fetch(testKeyA, &v2.DiscoveryRequest{TypeUrl: testDiscoveryResponse.TypeUrl})
 	assert.NoError(t, err)
 	assert.Equal(t, testDiscoveryResponse, *resource.Resp)
 
@@ -167,11 +167,11 @@ func TestMaxEntries(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	resource, err = cache.Fetch(testKeyA)
+	resource, err = cache.Fetch(testKeyA, &v2.DiscoveryRequest{TypeUrl: testDiscoveryResponse.TypeUrl})
 	assert.EqualError(t, err, "no value found for key: key_A")
 	assert.Nil(t, resource)
 
-	resource, err = cache.Fetch(testKeyB)
+	resource, err = cache.Fetch(testKeyB, &testRequestB)
 	assert.NoError(t, err)
 	assert.Nil(t, resource.Resp)
 }
@@ -183,7 +183,7 @@ func TestTTL_Enabled(t *testing.T) {
 	_, err = cache.SetResponse(testKeyA, testDiscoveryResponse)
 	assert.NoError(t, err)
 
-	resource, err := cache.Fetch(testKeyA)
+	resource, err := cache.Fetch(testKeyA, &v2.DiscoveryRequest{TypeUrl: testDiscoveryResponse.TypeUrl})
 	assert.NoError(t, err)
 	assert.Equal(t, testDiscoveryResponse, *resource.Resp)
 
@@ -192,12 +192,12 @@ func TestTTL_Enabled(t *testing.T) {
 		key:    testKeyA,
 		reason: "testOnEvict called",
 	}, func() {
-		resource, err = cache.Fetch(testKeyA)
+		resource, err = cache.Fetch(testKeyA, &v2.DiscoveryRequest{TypeUrl: testDiscoveryResponse.TypeUrl})
 		assert.NoError(t, err)
 		assert.Nil(t, resource)
 	})
 
-	resource, err = cache.Fetch(testKeyA)
+	resource, err = cache.Fetch(testKeyA, &v2.DiscoveryRequest{TypeUrl: testDiscoveryResponse.TypeUrl})
 	assert.EqualError(t, err, "no value found for key: key_A")
 	assert.Nil(t, resource)
 }
@@ -210,13 +210,18 @@ func TestTTL_Disabled(t *testing.T) {
 	_, err = cache.SetResponse(testKeyA, testDiscoveryResponse)
 	assert.NoError(t, err)
 
-	resource, err := cache.Fetch(testKeyA)
+	resource, err := cache.Fetch(testKeyA, &v2.DiscoveryRequest{TypeUrl: testDiscoveryResponse.TypeUrl})
 	assert.NoError(t, err)
 	assert.Equal(t, testDiscoveryResponse, *resource.Resp)
 
+	expectedResource := testResource
+	expectedResource.responses = map[string]*v2.DiscoveryResponse{
+		testDiscoveryResponse.TypeUrl: &testDiscoveryResponse,
+	}
+
 	gomega.Consistently(func() (*Resource, error) {
-		return cache.Fetch(testKeyA)
-	}).Should(gomega.Equal(&testResource))
+		return cache.Fetch(testKeyA, &v2.DiscoveryRequest{TypeUrl: testDiscoveryResponse.TypeUrl})
+	}).Should(gomega.Equal(&expectedResource))
 }
 
 func TestTTL_Negative(t *testing.T) {

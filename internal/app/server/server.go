@@ -26,6 +26,7 @@ import (
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
 
 	api "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v2"
 	gcp "github.com/envoyproxy/go-control-plane/pkg/server/v2"
 	"google.golang.org/grpc"
 )
@@ -91,6 +92,7 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	upstreamClient, err := upstream.New(
 		ctx,
 		upstreamAddress,
+		bootstrapConfig.OriginServer.Ads,
 		upstream.CallOptions{Timeout: time.Minute},
 		logger,
 		scope,
@@ -123,6 +125,7 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 		logger.With("error", err).Fatal(ctx, "failed to bind server to listener")
 	}
 
+	discovery.RegisterAggregatedDiscoveryServiceServer(server, gcpServer)
 	api.RegisterEndpointDiscoveryServiceServer(server, gcpServer)
 	api.RegisterClusterDiscoveryServiceServer(server, gcpServer)
 	api.RegisterRouteDiscoveryServiceServer(server, gcpServer)

@@ -18,7 +18,7 @@ type CallOptions = upstream.CallOptions
 func TestOpenStreamShouldReturnErrorForInvalidTypeUrl(t *testing.T) {
 	client := createMockClient()
 
-	respCh, _, err := client.OpenStream(v2.DiscoveryRequest{})
+	respCh, _, err := client.OpenStream(&v2.DiscoveryRequest{})
 	assert.NotNil(t, err)
 	_, ok := err.(*upstream.UnsupportedResourceError)
 	assert.True(t, ok)
@@ -36,7 +36,7 @@ func TestOpenStreamShouldReturnErrorOnStreamCreationFailure(t *testing.T) {
 	}
 	for _, typeURL := range typeURLs {
 		t.Run(typeURL, func(t *testing.T) {
-			respCh, _, err := client.OpenStream(v2.DiscoveryRequest{
+			respCh, _, err := client.OpenStream(&v2.DiscoveryRequest{
 				TypeUrl: typeURL,
 				Node:    &core.Node{},
 			})
@@ -49,7 +49,7 @@ func TestOpenStreamShouldReturnErrorOnStreamCreationFailure(t *testing.T) {
 func TestOpenStreamShouldReturnNonEmptyResponseChannel(t *testing.T) {
 	client := createMockClient()
 
-	respCh, done, err := client.OpenStream(v2.DiscoveryRequest{
+	respCh, done, err := client.OpenStream(&v2.DiscoveryRequest{
 		TypeUrl: upstream.ListenerTypeURL,
 		Node:    &core.Node{},
 	})
@@ -78,7 +78,7 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServer(t *testing.T) {
 	)
 
 	node := &core.Node{}
-	_, done, _ := client.OpenStream(v2.DiscoveryRequest{
+	_, done, _ := client.OpenStream(&v2.DiscoveryRequest{
 		TypeUrl: upstream.ListenerTypeURL,
 		Node:    node,
 	})
@@ -96,7 +96,7 @@ func TestOpenStreamShouldSendErrorIfSendFails(t *testing.T) {
 		return sendError
 	})
 
-	resp, done, _ := client.OpenStream(v2.DiscoveryRequest{
+	resp, done, _ := client.OpenStream(&v2.DiscoveryRequest{
 		TypeUrl: upstream.ListenerTypeURL,
 		Node:    &core.Node{},
 	})
@@ -113,7 +113,7 @@ func TestOpenStreamShouldSendTheResponseOnTheChannel(t *testing.T) {
 		return nil
 	})
 
-	resp, done, err := client.OpenStream(v2.DiscoveryRequest{
+	resp, done, err := client.OpenStream(&v2.DiscoveryRequest{
 		TypeUrl: upstream.ListenerTypeURL,
 		Node:    &core.Node{},
 	})
@@ -145,7 +145,7 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonce(t *testing
 		return nil
 	})
 
-	resp, done, err := client.OpenStream(v2.DiscoveryRequest{
+	resp, done, err := client.OpenStream(&v2.DiscoveryRequest{
 		TypeUrl: upstream.ListenerTypeURL,
 		Node:    &core.Node{},
 	})
@@ -170,7 +170,7 @@ func TestOpenStreamShouldSendErrorWhenSendMsgBlocks(t *testing.T) {
 		return nil
 	})
 
-	resp, done, err := client.OpenStream(v2.DiscoveryRequest{
+	resp, done, err := client.OpenStream(&v2.DiscoveryRequest{
 		TypeUrl: upstream.ListenerTypeURL,
 		Node:    &core.Node{},
 	})

@@ -100,47 +100,50 @@ func configDumpHandler(bootstrapConfig *bootstrapv1.Bootstrap) http.HandlerFunc 
 // TODO(lisalu): Support dump of matching resources when cache key regex is provided.
 func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		cacheKey, err := getParam(req.URL.Path)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, "unable to parse cache key from path: %s", err.Error())
-			return
-		}
-		cache := orchestrator.Orchestrator.GetReadOnlyCache(*o)
-
-		// If no key is provided, output the entire cache.
-		if cacheKey == "" {
-			keys, err := orchestrator.Orchestrator.GetDownstreamAggregatedKeys(*o)
+		panic("Need to be fixed")
+		/*
+			cacheKey, err := getParam(req.URL.Path)
 			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				fmt.Fprintf(w, "error in getting cache keys: %s", err.Error())
+				w.WriteHeader(http.StatusBadRequest)
+				fmt.Fprintf(w, "unable to parse cache key from path: %s", err.Error())
 				return
 			}
-			for key := range keys {
-				resource, err := cache.FetchReadOnly(key)
-				if err == nil {
-					resourceString, err := resourceToString(resource)
+			cache := orchestrator.Orchestrator.GetReadOnlyCache(*o)
+
+			// If no key is provided, output the entire cache.
+			if cacheKey == "" {
+				keys, err := orchestrator.Orchestrator.GetDownstreamAggregatedKeys(*o)
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					fmt.Fprintf(w, "error in getting cache keys: %s", err.Error())
+					return
+				}
+				for key := range keys {
+					resource, err := cache.FetchReadOnly(key)
 					if err == nil {
-						fmt.Fprintf(w, "%s: %s\n", key, resourceString)
+						resourceString, err := resourceToString(resource)
+						if err == nil {
+							fmt.Fprintf(w, "%s: %s\n", key, resourceString)
+						}
 					}
 				}
+				return
 			}
-			return
-		}
 
-		// Otherwise return the cache entry corresponding to the given key.
-		resource, err := cache.FetchReadOnly(cacheKey)
-		if err != nil {
-			fmt.Fprintf(w, "no resource for key %s found in cache.\n", cacheKey)
-			return
-		}
-		resourceString, err := resourceToString(resource)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "unable to convert resource to string.\n")
-			return
-		}
-		fmt.Fprint(w, resourceString)
+			// Otherwise return the cache entry corresponding to the given key.
+			resource, err := cache.FetchReadOnly(cacheKey)
+			if err != nil {
+				fmt.Fprintf(w, "no resource for key %s found in cache.\n", cacheKey)
+				return
+			}
+			resourceString, err := resourceToString(resource)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprintf(w, "unable to convert resource to string.\n")
+				return
+			}
+			fmt.Fprint(w, resourceString)
+		*/
 	}
 }
 

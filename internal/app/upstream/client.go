@@ -8,6 +8,7 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/app/metrics"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v2"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 	"github.com/envoyproxy/xds-relay/internal/pkg/util"
 	"github.com/uber-go/tally"
@@ -52,10 +53,13 @@ type Client interface {
 	// The shutdown function represents the intent that a stream is supposed to be closed.
 	// All goroutines that depend on the ctx object should consider ctx.Done to be related to shutdown.
 	// All such scenarios need to exit cleanly and are not considered an erroneous situation.
-	OpenStream(v2.DiscoveryRequest) (<-chan *v2.DiscoveryResponse, func(), error)
+	OpenStream(*v2.DiscoveryRequest) (<-chan *v2.DiscoveryResponse, func(), error)
 }
 
 type client struct {
+	ads bool
+
+	adsClient   discovery.AggregatedDiscoveryServiceClient
 	ldsClient   v2.ListenerDiscoveryServiceClient
 	rdsClient   v2.RouteDiscoveryServiceClient
 	edsClient   v2.EndpointDiscoveryServiceClient
@@ -86,6 +90,7 @@ type version struct {
 func New(
 	ctx context.Context,
 	url string,
+	ads bool,
 	callOptions CallOptions,
 	logger log.Logger,
 	scope tally.Scope,
@@ -100,48 +105,76 @@ func New(
 		return nil, err
 	}
 
-	ldsClient := v2.NewListenerDiscoveryServiceClient(conn)
-	rdsClient := v2.NewRouteDiscoveryServiceClient(conn)
-	edsClient := v2.NewEndpointDiscoveryServiceClient(conn)
-	cdsClient := v2.NewClusterDiscoveryServiceClient(conn)
-
-	go shutDown(ctx, conn)
-
-	return &client{
-		ldsClient:   ldsClient,
-		rdsClient:   rdsClient,
-		edsClient:   edsClient,
-		cdsClient:   cdsClient,
+	client := &client{
+		ads:         ads,
 		callOptions: callOptions,
 		logger:      namedLogger,
 		scope:       subScope,
-	}, nil
+	}
+
+	if ads {
+		client.adsClient = discovery.NewAggregatedDiscoveryServiceClient(conn)
+	} else {
+		client.ldsClient = v2.NewListenerDiscoveryServiceClient(conn)
+		client.rdsClient = v2.NewRouteDiscoveryServiceClient(conn)
+		client.edsClient = v2.NewEndpointDiscoveryServiceClient(conn)
+		client.cdsClient = v2.NewClusterDiscoveryServiceClient(conn)
+	}
+
+	go shutDown(ctx, conn)
+
+	return client, nil
 }
 
-func (m *client) OpenStream(request v2.DiscoveryRequest) (<-chan *v2.DiscoveryResponse, func(), error) {
+func (m *client) typedScope(typeURL string) (tally.Scope, error) {
+	var scope tally.Scope
+
+	switch typeURL {
+	case ListenerTypeURL:
+		scope = m.scope.SubScope(metrics.ScopeUpstreamLDS)
+	case ClusterTypeURL:
+		scope = m.scope.SubScope(metrics.ScopeUpstreamCDS)
+	case RouteTypeURL:
+		scope = m.scope.SubScope(metrics.ScopeUpstreamRDS)
+	case EndpointTypeURL:
+		scope = m.scope.SubScope(metrics.ScopeUpstreamEDS)
+	}
+
+	if scope == nil {
+		return nil, fmt.Errorf("Unsupported Type Url %s", typeURL)
+	}
+
+	return scope, nil
+}
+
+func (m *client) OpenStream(request *v2.DiscoveryRequest) (<-chan *v2.DiscoveryResponse, func(), error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	var (
 		stream grpc.ClientStream
 		err    error
 		scope  tally.Scope
 	)
-	switch request.GetTypeUrl() {
-	case ListenerTypeURL:
-		stream, err = m.ldsClient.StreamListeners(ctx)
-		scope = m.scope.SubScope(metrics.ScopeUpstreamLDS)
-	case ClusterTypeURL:
-		stream, err = m.cdsClient.StreamClusters(ctx)
-		scope = m.scope.SubScope(metrics.ScopeUpstreamCDS)
-	case RouteTypeURL:
-		stream, err = m.rdsClient.StreamRoutes(ctx)
-		scope = m.scope.SubScope(metrics.ScopeUpstreamRDS)
-	case EndpointTypeURL:
-		stream, err = m.edsClient.StreamEndpoints(ctx)
-		scope = m.scope.SubScope(metrics.ScopeUpstreamEDS)
-	default:
+
+	scope, err = m.typedScope(request.GetTypeUrl())
+	if err != nil {
 		defer cancel()
-		m.logger.Error(ctx, "Unsupported Type Url %s", request.GetTypeUrl())
+		m.logger.Error(ctx, "%s", err)
 		return nil, nil, &UnsupportedResourceError{TypeURL: request.GetTypeUrl()}
+	}
+
+	if m.ads {
+		stream, err = m.adsClient.StreamAggregatedResources(ctx)
+	} else {
+		switch request.GetTypeUrl() {
+		case ListenerTypeURL:
+			stream, err = m.ldsClient.StreamListeners(ctx)
+		case ClusterTypeURL:
+			stream, err = m.cdsClient.StreamClusters(ctx)
+		case RouteTypeURL:
+			stream, err = m.rdsClient.StreamRoutes(ctx)
+		case EndpointTypeURL:
+			stream, err = m.edsClient.StreamEndpoints(ctx)
+		}
 	}
 
 	if err != nil {
@@ -158,7 +191,7 @@ func (m *client) OpenStream(request v2.DiscoveryRequest) (<-chan *v2.DiscoveryRe
 
 	response := make(chan *v2.DiscoveryResponse)
 
-	go send(ctx, m.logger, cancel, &request, stream, signal, m.callOptions)
+	go send(ctx, m.logger, cancel, request, stream, signal, m.callOptions)
 	go recv(ctx, cancel, m.logger, response, stream, signal)
 
 	m.logger.With("request_type", request.GetTypeUrl()).Info(ctx, "stream opened")
@@ -202,6 +235,7 @@ func send(
 			logger.With(
 				"node_id", request.GetNode().GetId(),
 				"request_type", request.GetTypeUrl(),
+				"request_nonce", request.GetResponseNonce(),
 				"request_version", request.GetVersionInfo(),
 			).Debug(ctx, "sent message")
 		case <-ctx.Done():
@@ -228,6 +262,7 @@ func recv(
 		}
 		logger.With(
 			"response_version", resp.GetVersionInfo(),
+			"response_nonce", resp.GetNonce(),
 			"response_type", resp.GetTypeUrl(),
 			"resource_length", len(resp.GetResources()),
 		).Debug(context.Background(), "received message")

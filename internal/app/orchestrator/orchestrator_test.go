@@ -28,7 +28,7 @@ type mockSimpleUpstreamClient struct {
 	responseChan <-chan *v2.DiscoveryResponse
 }
 
-func (m mockSimpleUpstreamClient) OpenStream(req v2.DiscoveryRequest) (<-chan *v2.DiscoveryResponse, func(), error) {
+func (m mockSimpleUpstreamClient) OpenStream(req *v2.DiscoveryRequest) (<-chan *v2.DiscoveryResponse, func(), error) {
 	return m.responseChan, func() {}, nil
 }
 
@@ -41,9 +41,9 @@ type mockMultiStreamUpstreamClient struct {
 }
 
 func (m mockMultiStreamUpstreamClient) OpenStream(
-	req v2.DiscoveryRequest,
+	req *v2.DiscoveryRequest,
 ) (<-chan *v2.DiscoveryResponse, func(), error) {
-	aggregatedKey, err := m.mapper.GetKey(req)
+	aggregatedKey, err := m.mapper.GetKey(*req)
 	assert.NoError(m.t, err)
 
 	if aggregatedKey == "lds" {
@@ -74,11 +74,11 @@ func newMockOrchestrator(t *testing.T, mockScope tally.Scope, mapper mapper.Mapp
 	return orchestrator
 }
 
-func assertEqualResponse(t *testing.T, got gcp.Response, expected v2.DiscoveryResponse, req gcp.Request) {
+func assertEqualResponse(t *testing.T, got gcp.Response, expected v2.DiscoveryResponse, req *gcp.Request) {
 	gotDiscoveryResponse, err := got.GetDiscoveryResponse()
 	assert.NoError(t, err)
 	assert.Equal(t, expected, *gotDiscoveryResponse)
-	assert.Equal(t, req, *got.GetRequest())
+	assert.Equal(t, req, got.GetRequest())
 }
 
 func TestNew(t *testing.T) {
@@ -129,10 +129,10 @@ func TestGoldenPath(t *testing.T) {
 	)
 	assert.NotNil(t, orchestrator)
 
-	req := gcp.Request{
+	req := &gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
 	}
-	aggregatedKey, err := mapper.GetKey(req)
+	aggregatedKey, err := mapper.GetKey(*req)
 	assert.NoError(t, err)
 
 	respChannel, cancelWatch := orchestrator.CreateWatch(req)
@@ -192,12 +192,12 @@ func TestCachedResponse(t *testing.T) {
 
 	// Test scenario with different request and response versions.
 	// Version is different, so we expect a response.
-	req := gcp.Request{
+	req := &gcp.Request{
 		VersionInfo: "0",
 		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
 	}
 
-	aggregatedKey, err := mapper.GetKey(req)
+	aggregatedKey, err := mapper.GetKey(*req)
 	assert.NoError(t, err)
 	mockResponse := v2.DiscoveryResponse{
 		VersionInfo: "1",
@@ -246,7 +246,7 @@ func TestCachedResponse(t *testing.T) {
 
 	// Test scenario with same request and response version.
 	// We expect a watch to be open but no response.
-	req2 := gcp.Request{
+	req2 := &gcp.Request{
 		VersionInfo: "2",
 		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
 	}
@@ -291,19 +291,19 @@ func TestMultipleWatchersAndUpstreams(t *testing.T) {
 	)
 	assert.NotNil(t, orchestrator)
 
-	req1 := gcp.Request{
+	req1 := &gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
 		Node: &v2_core.Node{
 			Id: "req1",
 		},
 	}
-	req2 := gcp.Request{
+	req2 := &gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
 		Node: &v2_core.Node{
 			Id: "req2",
 		},
 	}
-	req3 := gcp.Request{
+	req3 := &gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Cluster",
 		Node: &v2_core.Node{
 			Id: "req3",

@@ -112,7 +112,7 @@ func (responseChannel *responseChannel) addResponse(resp gcp.PassthroughResponse
 	responseChannel.wg.Add(1)
 	defer responseChannel.wg.Done()
 	select {
-	case responseChannel.channel <- resp:
+	case responseChannel.channel <- &resp:
 		return nil
 	default:
 		return fmt.Errorf("channel is blocked")

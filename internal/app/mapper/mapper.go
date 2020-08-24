@@ -1,6 +1,7 @@
 package mapper
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -47,8 +48,14 @@ func New(config *aggregationv1.KeyerConfiguration, scope tally.Scope) Mapper {
 	}
 }
 
+func printJson(o interface{}) {
+	data, _ := json.MarshalIndent(o, "", "  ")
+	fmt.Println(string(data))
+}
+
 // GetKey converts a request into an aggregated key
 func (mapper *mapper) GetKey(request v2.DiscoveryRequest) (string, error) {
+	printJson(request)
 	if request.GetTypeUrl() == "" {
 		mapper.scope.Counter(metrics.MapperError).Inc(1)
 		return "", fmt.Errorf("typeURL is empty")
