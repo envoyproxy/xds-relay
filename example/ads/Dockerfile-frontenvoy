@@ -1,0 +1,5 @@
+FROM envoyproxy/envoy-dev:latest
+
+RUN apt-get update && apt-get -q install -y \
+    curl
+ENTRYPOINT /usr/local/bin/envoy -c /etc/front-envoy.yaml --service-cluster front-proxy --service-node "sidecar~10.244.0.111~httpbin-595f85b4b6-c8vfz.default~default.svc.cluster.local"

@@ -1,0 +1,15 @@
+version: "3.7"
+services:
+
+  front-envoy:
+    build:
+      context: .
+      dockerfile: Dockerfile-frontenvoy
+    volumes:
+      - ./front-envoy.yaml:/etc/front-envoy.yaml
+  
+    expose:
+      - "8001"
+    ports:
+      - "8001:8001"
+

@@ -1,0 +1,10 @@
+fragments:
+  - rules:
+    - match:
+        any_match: true
+      result:
+        request_node_fragment:
+          field: NODE_CLUSTER
+          action:
+            exact: true
+  
