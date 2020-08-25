@@ -34,7 +34,7 @@ compile-validator-tool: setup  ## Compiles configuration validator tool
 
 .PHONY: build-docker-image
 build-docker-image: ## Build docker image for use in e2e tests
-	docker build . --file Dockerfile --tag xds-relay
+	docker build . --file Dockerfile-e2e-tests --tag xds-relay
 
 .PHONY: lint
 lint: ## Run golangci-lint
