@@ -25,8 +25,8 @@ import (
 // WaitGroup is used here to ensure that all writes to the channel are
 // processed before we attempt to close the channel.
 type responseChannel struct {
-	wg sync.WaitGroup
-	w  transport.Watch
+	wg    sync.WaitGroup
+	watch transport.Watch
 }
 
 // downstreamResponseMap is a map of downstream xDS client requests to response
@@ -49,7 +49,7 @@ func (d *downstreamResponseMap) createChannel(req *gcp.Request) *responseChannel
 	defer d.mu.Unlock()
 	if _, ok := d.responseChannels[req]; !ok {
 		d.responseChannels[req] = &responseChannel{
-			w: transport.NewWatchV2(req),
+			watch: transport.NewWatchV2(req),
 		}
 	}
 	return d.responseChannels[req]
@@ -71,9 +71,9 @@ func (d *downstreamResponseMap) delete(req *gcp.Request) transport.Watch {
 	if responseChannel, ok := d.responseChannels[req]; ok {
 		// wait for all writes to the responseChannel to complete before closing.
 		responseChannel.wg.Wait()
-		responseChannel.w.Close()
+		responseChannel.watch.Close()
 		delete(d.responseChannels, req)
-		return responseChannel.w
+		return responseChannel.watch
 	}
 	return nil
 }
@@ -87,7 +87,7 @@ func (d *downstreamResponseMap) deleteAll(watchers map[*gcp.Request]bool) {
 		if responseChannel, ok := d.responseChannels[watch]; ok {
 			// wait for all writes to the responseChannel to complete before closing.
 			responseChannel.wg.Wait()
-			responseChannel.w.Close()
+			responseChannel.watch.Close()
 			delete(d.responseChannels, watch)
 		}
 	}
@@ -112,7 +112,7 @@ func (d *downstreamResponseMap) getAggregatedKeys(m *mapper.Mapper) (map[string]
 func (responseChannel *responseChannel) addResponse(resp gcp.PassthroughResponse) error {
 	responseChannel.wg.Add(1)
 	defer responseChannel.wg.Done()
-	ok, err := responseChannel.w.Send(resp)
+	ok, err := responseChannel.watch.Send(resp)
 	if err != nil {
 		return err
 	}

@@ -227,7 +227,7 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) 
 		}
 	}
 
-	return responseChannel.w.GetChannelV2(), o.onCancelWatch(aggregatedKey, &req)
+	return responseChannel.watch.GetChannelV2(), o.onCancelWatch(aggregatedKey, &req)
 }
 
 // Fetch implements the polling method of the config cache using a non-empty request.
