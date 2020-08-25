@@ -4,14 +4,12 @@ import (
 	"fmt"
 
 	gcpv2 "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
-	gcpv3 "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 )
 
 // Watch interface abstracts v2 and v3 watches
 type Watch interface {
 	Close()
-	GetChannelV2() chan gcpv2.Response
-	GetChannelV3() chan gcpv3.Response
+	GetChannel() interface{}
 	Send(s interface{}) (bool, error)
 }
 
@@ -37,13 +35,8 @@ func (w *watchV2) Close() {
 }
 
 // GetChannelV2 gets the v2 channel used for communication with the xds client
-func (w *watchV2) GetChannelV2() chan gcpv2.Response {
+func (w *watchV2) GetChannel() interface{} {
 	return w.out
-}
-
-// GetChannelV3 gets the v3 channel used for communication with the xds client
-func (w *watchV2) GetChannelV3() chan gcpv3.Response {
-	return nil
 }
 
 // Send sends the xds response over wire

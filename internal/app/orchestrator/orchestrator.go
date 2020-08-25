@@ -170,7 +170,7 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) 
 			"request_node", req.GetNode()).Error(ctx, "failed to add watch")
 		metrics.OrchestratorWatchErrorsSubscope(o.scope, aggregatedKey).Counter(metrics.ErrorRegisterWatch).Inc(1)
 		w := o.downstreamResponseMap.delete(&req)
-		return w.GetChannelV2(), nil
+		return w.GetChannel().(chan gcp.Response), nil
 	}
 	metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchCreated).Inc(1)
 
@@ -227,7 +227,7 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) 
 		}
 	}
 
-	return responseChannel.watch.GetChannelV2(), o.onCancelWatch(aggregatedKey, &req)
+	return responseChannel.watch.GetChannel().(chan gcp.Response), o.onCancelWatch(aggregatedKey, &req)
 }
 
 // Fetch implements the polling method of the config cache using a non-empty request.
