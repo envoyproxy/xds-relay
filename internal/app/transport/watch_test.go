@@ -13,7 +13,7 @@ func TestGetChannel(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		_, more := <-w.GetCh().(chan gcp.Response)
+		_, more := <-w.GetChannelV2()
 		assert.False(t, more)
 		wg.Done()
 	}()
@@ -28,7 +28,7 @@ func TestSendSuccessful(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
-		got, more := <-w.GetCh().(chan gcp.Response)
+		got, more := <-w.GetChannelV2()
 		assert.True(t, more)
 		assert.Equal(t, resp, got)
 		wg.Done()
