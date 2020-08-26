@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/envoyproxy/xds-relay/internal/app/transport"
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
 
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
@@ -159,6 +160,7 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
   },
   "Requests": [
     {
+      "version_info": "1",
       "type_url": "type.googleapis.com/envoy.api.v2.Listener"
     }
   ],
@@ -293,6 +295,7 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
   },
   "Requests": [
     {
+      "version_info": "1",
       "type_url": "type.googleapis.com/envoy.api.v2.Listener"
     }
   ],
@@ -322,6 +325,7 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
   },
   "Requests": [
     {
+      "version_info": "2",
       "type_url": "type.googleapis.com/envoy.api.v2.Cluster"
     }
   ],
@@ -414,7 +418,7 @@ func TestMarshalDiscoveryResponse(t *testing.T) {
 			listenerAny,
 		},
 	}
-	marshalled := marshalDiscoveryResponse(&resp)
+	marshalled := marshalDiscoveryResponse(transport.NewResponseV2(&gcp.Request{}, &resp))
 	assert.NotNil(t, marshalled)
 	assert.Equal(t, resp.VersionInfo, marshalled.VersionInfo)
 	assert.Equal(t, resp.TypeUrl, marshalled.TypeURL)

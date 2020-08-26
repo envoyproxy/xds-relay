@@ -13,6 +13,7 @@ import (
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	"github.com/envoyproxy/xds-relay/internal/app/cache"
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
+	"github.com/envoyproxy/xds-relay/internal/app/transport"
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 	"github.com/envoyproxy/xds-relay/internal/pkg/util/testutils"
@@ -25,24 +26,24 @@ import (
 )
 
 type mockSimpleUpstreamClient struct {
-	responseChan <-chan *v2.DiscoveryResponse
+	responseChan <-chan transport.Response
 }
 
-func (m mockSimpleUpstreamClient) OpenStream(req v2.DiscoveryRequest) (<-chan *v2.DiscoveryResponse, func(), error) {
+func (m mockSimpleUpstreamClient) OpenStream(req transport.Request) (<-chan transport.Response, func(), error) {
 	return m.responseChan, func() {}, nil
 }
 
 type mockMultiStreamUpstreamClient struct {
-	ldsResponseChan <-chan *v2.DiscoveryResponse
-	cdsResponseChan <-chan *v2.DiscoveryResponse
+	ldsResponseChan <-chan transport.Response
+	cdsResponseChan <-chan transport.Response
 
 	t      *testing.T
 	mapper mapper.Mapper
 }
 
 func (m mockMultiStreamUpstreamClient) OpenStream(
-	req v2.DiscoveryRequest,
-) (<-chan *v2.DiscoveryResponse, func(), error) {
+	req transport.Request,
+) (<-chan transport.Response, func(), error) {
 	aggregatedKey, err := m.mapper.GetKey(req)
 	assert.NoError(m.t, err)
 
@@ -116,7 +117,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestGoldenPath(t *testing.T) {
-	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
+	upstreamResponseChannel := make(chan transport.Response)
 	mapper := mapper.NewMock(t)
 	mockScope := stats.NewMockScope("mock_orchestrator")
 	orchestrator := newMockOrchestrator(
@@ -132,7 +133,7 @@ func TestGoldenPath(t *testing.T) {
 	req := gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
 	}
-	aggregatedKey, err := mapper.GetKey(req)
+	aggregatedKey, err := mapper.GetKey(transport.NewRequestV2(&req))
 	assert.NoError(t, err)
 
 	respChannel, cancelWatch := orchestrator.CreateWatch(req)
@@ -156,7 +157,7 @@ func TestGoldenPath(t *testing.T) {
 			},
 		},
 	}
-	upstreamResponseChannel <- &resp
+	upstreamResponseChannel <- transport.NewResponseV2(&req, &resp)
 
 	gotResponse := <-respChannel
 	assertEqualResponse(t, gotResponse, resp, req)
@@ -177,7 +178,7 @@ func TestGoldenPath(t *testing.T) {
 }
 
 func TestCachedResponse(t *testing.T) {
-	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
+	upstreamResponseChannel := make(chan transport.Response)
 	mapper := mapper.NewMock(t)
 	mockScope := stats.NewMockScope("prefix")
 	orchestrator := newMockOrchestrator(
@@ -197,7 +198,7 @@ func TestCachedResponse(t *testing.T) {
 		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
 	}
 
-	aggregatedKey, err := mapper.GetKey(req)
+	aggregatedKey, err := mapper.GetKey(transport.NewRequestV2(&req))
 	assert.NoError(t, err)
 	mockResponse := v2.DiscoveryResponse{
 		VersionInfo: "1",
@@ -208,7 +209,7 @@ func TestCachedResponse(t *testing.T) {
 			},
 		},
 	}
-	watchers, err := orchestrator.cache.SetResponse(aggregatedKey, mockResponse)
+	watchers, err := orchestrator.cache.SetResponse(aggregatedKey, transport.NewResponseV2(&req, &mockResponse))
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(watchers))
 
@@ -235,7 +236,7 @@ func TestCachedResponse(t *testing.T) {
 		},
 	}
 
-	upstreamResponseChannel <- &resp
+	upstreamResponseChannel <- transport.NewResponseV2(&req, &resp)
 	gotResponse = <-respChannel
 	assertEqualResponse(t, gotResponse, resp, req)
 	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
@@ -274,8 +275,8 @@ func TestCachedResponse(t *testing.T) {
 }
 
 func TestMultipleWatchersAndUpstreams(t *testing.T) {
-	upstreamResponseChannelLDS := make(chan *v2.DiscoveryResponse)
-	upstreamResponseChannelCDS := make(chan *v2.DiscoveryResponse)
+	upstreamResponseChannelLDS := make(chan transport.Response)
+	upstreamResponseChannelCDS := make(chan transport.Response)
 	mapper := mapper.NewMock(t)
 	mockScope := stats.NewMockScope("prefix")
 	orchestrator := newMockOrchestrator(
@@ -336,8 +337,8 @@ func TestMultipleWatchersAndUpstreams(t *testing.T) {
 		},
 	}
 
-	upstreamResponseChannelLDS <- &upstreamResponseLDS
-	upstreamResponseChannelCDS <- &upstreamResponseCDS
+	upstreamResponseChannelLDS <- transport.NewResponseV2(&req1, &upstreamResponseLDS)
+	upstreamResponseChannelCDS <- transport.NewResponseV2(&req3, &upstreamResponseCDS)
 
 	gotResponseFromChannel1 := <-respChannel1
 	gotResponseFromChannel2 := <-respChannel2
@@ -351,7 +352,7 @@ func TestMultipleWatchersAndUpstreams(t *testing.T) {
 	})
 
 	assertEqualResponse(t, gotResponseFromChannel1, upstreamResponseLDS, req1)
-	assertEqualResponse(t, gotResponseFromChannel2, upstreamResponseLDS, req2)
+	assertEqualResponse(t, gotResponseFromChannel2, upstreamResponseLDS, req1)
 	assertEqualResponse(t, gotResponseFromChannel3, upstreamResponseCDS, req3)
 
 	ctx, cancel := context.WithCancel(context.Background())

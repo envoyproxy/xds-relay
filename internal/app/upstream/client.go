@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/envoyproxy/xds-relay/internal/app/metrics"
+	"github.com/envoyproxy/xds-relay/internal/app/transport"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
@@ -52,7 +53,7 @@ type Client interface {
 	// The shutdown function represents the intent that a stream is supposed to be closed.
 	// All goroutines that depend on the ctx object should consider ctx.Done to be related to shutdown.
 	// All such scenarios need to exit cleanly and are not considered an erroneous situation.
-	OpenStream(v2.DiscoveryRequest) (<-chan *v2.DiscoveryResponse, func(), error)
+	OpenStream(transport.Request) (<-chan transport.Response, func(), error)
 }
 
 type client struct {
@@ -118,14 +119,14 @@ func New(
 	}, nil
 }
 
-func (m *client) OpenStream(request v2.DiscoveryRequest) (<-chan *v2.DiscoveryResponse, func(), error) {
+func (m *client) OpenStream(request transport.Request) (<-chan transport.Response, func(), error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	var (
 		stream grpc.ClientStream
 		err    error
 		scope  tally.Scope
 	)
-	switch request.GetTypeUrl() {
+	switch request.GetTypeURL() {
 	case ListenerTypeURL:
 		stream, err = m.ldsClient.StreamListeners(ctx)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamLDS)
@@ -140,8 +141,8 @@ func (m *client) OpenStream(request v2.DiscoveryRequest) (<-chan *v2.DiscoveryRe
 		scope = m.scope.SubScope(metrics.ScopeUpstreamEDS)
 	default:
 		defer cancel()
-		m.logger.Error(ctx, "Unsupported Type Url %s", request.GetTypeUrl())
-		return nil, nil, &UnsupportedResourceError{TypeURL: request.GetTypeUrl()}
+		m.logger.Error(ctx, "Unsupported Type Url %s", request.GetTypeURL())
+		return nil, nil, &UnsupportedResourceError{TypeURL: request.GetTypeURL()}
 	}
 
 	if err != nil {
@@ -156,12 +157,12 @@ func (m *client) OpenStream(request v2.DiscoveryRequest) (<-chan *v2.DiscoveryRe
 	// The origin server will respond with the latest version.
 	signal <- &version{nonce: "", version: ""}
 
-	response := make(chan *v2.DiscoveryResponse)
+	response := make(chan transport.Response)
 
-	go send(ctx, m.logger, cancel, &request, stream, signal, m.callOptions)
-	go recv(ctx, cancel, m.logger, response, stream, signal)
+	go send(ctx, m.logger, cancel, request, stream, signal, m.callOptions)
+	go recv(ctx, cancel, m.logger, request, response, stream, signal)
 
-	m.logger.With("request_type", request.GetTypeUrl()).Info(ctx, "stream opened")
+	m.logger.With("request_type", request.GetTypeURL()).Info(ctx, "stream opened")
 
 	// We use context cancellation over using a separate channel for signalling stream shutdown.
 	// The reason is cancelling a context tied with the stream is straightforward to signal closure.
@@ -178,7 +179,7 @@ func send(
 	ctx context.Context,
 	logger log.Logger,
 	cancelFunc context.CancelFunc,
-	request *v2.DiscoveryRequest,
+	request transport.Request,
 	stream grpc.ClientStream,
 	signal chan *version,
 	callOptions CallOptions) {
@@ -188,8 +189,9 @@ func send(
 			if !ok {
 				return
 			}
-			request.ResponseNonce = sig.nonce
-			request.VersionInfo = sig.version
+			discoveryRequest := request.GetRaw().(*v2.DiscoveryRequest)
+			discoveryRequest.ResponseNonce = sig.nonce
+			discoveryRequest.VersionInfo = sig.version
 			// Ref: https://github.com/grpc/grpc-go/issues/1229#issuecomment-302755717
 			// Call SendMsg in a timeout because it can block in some cases.
 			err := util.DoWithTimeout(ctx, func() error {
@@ -200,8 +202,8 @@ func send(
 				return
 			}
 			logger.With(
-				"node_id", request.GetNode().GetId(),
-				"request_type", request.GetTypeUrl(),
+				"node_id", request.GetNodeID(),
+				"request_type", request.GetTypeURL(),
 				"request_version", request.GetVersionInfo(),
 			).Debug(ctx, "sent message")
 		case <-ctx.Done():
@@ -217,7 +219,8 @@ func recv(
 	ctx context.Context,
 	cancelFunc context.CancelFunc,
 	logger log.Logger,
-	response chan *v2.DiscoveryResponse,
+	request transport.Request,
+	response chan transport.Response,
 	stream grpc.ClientStream,
 	signal chan *version) {
 	for {
@@ -235,7 +238,7 @@ func recv(
 		case <-ctx.Done():
 			break
 		default:
-			response <- resp
+			response <- transport.NewResponseV2(request.GetRaw().(*v2.DiscoveryRequest), resp)
 			signal <- &version{version: resp.GetVersionInfo(), nonce: resp.GetNonce()}
 		}
 	}
@@ -256,7 +259,7 @@ func handleError(ctx context.Context, logger log.Logger, errMsg string, cancelFu
 
 // closeChannels is called whenever the context is cancelled (ctx.Done) in Send and Recv goroutines.
 // It is also called when an irrecoverable error occurs and the error is passed to the caller.
-func closeChannels(versionChan chan *version, responseChan chan *v2.DiscoveryResponse) {
+func closeChannels(versionChan chan *version, responseChan chan transport.Response) {
 	close(versionChan)
 	close(responseChan)
 }

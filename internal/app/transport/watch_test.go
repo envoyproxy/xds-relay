@@ -4,12 +4,14 @@ import (
 	"sync"
 	"testing"
 
+	discoveryv2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	"github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGetChannel(t *testing.T) {
-	w := NewWatchV2(&gcp.Request{})
+	w := newWatchV2()
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -23,14 +25,16 @@ func TestGetChannel(t *testing.T) {
 }
 
 func TestSendSuccessful(t *testing.T) {
-	w := NewWatchV2(&gcp.Request{})
-	resp := gcp.RawResponse{}
+	w := newWatchV2()
+	discoveryResponse := &discoveryv2.DiscoveryResponse{}
+	discoveryRequest := &gcp.Request{}
+	resp := NewResponseV2(discoveryRequest, discoveryResponse)
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
 		got, more := <-w.GetChannel().(chan gcp.Response)
 		assert.True(t, more)
-		assert.Equal(t, resp, got)
+		assert.Equal(t, cache.PassthroughResponse{DiscoveryResponse: discoveryResponse, Request: *discoveryRequest}, got)
 		wg.Done()
 	}()
 	go func() {
@@ -43,11 +47,11 @@ func TestSendSuccessful(t *testing.T) {
 }
 
 func TestSendCastFailure(t *testing.T) {
-	w := NewWatchV2(&gcp.Request{})
+	w := newWatchV2()
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		ok, err := w.Send("")
+		ok, err := w.Send(&mockResponse{})
 		assert.False(t, ok)
 		assert.NotNil(t, err)
 		wg.Done()
@@ -56,9 +60,9 @@ func TestSendCastFailure(t *testing.T) {
 }
 
 func TestSendFalseWhenBlocked(t *testing.T) {
-	w := NewWatchV2(&gcp.Request{})
+	w := newWatchV2()
 	var wg sync.WaitGroup
-	resp := gcp.RawResponse{}
+	resp := NewResponseV2(&discoveryv2.DiscoveryRequest{}, &discoveryv2.DiscoveryResponse{})
 	wg.Add(2)
 	// We perform 2 sends with no receive on w.Out .
 	// One of the send gets blocked because of no recipient.
@@ -71,11 +75,36 @@ func TestSendFalseWhenBlocked(t *testing.T) {
 	wg.Wait()
 }
 
-func sendWithCloseChannelOnFailure(t *testing.T, w Watch, wg *sync.WaitGroup, r interface{}) {
+func sendWithCloseChannelOnFailure(t *testing.T, w Watch, wg *sync.WaitGroup, r Response) {
 	ok, err := w.Send(r)
 	assert.Nil(t, err)
 	if !ok {
 		w.Close()
 	}
 	wg.Done()
+}
+
+var _ Response = &mockResponse{}
+
+type mockResponse struct {
+}
+
+func (r *mockResponse) GetPayloadVersion() string {
+	return ""
+}
+
+func (r *mockResponse) GetTypeURL() string {
+	return ""
+}
+
+func (r *mockResponse) GetNonce() string {
+	return ""
+}
+
+func (r *mockResponse) GetRequest() interface{} {
+	return nil
+}
+
+func (r *mockResponse) Get() interface{} {
+	return nil
 }

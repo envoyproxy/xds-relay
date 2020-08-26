@@ -20,6 +20,7 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/app/cache"
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
 	"github.com/envoyproxy/xds-relay/internal/app/metrics"
+	"github.com/envoyproxy/xds-relay/internal/app/transport"
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 )
@@ -129,12 +130,18 @@ func New(
 //
 // Cancel is an optional function to release resources in the producer. If
 // provided, the consumer may call this function multiple times.
-func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) {
+func (o *orchestrator) CreateWatch(r gcp.Request) (chan gcp.Response, func()) {
+	req := transport.NewRequestV2(&r)
+	w, f := o.createWatch(req)
+	return w.GetChannel().(chan gcp.Response), f
+}
+
+func (o *orchestrator) createWatch(req transport.Request) (transport.Watch, func()) {
 	ctx := context.Background()
 
 	// If this is the first time we're seeing the request from the
 	// downstream client, initialize a channel to feed future responses.
-	responseChannel := o.downstreamResponseMap.createChannel(&req)
+	responseChannel := o.downstreamResponseMap.createChannel(req)
 
 	aggregatedKey, err := o.mapper.GetKey(req)
 	if err != nil {
@@ -142,35 +149,35 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) 
 		// propagate the response upstream without aggregation.
 		o.logger.With(
 			"error", err,
-			"request_type", req.GetTypeUrl(),
+			"request_type", req.GetTypeURL(),
 			"request", req,
 		).Warn(ctx, "failed to map to aggregated key")
 		// Mimic the aggregated key.
 		// TODO (https://github.com/envoyproxy/xds-relay/issues/56). Can we
 		// condense this key but still make it granular enough to uniquely
 		// identify a request?
-		aggregatedKey = fmt.Sprintf("%s%s", unaggregatedPrefix, req.String())
+		aggregatedKey = fmt.Sprintf("%s%s", unaggregatedPrefix, req.GetRaw())
 	}
 
 	o.logger.With(
-		"node_id", req.GetNode().GetId(),
-		"request_type", req.GetTypeUrl(),
+		"node_id", req.GetNodeID(),
+		"request_type", req.GetTypeURL(),
 		"request_version", req.GetVersionInfo(),
 		"nonce", req.GetResponseNonce(),
-		"error", req.GetErrorDetail(),
+		"error", req.GetError(),
 		"aggregated_key", aggregatedKey,
 	).Debug(ctx, "creating watch")
 
 	// Register the watch for future responses.
-	err = o.cache.AddRequest(aggregatedKey, &req)
+	err = o.cache.AddRequest(aggregatedKey, req)
 	if err != nil {
 		// If we fail to register the watch, we need to kill this stream by
 		// closing the response channel.
 		o.logger.With("error", err).With("aggregated_key", aggregatedKey).With(
-			"request_node", req.GetNode()).Error(ctx, "failed to add watch")
+			"request", req.GetRaw()).Error(ctx, "failed to add watch")
 		metrics.OrchestratorWatchErrorsSubscope(o.scope, aggregatedKey).Counter(metrics.ErrorRegisterWatch).Inc(1)
-		w := o.downstreamResponseMap.delete(&req)
-		return w.GetChannel().(chan gcp.Response), nil
+		w := o.downstreamResponseMap.delete(req)
+		return w, nil
 	}
 	metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchCreated).Inc(1)
 
@@ -181,11 +188,11 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) 
 		o.logger.With("error", err).With("aggregated_key", aggregatedKey).Warn(ctx, "failed to fetch aggregated key")
 	}
 
-	if cached != nil && cached.Resp != nil && cached.Resp.GetVersionInfo() != req.GetVersionInfo() {
+	if cached != nil && cached.Resp != nil && cached.Resp.GetPayloadVersion() != req.GetVersionInfo() {
 		// If we have a cached response and the version is different,
 		// immediately push the result to the response channel.
 		go func() {
-			err := responseChannel.addResponse(convertToGcpResponse(cached.Resp, req))
+			err := responseChannel.addResponse(cached.Resp)
 			if err != nil {
 				// Sanity check that the channel isn't blocked. This shouldn't
 				// ever happen since the channel is newly created. Regardless,
@@ -227,7 +234,7 @@ func (o *orchestrator) CreateWatch(req gcp.Request) (chan gcp.Response, func()) 
 		}
 	}
 
-	return responseChannel.watch.GetChannel().(chan gcp.Response), o.onCancelWatch(aggregatedKey, &req)
+	return responseChannel.watch, o.onCancelWatch(aggregatedKey, req)
 }
 
 // Fetch implements the polling method of the config cache using a non-empty request.
@@ -273,7 +280,7 @@ func (o *orchestrator) GetDownstreamAggregatedKeys() (map[string]bool, error) {
 func (o *orchestrator) watchUpstream(
 	ctx context.Context,
 	aggregatedKey string,
-	responseChannel <-chan *discovery.DiscoveryResponse,
+	responseChannel <-chan transport.Response,
 	done <-chan bool,
 	shutdownUpstream func(),
 ) {
@@ -289,7 +296,7 @@ func (o *orchestrator) watchUpstream(
 				return
 			}
 			// Cache the response.
-			_, err := o.cache.SetResponse(aggregatedKey, *x)
+			_, err := o.cache.SetResponse(aggregatedKey, x)
 			if err != nil {
 				// TODO if set fails, we may need to retry upstream as well.
 				// Currently the fallback is to rely on a future response, but
@@ -322,8 +329,8 @@ func (o *orchestrator) watchUpstream(
 					// Goldenpath.
 					o.logger.With(
 						"aggregated_key", aggregatedKey,
-						"response_type", cached.Resp.GetTypeUrl(),
-						"response_version", cached.Resp.GetVersionInfo(),
+						"response_type", cached.Resp.GetTypeURL(),
+						"response_version", cached.Resp.GetPayloadVersion(),
 					).Debug(ctx, "response fanout initiated")
 					o.fanout(cached.Resp, cached.Requests, aggregatedKey)
 				}
@@ -339,29 +346,29 @@ func (o *orchestrator) watchUpstream(
 
 // fanout pushes the response to the response channels of all open downstream
 // watchers in parallel.
-func (o *orchestrator) fanout(resp *discovery.DiscoveryResponse, watchers map[*gcp.Request]bool, aggregatedKey string) {
+func (o *orchestrator) fanout(resp transport.Response, watchers map[transport.Request]bool, aggregatedKey string) {
 	var wg sync.WaitGroup
 	for watch := range watchers {
 		wg.Add(1)
-		go func(watch *gcp.Request) {
+		go func(watch transport.Request) {
 			defer wg.Done()
 			// TODO https://github.com/envoyproxy/xds-relay/issues/119
 			if channel, ok := o.downstreamResponseMap.get(watch); ok {
-				if err := channel.addResponse(convertToGcpResponse(resp, *watch)); err != nil {
+				if err := channel.addResponse(resp); err != nil {
 					// If the channel is blocked, we simply drop subsequent
 					// requests and error. Alternative possibilities are
 					// discussed here:
 					// https://github.com/envoyproxy/xds-relay/pull/53#discussion_r420325553
-					o.logger.With("aggregated_key", aggregatedKey).With("node_id", watch.GetNode().GetId()).
+					o.logger.With("aggregated_key", aggregatedKey).With("node_id", watch.GetNodeID()).
 						Error(context.Background(), "channel blocked during fanout")
 					metrics.OrchestratorWatchErrorsSubscope(o.scope, aggregatedKey).Counter(metrics.ErrorChannelFull).Inc(1)
 					return
 				}
 				o.logger.With(
 					"aggregated_key", aggregatedKey,
-					"node_id", watch.GetNode().GetId(),
-					"response_version", resp.GetVersionInfo(),
-					"response_type", resp.GetTypeUrl(),
+					"node_id", watch.GetNodeID(),
+					"response_version", resp.GetPayloadVersion(),
+					"response_type", resp.GetTypeURL(),
 				).Debug(context.Background(), "response sent")
 				metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchFanouts).Inc(1)
 			}
@@ -386,7 +393,7 @@ func (o *orchestrator) onCacheEvicted(key string, resource cache.Resource) {
 }
 
 // onCancelWatch cleans up the cached watch when called.
-func (o *orchestrator) onCancelWatch(aggregatedKey string, req *gcp.Request) func() {
+func (o *orchestrator) onCancelWatch(aggregatedKey string, req transport.Request) func() {
 	return func() {
 		o.downstreamResponseMap.delete(req)
 		metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchCanceled).Inc(1)
@@ -403,13 +410,4 @@ func (o *orchestrator) onCancelWatch(aggregatedKey string, req *gcp.Request) fun
 func (o *orchestrator) shutdown(ctx context.Context) {
 	<-ctx.Done()
 	o.upstreamResponseMap.deleteAll()
-}
-
-// convertToGcpResponse constructs the go-control-plane response from the
-// cached response.
-func convertToGcpResponse(resp *discovery.DiscoveryResponse, req gcp.Request) gcp.PassthroughResponse {
-	return gcp.PassthroughResponse{
-		Request:           req,
-		DiscoveryResponse: resp,
-	}
 }

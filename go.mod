@@ -18,6 +18,7 @@ require (
 	github.com/uber-go/tally v3.3.15+incompatible
 	go.uber.org/zap v1.14.0
 	golang.org/x/tools v0.0.0-20200527150044-688b3c5d9fa5 // indirect
+	google.golang.org/genproto v0.0.0-20191108220845-16a3f7862a1a
 	google.golang.org/grpc v1.27.1
 	google.golang.org/protobuf v1.20.1
 )
