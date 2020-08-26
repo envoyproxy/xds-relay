@@ -88,7 +88,7 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServer(t *testing.T) {
 		}))
 	<-wait
 	assert.NotNil(t, message)
-	assert.Equal(t, message.GetRaw().(*v2.DiscoveryRequest).GetNode(), node)
+	assert.Equal(t, message.GetRaw().V2.GetNode(), node)
 	assert.Equal(t, message.GetTypeURL(), upstream.ListenerTypeURL)
 	done()
 }
@@ -126,7 +126,7 @@ func TestOpenStreamShouldSendTheResponseOnTheChannel(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, resp)
 	val := <-resp
-	assert.Equal(t, val.Get(), response)
+	assert.Equal(t, val.Get().V2, response)
 	done()
 }
 

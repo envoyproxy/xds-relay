@@ -15,7 +15,7 @@ func TestGetChannel(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		_, more := <-w.GetChannel().(chan gcp.Response)
+		_, more := <-w.GetChannel().V2
 		assert.False(t, more)
 		wg.Done()
 	}()
@@ -32,7 +32,7 @@ func TestSendSuccessful(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
-		got, more := <-w.GetChannel().(chan gcp.Response)
+		got, more := <-w.GetChannel().V2
 		assert.True(t, more)
 		assert.Equal(t, cache.PassthroughResponse{DiscoveryResponse: discoveryResponse, Request: *discoveryRequest}, got)
 		wg.Done()
@@ -101,10 +101,10 @@ func (r *mockResponse) GetNonce() string {
 	return ""
 }
 
-func (r *mockResponse) GetRequest() interface{} {
-	return nil
+func (r *mockResponse) GetRequest() *RequestVersion {
+	return &RequestVersion{}
 }
 
-func (r *mockResponse) Get() interface{} {
-	return nil
+func (r *mockResponse) Get() *ResponseVersion {
+	return &ResponseVersion{}
 }

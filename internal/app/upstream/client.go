@@ -189,7 +189,7 @@ func send(
 			if !ok {
 				return
 			}
-			discoveryRequest := request.GetRaw().(*v2.DiscoveryRequest)
+			discoveryRequest := request.GetRaw().V2
 			discoveryRequest.ResponseNonce = sig.nonce
 			discoveryRequest.VersionInfo = sig.version
 			// Ref: https://github.com/grpc/grpc-go/issues/1229#issuecomment-302755717
@@ -238,7 +238,7 @@ func recv(
 		case <-ctx.Done():
 			break
 		default:
-			response <- transport.NewResponseV2(request.GetRaw().(*v2.DiscoveryRequest), resp)
+			response <- transport.NewResponseV2(request.GetRaw().V2, resp)
 			signal <- &version{version: resp.GetVersionInfo(), nonce: resp.GetNonce()}
 		}
 	}

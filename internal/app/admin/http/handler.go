@@ -157,7 +157,7 @@ type marshallableResource struct {
 func resourceToString(resource cache.Resource) (string, error) {
 	var requests []*v2.DiscoveryRequest
 	for request := range resource.Requests {
-		requests = append(requests, request.GetRaw().(*v2.DiscoveryRequest))
+		requests = append(requests, request.GetRaw().V2)
 	}
 
 	resourceString := &marshallableResource{
@@ -190,7 +190,7 @@ type xDSResources struct {
 
 func marshalDiscoveryResponse(r transport.Response) *marshalledDiscoveryResponse {
 	if r != nil {
-		resp := r.Get().(*v2.DiscoveryResponse)
+		resp := r.Get().V2
 		marshalledResp := marshalledDiscoveryResponse{
 			VersionInfo:  resp.VersionInfo,
 			Canary:       resp.Canary,

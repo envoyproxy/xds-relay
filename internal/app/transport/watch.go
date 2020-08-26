@@ -3,14 +3,17 @@ package transport
 import (
 	"fmt"
 
-	discoveryv2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	gcpv2 "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 )
+
+type ChannelVersion struct {
+	V2 chan gcpv2.Response
+}
 
 // Watch interface abstracts v2 and v3 watches
 type Watch interface {
 	Close()
-	GetChannel() interface{}
+	GetChannel() *ChannelVersion
 	Send(Response) (bool, error)
 }
 
@@ -34,8 +37,8 @@ func (w *watchV2) Close() {
 }
 
 // GetChannelV2 gets the v2 channel used for communication with the xds client
-func (w *watchV2) GetChannel() interface{} {
-	return w.out
+func (w *watchV2) GetChannel() *ChannelVersion {
+	return &ChannelVersion{V2: w.out}
 }
 
 // Send sends the xds response over wire
@@ -46,7 +49,7 @@ func (w *watchV2) Send(s Response) (bool, error) {
 	}
 
 	select {
-	case w.out <- gcpv2.PassthroughResponse{DiscoveryResponse: resp.resp, Request: *s.GetRequest().(*discoveryv2.DiscoveryRequest)}:
+	case w.out <- gcpv2.PassthroughResponse{DiscoveryResponse: resp.resp, Request: *s.GetRequest().V2}:
 		return true, nil
 	default:
 		return false, nil

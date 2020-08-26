@@ -4,13 +4,18 @@ import (
 	discoveryv2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 )
 
+// ResponseVersion holds either one of the v2/v3 DiscoveryRequests
+type ResponseVersion struct {
+	V2 *discoveryv2.DiscoveryResponse
+}
+
 // Response is the generic response interface
 type Response interface {
 	GetPayloadVersion() string
 	GetNonce() string
 	GetTypeURL() string
-	GetRequest() interface{}
-	Get() interface{}
+	GetRequest() *RequestVersion
+	Get() *ResponseVersion
 }
 
 var _ Response = &ResponseV2{}
@@ -45,11 +50,11 @@ func (r *ResponseV2) GetNonce() string {
 }
 
 // GetRequest returns the original request associated with the response
-func (r *ResponseV2) GetRequest() interface{} {
-	return r.req
+func (r *ResponseV2) GetRequest() *RequestVersion {
+	return &RequestVersion{V2: r.req}
 }
 
 // Get returns the original discovery response
-func (r *ResponseV2) Get() interface{} {
-	return r.resp
+func (r *ResponseV2) Get() *ResponseVersion {
+	return &ResponseVersion{V2: r.resp}
 }

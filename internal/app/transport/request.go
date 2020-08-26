@@ -6,6 +6,11 @@ import (
 	status "google.golang.org/genproto/googleapis/rpc/status"
 )
 
+// RequestVersion holds either one of the v2/v3 DiscoveryRequests
+type RequestVersion struct {
+	V2 *discoveryv2.DiscoveryRequest
+}
+
 // Request is the generic interface to abstract v2 and v3 DiscoveryRequest types
 type Request interface {
 	GetResourceNames() []string
@@ -21,7 +26,7 @@ type Request interface {
 	GetZone() string
 	GetSubZone() string
 	GetResponseNonce() string
-	GetRaw() interface{}
+	GetRaw() *RequestVersion
 	CreateWatch() Watch
 }
 
@@ -103,8 +108,8 @@ func (r *RequestV2) GetSubZone() string {
 }
 
 // GetRaw gets the error details
-func (r *RequestV2) GetRaw() interface{} {
-	return r.r
+func (r *RequestV2) GetRaw() *RequestVersion {
+	return &RequestVersion{V2: r.r}
 }
 
 // GetResponseNonce gets the error details

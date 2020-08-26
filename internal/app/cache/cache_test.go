@@ -125,7 +125,7 @@ func TestSetResponseAndFetch(t *testing.T) {
 
 	resource, err = cache.Fetch(testKeyA)
 	assert.NoError(t, err)
-	assert.Equal(t, &testDiscoveryResponse, resource.Resp.Get())
+	assert.Equal(t, &testDiscoveryResponse, resource.Resp.Get().V2)
 }
 
 func TestAddRequestAndSetResponse(t *testing.T) {
@@ -148,7 +148,7 @@ func TestAddRequestAndSetResponse(t *testing.T) {
 
 	resource, err := cache.Fetch(testKeyA)
 	assert.NoError(t, err)
-	assert.Equal(t, &testDiscoveryResponse, resource.Resp.Get())
+	assert.Equal(t, &testDiscoveryResponse, resource.Resp.Get().V2)
 }
 
 func TestMaxEntries(t *testing.T) {
@@ -160,7 +160,7 @@ func TestMaxEntries(t *testing.T) {
 
 	resource, err := cache.Fetch(testKeyA)
 	assert.NoError(t, err)
-	assert.Equal(t, &testDiscoveryResponse, resource.Resp.Get())
+	assert.Equal(t, &testDiscoveryResponse, resource.Resp.Get().V2)
 
 	assert.PanicsWithValue(t, panicValues{
 		key:    testKeyA,
@@ -188,7 +188,7 @@ func TestTTL_Enabled(t *testing.T) {
 
 	resource, err := cache.Fetch(testKeyA)
 	assert.NoError(t, err)
-	assert.Equal(t, &testDiscoveryResponse, resource.Resp.Get())
+	assert.Equal(t, &testDiscoveryResponse, resource.Resp.Get().V2)
 
 	time.Sleep(time.Millisecond * 10)
 	assert.PanicsWithValue(t, panicValues{
@@ -215,7 +215,7 @@ func TestTTL_Disabled(t *testing.T) {
 
 	resource, err := cache.Fetch(testKeyA)
 	assert.NoError(t, err)
-	assert.Equal(t, &testDiscoveryResponse, resource.Resp.Get())
+	assert.Equal(t, &testDiscoveryResponse, resource.Resp.Get().V2)
 
 	gomega.Consistently(func() (*Resource, error) {
 		return cache.Fetch(testKeyA)
