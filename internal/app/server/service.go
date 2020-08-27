@@ -14,18 +14,17 @@ type Service struct {
 }
 
 // NewService creates a new instance of a service
-func NewService(ctx context.Context, o *orchestrator.Orchestrator) Service {
+func NewService(ctx context.Context, o orchestrator.Orchestrator) Service {
 	return Service{
 		gcpv2: gcpv2.NewServer(ctx, orchestrator.NewV2(o), nil),
 	}
 }
 
-// Register the endpoints with grpc server
-func (s *Service) Register(srv *grpc.Server) {
-	// You must register your new xDS resource handler here for envoymanager
-	// to comply with the server interface as well as accept requests
-	api.RegisterRouteDiscoveryServiceServer(srv, s.gcpv2)
-	api.RegisterClusterDiscoveryServiceServer(srv, s.gcpv2)
-	api.RegisterEndpointDiscoveryServiceServer(srv, s.gcpv2)
-	api.RegisterListenerDiscoveryServiceServer(srv, s.gcpv2)
+// RegisterEndpoints the endpoints with grpc server
+func RegisterEndpoints(ctx context.Context, g *grpc.Server, o orchestrator.Orchestrator) {
+	gcpv2 := gcpv2.NewServer(ctx, orchestrator.NewV2(o), nil)
+	api.RegisterRouteDiscoveryServiceServer(g, gcpv2)
+	api.RegisterClusterDiscoveryServiceServer(g, gcpv2)
+	api.RegisterEndpointDiscoveryServiceServer(g, gcpv2)
+	api.RegisterListenerDiscoveryServiceServer(g, gcpv2)
 }

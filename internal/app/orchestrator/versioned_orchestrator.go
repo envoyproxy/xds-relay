@@ -6,7 +6,6 @@ import (
 
 	discovery "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	gcpv2 "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
-	"github.com/envoyproxy/xds-relay/internal/app/orchestrator"
 	"github.com/envoyproxy/xds-relay/internal/app/transport"
 )
 
@@ -14,11 +13,11 @@ var _ gcpv2.Cache = &V2{}
 
 // V2 cache wraps a shared cache
 type V2 struct {
-	orchestrator *orchestrator.Orchestrator
+	orchestrator Orchestrator
 }
 
 // NewV2 creates a shared cache for v2 requests
-func NewV2(o *orchestrator.Orchestrator) *V2 {
+func NewV2(o Orchestrator) *V2 {
 	return &V2{
 		orchestrator: o,
 	}

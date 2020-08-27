@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	api "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	gcpv2 "github.com/envoyproxy/go-control-plane/pkg/server/v2"
 	"github.com/envoyproxy/xds-relay/internal/app/metrics"
 
 	handler "github.com/envoyproxy/xds-relay/internal/app/admin/http"
@@ -112,8 +114,8 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	handler.RegisterHandlers(bootstrapConfig, &orchestrator, logger)
 
 	// Start server.
-	server := grpc.NewServer(NewService(ctx, &orchestrator))
-	server.RegisterService()
+	server := grpc.NewServer()
+	registerEndpoints(ctx, server, orchestrator)
 	serverPort := strconv.FormatUint(uint64(bootstrapConfig.Server.Address.PortValue), 10)
 	serverAddress := net.JoinHostPort(bootstrapConfig.Server.Address.Address, serverPort)
 	listener, err := net.Listen("tcp", serverAddress) // #nosec
@@ -163,4 +165,12 @@ func registerShutdownHandler(
 			logger.Error(ctx, "shutdown error: ", err.Error())
 		}
 	}()
+}
+
+func registerEndpoints(ctx context.Context, g *grpc.Server, o orchestrator.Orchestrator) {
+	gcpv2 := gcpv2.NewServer(ctx, orchestrator.NewV2(o), nil)
+	api.RegisterRouteDiscoveryServiceServer(g, gcpv2)
+	api.RegisterClusterDiscoveryServiceServer(g, gcpv2)
+	api.RegisterEndpointDiscoveryServiceServer(g, gcpv2)
+	api.RegisterListenerDiscoveryServiceServer(g, gcpv2)
 }

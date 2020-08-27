@@ -59,6 +59,8 @@ type Orchestrator interface {
 	GetReadOnlyCache() cache.ReadOnlyCache
 
 	GetDownstreamAggregatedKeys() (map[string]bool, error)
+
+	CreateWatch(transport.Request) (transport.Watch, func())
 }
 
 type orchestrator struct {
