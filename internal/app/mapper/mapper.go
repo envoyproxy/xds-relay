@@ -6,9 +6,8 @@ import (
 	"strings"
 
 	"github.com/envoyproxy/xds-relay/internal/app/metrics"
+	"github.com/envoyproxy/xds-relay/internal/app/transport"
 
-	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"github.com/uber-go/tally"
 
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
@@ -26,7 +25,7 @@ type Mapper interface {
 	// ADS will contain typeUrl https://github.com/envoyproxy/envoy/blob/master/api/envoy/api/v2/discovery.proto#L46
 	// Implicit xds requests will have typeUrl set because go-control-plane mutates the DiscoveryRequest
 	// ref: https://github.com/envoyproxy/go-control-plane/blob/master/pkg/server/server.go#L310
-	GetKey(request v2.DiscoveryRequest) (string, error)
+	GetKey(request transport.Request) (string, error)
 }
 
 type mapper struct {
@@ -48,8 +47,8 @@ func New(config *aggregationv1.KeyerConfiguration, scope tally.Scope) Mapper {
 }
 
 // GetKey converts a request into an aggregated key
-func (mapper *mapper) GetKey(request v2.DiscoveryRequest) (string, error) {
-	if request.GetTypeUrl() == "" {
+func (mapper *mapper) GetKey(request transport.Request) (string, error) {
+	if request.GetTypeURL() == "" {
 		mapper.scope.Counter(metrics.MapperError).Inc(1)
 		return "", fmt.Errorf("typeURL is empty")
 	}
@@ -59,13 +58,13 @@ func (mapper *mapper) GetKey(request v2.DiscoveryRequest) (string, error) {
 		fragmentRules := fragment.GetRules()
 		for _, fragmentRule := range fragmentRules {
 			matchPredicate := fragmentRule.GetMatch()
-			isMatch, err := isMatch(matchPredicate, request.GetTypeUrl(), request.GetNode())
+			isMatch, err := isMatch(matchPredicate, request.GetTypeURL(), request)
 			if err != nil {
 				mapper.scope.Counter(metrics.MapperError).Inc(1)
 				return "", err
 			}
 			if isMatch {
-				result, err := getResult(fragmentRule, request.GetNode(), request.GetResourceNames())
+				result, err := getResult(fragmentRule, request, request.GetResourceNames())
 				if err != nil {
 					mapper.scope.Counter(metrics.MapperError).Inc(1)
 					return "", err
@@ -84,8 +83,8 @@ func (mapper *mapper) GetKey(request v2.DiscoveryRequest) (string, error) {
 	return strings.Join(resultFragments, separator), nil
 }
 
-func isMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (bool, error) {
-	isNodeMatch, err := isNodeMatch(matchPredicate, node)
+func isMatch(matchPredicate *matchPredicate, typeURL string, req transport.Request) (bool, error) {
+	isNodeMatch, err := isNodeMatch(matchPredicate, req)
 	if err != nil {
 		return false, err
 	}
@@ -93,7 +92,7 @@ func isMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (b
 		return true, nil
 	}
 
-	isAndMatch, err := isAndMatch(matchPredicate, typeURL, node)
+	isAndMatch, err := isAndMatch(matchPredicate, typeURL, req)
 	if err != nil {
 		return false, err
 	}
@@ -101,7 +100,7 @@ func isMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (b
 		return true, nil
 	}
 
-	isOrMatch, err := isOrMatch(matchPredicate, typeURL, node)
+	isOrMatch, err := isOrMatch(matchPredicate, typeURL, req)
 	if err != nil {
 		return false, err
 	}
@@ -109,7 +108,7 @@ func isMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (b
 		return true, nil
 	}
 
-	isNotMatch, err := isNotMatch(matchPredicate, typeURL, node)
+	isNotMatch, err := isNotMatch(matchPredicate, typeURL, req)
 	if err != nil {
 		return false, err
 	}
@@ -120,22 +119,22 @@ func isMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (b
 	return isRequestTypeMatch(matchPredicate, typeURL) || isAnyMatch(matchPredicate), nil
 }
 
-func isNodeMatch(matchPredicate *matchPredicate, node *core.Node) (bool, error) {
+func isNodeMatch(matchPredicate *matchPredicate, req transport.Request) (bool, error) {
 	predicate := matchPredicate.GetRequestNodeMatch()
 	if predicate == nil {
 		return false, nil
 	}
 	switch predicate.GetField() {
 	case aggregationv1.NodeFieldType_NODE_CLUSTER:
-		return compare(predicate, node.GetCluster())
+		return compare(predicate, req.GetCluster())
 	case aggregationv1.NodeFieldType_NODE_ID:
-		return compare(predicate, node.GetId())
+		return compare(predicate, req.GetNodeID())
 	case aggregationv1.NodeFieldType_NODE_LOCALITY_REGION:
-		return compare(predicate, node.GetLocality().GetRegion())
+		return compare(predicate, req.GetRegion())
 	case aggregationv1.NodeFieldType_NODE_LOCALITY_ZONE:
-		return compare(predicate, node.GetLocality().GetZone())
+		return compare(predicate, req.GetZone())
 	case aggregationv1.NodeFieldType_NODE_LOCALITY_SUBZONE:
-		return compare(predicate, node.GetLocality().GetSubZone())
+		return compare(predicate, req.GetSubZone())
 	default:
 		return false, fmt.Errorf("RequestNodeMatch does not have a valid NodeFieldType")
 	}
@@ -159,14 +158,14 @@ func isAnyMatch(matchPredicate *matchPredicate) bool {
 	return matchPredicate.GetAnyMatch()
 }
 
-func isAndMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (bool, error) {
+func isAndMatch(matchPredicate *matchPredicate, typeURL string, req transport.Request) (bool, error) {
 	matchset := matchPredicate.GetAndMatch()
 	if matchset == nil {
 		return false, nil
 	}
 
 	for _, rule := range matchset.GetRules() {
-		isMatch, err := isMatch(rule, typeURL, node)
+		isMatch, err := isMatch(rule, typeURL, req)
 		if err != nil {
 			return false, err
 		}
@@ -177,14 +176,14 @@ func isAndMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node)
 	return true, nil
 }
 
-func isOrMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (bool, error) {
+func isOrMatch(matchPredicate *matchPredicate, typeURL string, req transport.Request) (bool, error) {
 	matchset := matchPredicate.GetOrMatch()
 	if matchset == nil {
 		return false, nil
 	}
 
 	for _, rule := range matchset.GetRules() {
-		isMatch, err := isMatch(rule, typeURL, node)
+		isMatch, err := isMatch(rule, typeURL, req)
 		if err != nil {
 			return false, err
 		}
@@ -195,21 +194,21 @@ func isOrMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) 
 	return false, nil
 }
 
-func isNotMatch(matchPredicate *matchPredicate, typeURL string, node *core.Node) (bool, error) {
+func isNotMatch(matchPredicate *matchPredicate, typeURL string, req transport.Request) (bool, error) {
 	predicate := matchPredicate.GetNotMatch()
 	if predicate == nil {
 		return false, nil
 	}
 
-	isMatch, err := isMatch(predicate, typeURL, node)
+	isMatch, err := isMatch(predicate, typeURL, req)
 	if err != nil {
 		return false, err
 	}
 	return !isMatch, nil
 }
 
-func getResult(fragmentRule *rule, node *core.Node, resourceNames []string) (string, error) {
-	found, result, err := getResultFromRequestNodeFragmentRule(fragmentRule, node)
+func getResult(fragmentRule *rule, req transport.Request, resourceNames []string) (string, error) {
+	found, result, err := getResultFromRequestNodeFragmentRule(fragmentRule, req)
 	if err != nil {
 		return "", err
 	}
@@ -217,7 +216,7 @@ func getResult(fragmentRule *rule, node *core.Node, resourceNames []string) (str
 		return result, nil
 	}
 
-	found, result, err = getResultFromAndResultFragmentRule(fragmentRule, node, resourceNames)
+	found, result, err = getResultFromAndResultFragmentRule(fragmentRule, req, resourceNames)
 	if err != nil {
 		return "", err
 	}
@@ -236,33 +235,33 @@ func getResult(fragmentRule *rule, node *core.Node, resourceNames []string) (str
 	return fragmentRule.GetResult().GetStringFragment(), nil
 }
 
-func getResultFromRequestNodeFragmentRule(fragmentRule *rule, node *core.Node) (bool, string, error) {
+func getResultFromRequestNodeFragmentRule(fragmentRule *rule, req transport.Request) (bool, string, error) {
 	resultPredicate := fragmentRule.GetResult()
 	if resultPredicate == nil {
 		return false, "", nil
 	}
 
-	return getResultFromRequestNodePredicate(resultPredicate, node)
+	return getResultFromRequestNodePredicate(resultPredicate, req)
 }
 
 func getResultFromAndResultFragmentRule(
 	fragmentRule *rule,
-	node *core.Node,
+	req transport.Request,
 	resourceNames []string) (bool, string, error) {
 	resultPredicate := fragmentRule.GetResult()
 	if resultPredicate == nil {
 		return false, "", nil
 	}
-	return getResultFromAndResultPredicate(resultPredicate, node, resourceNames)
+	return getResultFromAndResultPredicate(resultPredicate, req, resourceNames)
 }
 
-func getResultFromRequestNodePredicate(predicate *resultPredicate, node *core.Node) (bool, string, error) {
+func getResultFromRequestNodePredicate(predicate *resultPredicate, req transport.Request) (bool, string, error) {
 	requestNodeFragment := predicate.GetRequestNodeFragment()
 	if requestNodeFragment == nil {
 		return false, "", nil
 	}
 
-	nodeValue, err := getNodeValue(requestNodeFragment.GetField(), node)
+	nodeValue, err := getNodeValue(requestNodeFragment.GetField(), req)
 	if err != nil {
 		return false, "", err
 	}
@@ -276,7 +275,7 @@ func getResultFromRequestNodePredicate(predicate *resultPredicate, node *core.No
 
 func getResultFromAndResultPredicate(
 	resultPredicate *resultPredicate,
-	node *core.Node,
+	req transport.Request,
 	resourceNames []string) (bool, string, error) {
 	if resultPredicate == nil {
 		return false, "", nil
@@ -292,7 +291,7 @@ func getResultFromAndResultPredicate(
 			resultfragments.WriteString(result.GetStringFragment())
 		}
 
-		found, fragment, err := getResultFromRequestNodePredicate(result, node)
+		found, fragment, err := getResultFromRequestNodePredicate(result, req)
 		if err != nil {
 			return false, "", err
 		}
@@ -308,7 +307,7 @@ func getResultFromAndResultPredicate(
 			resultfragments.WriteString(fragment)
 		}
 
-		found, fragment, err = getResultFromAndResultPredicate(result, node, resourceNames)
+		found, fragment, err = getResultFromAndResultPredicate(result, req, resourceNames)
 		if err != nil {
 			return false, "", err
 		}
@@ -356,19 +355,19 @@ func getResultFromResourceNamesPredicate(
 	return true, result, nil
 }
 
-func getNodeValue(nodeField aggregationv1.NodeFieldType, node *core.Node) (string, error) {
+func getNodeValue(nodeField aggregationv1.NodeFieldType, req transport.Request) (string, error) {
 	var nodeValue string
 	switch nodeField {
 	case aggregationv1.NodeFieldType_NODE_CLUSTER:
-		nodeValue = node.GetCluster()
+		nodeValue = req.GetCluster()
 	case aggregationv1.NodeFieldType_NODE_ID:
-		nodeValue = node.GetId()
+		nodeValue = req.GetNodeID()
 	case aggregationv1.NodeFieldType_NODE_LOCALITY_REGION:
-		nodeValue = node.GetLocality().GetRegion()
+		nodeValue = req.GetRegion()
 	case aggregationv1.NodeFieldType_NODE_LOCALITY_ZONE:
-		nodeValue = node.GetLocality().GetZone()
+		nodeValue = req.GetZone()
 	case aggregationv1.NodeFieldType_NODE_LOCALITY_SUBZONE:
-		nodeValue = node.GetLocality().GetSubZone()
+		nodeValue = req.GetSubZone()
 	default:
 		return "", fmt.Errorf("RequestNodeFragment Invalid NodeFieldType")
 	}

@@ -16,46 +16,45 @@ import (
 	"sync"
 
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
-
-	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
+	"github.com/envoyproxy/xds-relay/internal/app/transport"
 )
 
 // responseChannel stores the responses to be sent to downstream clients. A
 // WaitGroup is used here to ensure that all writes to the channel are
 // processed before we attempt to close the channel.
 type responseChannel struct {
-	wg      sync.WaitGroup
-	channel chan gcp.Response
+	wg    sync.WaitGroup
+	watch transport.Watch
 }
 
 // downstreamResponseMap is a map of downstream xDS client requests to response
 // channels.
 type downstreamResponseMap struct {
 	mu               sync.RWMutex
-	responseChannels map[*gcp.Request]*responseChannel
+	responseChannels map[transport.Request]*responseChannel
 }
 
 func newDownstreamResponseMap() downstreamResponseMap {
 	return downstreamResponseMap{
-		responseChannels: make(map[*gcp.Request]*responseChannel),
+		responseChannels: make(map[transport.Request]*responseChannel),
 	}
 }
 
 // createChannel initializes a new channel for a request if it doesn't already
 // exist.
-func (d *downstreamResponseMap) createChannel(req *gcp.Request) *responseChannel {
+func (d *downstreamResponseMap) createChannel(req transport.Request) *responseChannel {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if _, ok := d.responseChannels[req]; !ok {
 		d.responseChannels[req] = &responseChannel{
-			channel: make(chan gcp.Response, 1),
+			watch: req.CreateWatch(),
 		}
 	}
 	return d.responseChannels[req]
 }
 
 // get retrieves the channel where responses are set for the specified request.
-func (d *downstreamResponseMap) get(req *gcp.Request) (*responseChannel, bool) {
+func (d *downstreamResponseMap) get(req transport.Request) (*responseChannel, bool) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	channel, ok := d.responseChannels[req]
@@ -64,29 +63,29 @@ func (d *downstreamResponseMap) get(req *gcp.Request) (*responseChannel, bool) {
 
 // delete removes the response channel and request entry from the map and
 // closes the corresponding channel.
-func (d *downstreamResponseMap) delete(req *gcp.Request) chan gcp.Response {
+func (d *downstreamResponseMap) delete(req transport.Request) transport.Watch {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if responseChannel, ok := d.responseChannels[req]; ok {
 		// wait for all writes to the responseChannel to complete before closing.
 		responseChannel.wg.Wait()
-		close(responseChannel.channel)
+		responseChannel.watch.Close()
 		delete(d.responseChannels, req)
-		return responseChannel.channel
+		return responseChannel.watch
 	}
 	return nil
 }
 
 // deleteAll removes all response channels and request entries from the map and
 // closes the corresponding channels.
-func (d *downstreamResponseMap) deleteAll(watchers map[*gcp.Request]bool) {
+func (d *downstreamResponseMap) deleteAll(watchers map[transport.Request]bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	for watch := range watchers {
 		if responseChannel, ok := d.responseChannels[watch]; ok {
 			// wait for all writes to the responseChannel to complete before closing.
 			responseChannel.wg.Wait()
-			close(responseChannel.channel)
+			responseChannel.watch.Close()
 			delete(d.responseChannels, watch)
 		}
 	}
@@ -99,7 +98,7 @@ func (d *downstreamResponseMap) getAggregatedKeys(m *mapper.Mapper) (map[string]
 	// Since multiple requests can map to the same cache key, we use a map to ensure unique entries.
 	keys := make(map[string]bool)
 	for request := range d.responseChannels {
-		key, err := mapper.Mapper.GetKey(*m, *request)
+		key, err := mapper.Mapper.GetKey(*m, request)
 		if err != nil {
 			return nil, err
 		}
@@ -108,13 +107,17 @@ func (d *downstreamResponseMap) getAggregatedKeys(m *mapper.Mapper) (map[string]
 	return keys, nil
 }
 
-func (responseChannel *responseChannel) addResponse(resp gcp.PassthroughResponse) error {
+func (responseChannel *responseChannel) addResponse(resp transport.Response) error {
 	responseChannel.wg.Add(1)
 	defer responseChannel.wg.Done()
-	select {
-	case responseChannel.channel <- resp:
-		return nil
-	default:
-		return fmt.Errorf("channel is blocked")
+	ok, err := responseChannel.watch.Send(resp)
+	if err != nil {
+		return err
 	}
+
+	if ok {
+		return nil
+	}
+
+	return fmt.Errorf("channel is blocked")
 }

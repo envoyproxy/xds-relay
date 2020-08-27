@@ -9,6 +9,7 @@ import (
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	"github.com/envoyproxy/xds-relay/internal/app/transport"
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
 	"github.com/stretchr/testify/assert"
 )
@@ -18,7 +19,7 @@ type CallOptions = upstream.CallOptions
 func TestOpenStreamShouldReturnErrorForInvalidTypeUrl(t *testing.T) {
 	client := createMockClient()
 
-	respCh, _, err := client.OpenStream(v2.DiscoveryRequest{})
+	respCh, _, err := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{}))
 	assert.NotNil(t, err)
 	_, ok := err.(*upstream.UnsupportedResourceError)
 	assert.True(t, ok)
@@ -36,10 +37,11 @@ func TestOpenStreamShouldReturnErrorOnStreamCreationFailure(t *testing.T) {
 	}
 	for _, typeURL := range typeURLs {
 		t.Run(typeURL, func(t *testing.T) {
-			respCh, _, err := client.OpenStream(v2.DiscoveryRequest{
-				TypeUrl: typeURL,
-				Node:    &core.Node{},
-			})
+			respCh, _, err := client.OpenStream(
+				transport.NewRequestV2(&v2.DiscoveryRequest{
+					TypeUrl: typeURL,
+					Node:    &core.Node{},
+				}))
 			assert.Nil(t, respCh)
 			assert.NotNil(t, err)
 		})
@@ -49,10 +51,11 @@ func TestOpenStreamShouldReturnErrorOnStreamCreationFailure(t *testing.T) {
 func TestOpenStreamShouldReturnNonEmptyResponseChannel(t *testing.T) {
 	client := createMockClient()
 
-	respCh, done, err := client.OpenStream(v2.DiscoveryRequest{
-		TypeUrl: upstream.ListenerTypeURL,
-		Node:    &core.Node{},
-	})
+	respCh, done, err := client.OpenStream(
+		transport.NewRequestV2(&v2.DiscoveryRequest{
+			TypeUrl: upstream.ListenerTypeURL,
+			Node:    &core.Node{},
+		}))
 	assert.NotNil(t, respCh)
 	assert.Nil(t, err)
 	done()
@@ -78,14 +81,15 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServer(t *testing.T) {
 	)
 
 	node := &core.Node{}
-	_, done, _ := client.OpenStream(v2.DiscoveryRequest{
-		TypeUrl: upstream.ListenerTypeURL,
-		Node:    node,
-	})
+	_, done, _ := client.OpenStream(
+		transport.NewRequestV2(&v2.DiscoveryRequest{
+			TypeUrl: upstream.ListenerTypeURL,
+			Node:    node,
+		}))
 	<-wait
 	assert.NotNil(t, message)
 	assert.Equal(t, message.GetNode(), node)
-	assert.Equal(t, message.TypeUrl, upstream.ListenerTypeURL)
+	assert.Equal(t, message.GetTypeUrl(), upstream.ListenerTypeURL)
 	done()
 }
 
@@ -96,10 +100,11 @@ func TestOpenStreamShouldSendErrorIfSendFails(t *testing.T) {
 		return sendError
 	})
 
-	resp, done, _ := client.OpenStream(v2.DiscoveryRequest{
-		TypeUrl: upstream.ListenerTypeURL,
-		Node:    &core.Node{},
-	})
+	resp, done, _ := client.OpenStream(
+		transport.NewRequestV2(&v2.DiscoveryRequest{
+			TypeUrl: upstream.ListenerTypeURL,
+			Node:    &core.Node{},
+		}))
 	_, more := <-resp
 	assert.False(t, more)
 	done()
@@ -113,14 +118,15 @@ func TestOpenStreamShouldSendTheResponseOnTheChannel(t *testing.T) {
 		return nil
 	})
 
-	resp, done, err := client.OpenStream(v2.DiscoveryRequest{
-		TypeUrl: upstream.ListenerTypeURL,
-		Node:    &core.Node{},
-	})
+	resp, done, err := client.OpenStream(
+		transport.NewRequestV2(&v2.DiscoveryRequest{
+			TypeUrl: upstream.ListenerTypeURL,
+			Node:    &core.Node{},
+		}))
 	assert.Nil(t, err)
 	assert.NotNil(t, resp)
 	val := <-resp
-	assert.Equal(t, val, response)
+	assert.Equal(t, val.Get().V2, response)
 	done()
 }
 
@@ -145,15 +151,16 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonce(t *testing
 		return nil
 	})
 
-	resp, done, err := client.OpenStream(v2.DiscoveryRequest{
-		TypeUrl: upstream.ListenerTypeURL,
-		Node:    &core.Node{},
-	})
+	resp, done, err := client.OpenStream(
+		transport.NewRequestV2(&v2.DiscoveryRequest{
+			TypeUrl: upstream.ListenerTypeURL,
+			Node:    &core.Node{},
+		}))
 	assert.Nil(t, err)
 	assert.NotNil(t, resp)
 	for i := 0; i < 5; i++ {
 		val := <-resp
-		assert.Equal(t, val.GetVersionInfo(), strconv.Itoa(i))
+		assert.Equal(t, val.GetPayloadVersion(), strconv.Itoa(i))
 		assert.Equal(t, val.GetNonce(), strconv.Itoa(i))
 	}
 
@@ -170,10 +177,10 @@ func TestOpenStreamShouldSendErrorWhenSendMsgBlocks(t *testing.T) {
 		return nil
 	})
 
-	resp, done, err := client.OpenStream(v2.DiscoveryRequest{
+	resp, done, err := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{
 		TypeUrl: upstream.ListenerTypeURL,
 		Node:    &core.Node{},
-	})
+	}))
 	assert.Nil(t, err)
 	assert.NotNil(t, resp)
 	_, more := <-resp

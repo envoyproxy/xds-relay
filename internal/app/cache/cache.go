@@ -8,11 +8,11 @@ import (
 	"sync"
 	"time"
 
-	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/golang/groupcache/lru"
 	"github.com/uber-go/tally"
 
 	"github.com/envoyproxy/xds-relay/internal/app/metrics"
+	"github.com/envoyproxy/xds-relay/internal/app/transport"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 )
 
@@ -21,13 +21,13 @@ type Cache interface {
 	Fetch(key string) (*Resource, error)
 
 	// SetResponse sets the cache response and returns the list of requests.
-	SetResponse(key string, resp v2.DiscoveryResponse) (map[*v2.DiscoveryRequest]bool, error)
+	SetResponse(key string, resp transport.Response) (map[transport.Request]bool, error)
 
 	// AddRequest adds the request to the cache.
-	AddRequest(key string, req *v2.DiscoveryRequest) error
+	AddRequest(key string, req transport.Request) error
 
 	// DeleteRequest removes the given request from any cache entries it's present in.
-	DeleteRequest(key string, req *v2.DiscoveryRequest) error
+	DeleteRequest(key string, req transport.Request) error
 
 	// GetReadOnlyCache returns a copy of the cache that only exposes read-only methods in its interface.
 	GetReadOnlyCache() ReadOnlyCache
@@ -48,8 +48,8 @@ type cache struct {
 }
 
 type Resource struct {
-	Resp           *v2.DiscoveryResponse
-	Requests       map[*v2.DiscoveryRequest]bool
+	Resp           transport.Response
+	Requests       map[transport.Request]bool
 	ExpirationTime time.Time
 }
 
@@ -134,31 +134,33 @@ func (c *cache) Fetch(key string) (*Resource, error) {
 			return nil, nil
 		}
 	}
-	c.logger.With(
-		"aggregated_key", key,
-		"response_version", resource.Resp.GetVersionInfo(),
-		"response_type", resource.Resp.GetTypeUrl(),
-		"resource_length", len(resource.Resp.GetResources()),
-	).Debug(context.Background(), "fetch")
+	if resource.Resp != nil {
+		c.logger.With(
+			"aggregated_key", key,
+			"response_version", resource.Resp.GetPayloadVersion(),
+			"response_type", resource.Resp.GetTypeURL(),
+		).Debug(context.Background(), "fetch")
+	}
+
 	return &resource, nil
 }
 
-func (c *cache) SetResponse(key string, response v2.DiscoveryResponse) (map[*v2.DiscoveryRequest]bool, error) {
+func (c *cache) SetResponse(key string, response transport.Response) (map[transport.Request]bool, error) {
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
 	metrics.CacheSetSubscope(c.scope, key).Counter(metrics.CacheSetAttempt).Inc(1)
 	value, found := c.cache.Get(key)
 	if !found {
 		resource := Resource{
-			Resp:           &response,
+			Resp:           response,
 			ExpirationTime: c.getExpirationTime(time.Now()),
-			Requests:       make(map[*v2.DiscoveryRequest]bool),
+			Requests:       make(map[transport.Request]bool),
 		}
 		c.cache.Add(key, resource)
 		metrics.CacheSetSubscope(c.scope, key).Counter(metrics.CacheSetSuccess).Inc(1)
 		c.logger.With(
 			"aggregated_key", key,
-			"response_type", response.GetTypeUrl(),
+			"response_type", response.GetTypeURL(),
 		).Debug(context.Background(), "set response")
 		return nil, nil
 	}
@@ -167,23 +169,23 @@ func (c *cache) SetResponse(key string, response v2.DiscoveryResponse) (map[*v2.
 		metrics.CacheSetSubscope(c.scope, key).Counter(metrics.CacheSetError).Inc(1)
 		return nil, fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
-	resource.Resp = &response
+	resource.Resp = response
 	resource.ExpirationTime = c.getExpirationTime(time.Now())
 	c.cache.Add(key, resource)
 	c.logger.With(
-		"aggregated_key", key, "response_type", response.GetTypeUrl(),
+		"aggregated_key", key, "response_type", response.GetTypeURL(),
 	).Debug(context.Background(), "set response")
 	metrics.CacheSetSubscope(c.scope, key).Counter(metrics.CacheSetSuccess).Inc(1)
 	return resource.Requests, nil
 }
 
-func (c *cache) AddRequest(key string, req *v2.DiscoveryRequest) error {
+func (c *cache) AddRequest(key string, req transport.Request) error {
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
 	metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheAddAttempt).Inc(1)
 	value, found := c.cache.Get(key)
 	if !found {
-		requests := make(map[*v2.DiscoveryRequest]bool)
+		requests := make(map[transport.Request]bool)
 		requests[req] = true
 		resource := Resource{
 			Requests:       requests,
@@ -192,8 +194,8 @@ func (c *cache) AddRequest(key string, req *v2.DiscoveryRequest) error {
 		c.cache.Add(key, resource)
 		c.logger.With(
 			"aggregated_key", key,
-			"node_id", req.GetNode().GetId(),
-			"request_type", req.GetTypeUrl(),
+			"node_id", req.GetNodeID(),
+			"request_type", req.GetTypeURL(),
 		).Debug(context.Background(), "request added")
 		metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheAddSuccess).Inc(1)
 		return nil
@@ -207,14 +209,14 @@ func (c *cache) AddRequest(key string, req *v2.DiscoveryRequest) error {
 	c.cache.Add(key, resource)
 	c.logger.With(
 		"aggregated_key", key,
-		"node_id", req.GetNode().GetId(),
-		"request_type", req.GetTypeUrl(),
+		"node_id", req.GetNodeID(),
+		"request_type", req.GetTypeURL(),
 	).Debug(context.Background(), "request added")
 	metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheAddSuccess).Inc(1)
 	return nil
 }
 
-func (c *cache) DeleteRequest(key string, req *v2.DiscoveryRequest) error {
+func (c *cache) DeleteRequest(key string, req transport.Request) error {
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
 	metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheDeleteAttempt).Inc(1)
@@ -231,8 +233,8 @@ func (c *cache) DeleteRequest(key string, req *v2.DiscoveryRequest) error {
 	c.cache.Add(key, resource)
 	c.logger.With(
 		"aggregated_key", key,
-		"node_id", req.GetNode().GetId(),
-		"request_type", req.GetTypeUrl(),
+		"node_id", req.GetNodeID,
+		"request_type", req.GetTypeURL(),
 	).Debug(context.Background(), "request deleted")
 	metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheDeleteSuccess).Inc(1)
 	return nil

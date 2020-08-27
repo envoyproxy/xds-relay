@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
+	"github.com/envoyproxy/xds-relay/internal/app/transport"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,13 +28,13 @@ var (
 func Test_downstreamResponseMap_createChannel(t *testing.T) {
 	responseMap := newDownstreamResponseMap()
 	assert.Equal(t, 0, len(responseMap.responseChannels))
-	responseMap.createChannel(&mockRequest)
+	responseMap.createChannel(transport.NewRequestV2(&mockRequest))
 	assert.Equal(t, 1, len(responseMap.responseChannels))
 }
 
 func Test_downstreamResponseMap_get(t *testing.T) {
 	responseMap := newDownstreamResponseMap()
-	request := &mockRequest
+	request := transport.NewRequestV2(&mockRequest)
 	responseMap.createChannel(request)
 	assert.Equal(t, 1, len(responseMap.responseChannels))
 	if _, ok := responseMap.get(request); !ok {
@@ -43,10 +44,10 @@ func Test_downstreamResponseMap_get(t *testing.T) {
 
 func Test_downstreamResponseMap_delete(t *testing.T) {
 	responseMap := newDownstreamResponseMap()
-	request := &mockRequest
-	request2 := &gcp.Request{
+	request := transport.NewRequestV2(&mockRequest)
+	request2 := transport.NewRequestV2(&gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Cluster",
-	}
+	})
 	responseMap.createChannel(request)
 	responseMap.createChannel(request2)
 	assert.Equal(t, 2, len(responseMap.responseChannels))
@@ -67,19 +68,19 @@ func Test_downstreamResponseMap_delete(t *testing.T) {
 
 func Test_downstreamResponseMap_deleteAll(t *testing.T) {
 	responseMap := newDownstreamResponseMap()
-	request := &mockRequest
-	request2 := &gcp.Request{
+	request := transport.NewRequestV2(&mockRequest)
+	request2 := transport.NewRequestV2(&gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Cluster",
-	}
-	request3 := &gcp.Request{
+	})
+	request3 := transport.NewRequestV2(&gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.RouteConfiguration",
-	}
+	})
 	responseMap.createChannel(request)
 	responseMap.createChannel(request2)
 	responseMap.createChannel(request3)
 	assert.Equal(t, 3, len(responseMap.responseChannels))
 	responseMap.deleteAll(
-		map[*gcp.Request]bool{
+		map[transport.Request]bool{
 			request:  true,
 			request2: true,
 		},

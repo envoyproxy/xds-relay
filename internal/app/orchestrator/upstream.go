@@ -14,7 +14,7 @@ package orchestrator
 import (
 	"sync"
 
-	discovery "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	"github.com/envoyproxy/xds-relay/internal/app/transport"
 )
 
 // upstreamResponseMap is the map of aggregate key to the receive-only upstream
@@ -31,7 +31,7 @@ type upstreamResponseMap struct {
 }
 
 type upstreamResponseChannel struct {
-	response <-chan *discovery.DiscoveryResponse
+	response <-chan transport.Response
 	done     chan bool
 }
 
@@ -51,7 +51,7 @@ func (u *upstreamResponseMap) exists(aggregatedKey string) bool {
 // initializes a done channel to be used during cleanup.
 func (u *upstreamResponseMap) add(
 	aggregatedKey string,
-	responseChannel <-chan *discovery.DiscoveryResponse,
+	responseChannel <-chan transport.Response,
 ) (upstreamResponseChannel, bool) {
 	channel := upstreamResponseChannel{
 		response: responseChannel,

@@ -20,6 +20,7 @@ import (
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/xds-relay/internal/app/cache"
+	"github.com/envoyproxy/xds-relay/internal/app/transport"
 
 	"github.com/envoyproxy/xds-relay/internal/app/orchestrator"
 
@@ -155,7 +156,7 @@ type marshallableResource struct {
 func resourceToString(resource cache.Resource) (string, error) {
 	var requests []*v2.DiscoveryRequest
 	for request := range resource.Requests {
-		requests = append(requests, request)
+		requests = append(requests, request.GetRaw().V2)
 	}
 
 	resourceString := &marshallableResource{
@@ -186,8 +187,9 @@ type xDSResources struct {
 	Unmarshalled []*any.Any
 }
 
-func marshalDiscoveryResponse(resp *v2.DiscoveryResponse) *marshalledDiscoveryResponse {
-	if resp != nil {
+func marshalDiscoveryResponse(r transport.Response) *marshalledDiscoveryResponse {
+	if r != nil {
+		resp := r.Get().V2
 		marshalledResp := marshalledDiscoveryResponse{
 			VersionInfo:  resp.VersionInfo,
 			Canary:       resp.Canary,
