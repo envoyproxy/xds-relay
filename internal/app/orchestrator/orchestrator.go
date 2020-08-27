@@ -11,8 +11,6 @@ import (
 	"fmt"
 	"sync"
 
-	discovery "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/uber-go/tally"
@@ -54,8 +52,6 @@ const (
 // to each downstream connection (watcher). See the CreateWatch function for
 // more details.
 type Orchestrator interface {
-	gcp.Cache
-
 	// This is called by the main shutdown handler and tests to clean up
 	// open channels.
 	shutdown(ctx context.Context)
@@ -130,13 +126,7 @@ func New(
 //
 // Cancel is an optional function to release resources in the producer. If
 // provided, the consumer may call this function multiple times.
-func (o *orchestrator) CreateWatch(r gcp.Request) (chan gcp.Response, func()) {
-	req := transport.NewRequestV2(&r)
-	w, f := o.createWatch(req)
-	return w.GetChannel().V2, f
-}
-
-func (o *orchestrator) createWatch(req transport.Request) (transport.Watch, func()) {
+func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func()) {
 	ctx := context.Background()
 
 	// If this is the first time we're seeing the request from the
@@ -235,11 +225,6 @@ func (o *orchestrator) createWatch(req transport.Request) (transport.Watch, func
 	}
 
 	return responseChannel.watch, o.onCancelWatch(aggregatedKey, req)
-}
-
-// Fetch implements the polling method of the config cache using a non-empty request.
-func (o *orchestrator) Fetch(context.Context, discovery.DiscoveryRequest) (gcp.Response, error) {
-	return nil, fmt.Errorf("Not implemented")
 }
 
 // GetReadOnlyCache returns the request/response cache with only read-only methods exposed.
