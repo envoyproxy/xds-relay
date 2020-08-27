@@ -136,7 +136,7 @@ func TestGoldenPath(t *testing.T) {
 	aggregatedKey, err := mapper.GetKey(transport.NewRequestV2(&req))
 	assert.NoError(t, err)
 
-	respChannel, cancelWatch := orchestrator.CreateWatch(req)
+	respChannel, cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&req))
 	countersSnapshot := mockScope.Snapshot().Counters()
 	assert.EqualValues(
 		t, 1, countersSnapshot[fmt.Sprintf("mock_orchestrator.watch.created+key=%v", aggregatedKey)].Value())
@@ -159,7 +159,7 @@ func TestGoldenPath(t *testing.T) {
 	}
 	upstreamResponseChannel <- transport.NewResponseV2(&req, &resp)
 
-	gotResponse := <-respChannel
+	gotResponse := <-respChannel.GetChannel().V2
 	assertEqualResponse(t, gotResponse, resp, req)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -213,7 +213,7 @@ func TestCachedResponse(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(watchers))
 
-	respChannel, cancelWatch := orchestrator.CreateWatch(req)
+	respChannel, cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&req))
 	assert.NotNil(t, respChannel)
 	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.responseChannels))
 	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
@@ -222,7 +222,7 @@ func TestCachedResponse(t *testing.T) {
 		return true
 	})
 
-	gotResponse := <-respChannel
+	gotResponse := <-respChannel.GetChannel().V2
 	assertEqualResponse(t, gotResponse, mockResponse, req)
 
 	// Attempt pushing a more recent response from upstream.
@@ -237,7 +237,7 @@ func TestCachedResponse(t *testing.T) {
 	}
 
 	upstreamResponseChannel <- transport.NewResponseV2(&req, &resp)
-	gotResponse = <-respChannel
+	gotResponse = <-respChannel.GetChannel().V2
 	assertEqualResponse(t, gotResponse, resp, req)
 	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
 	orchestrator.upstreamResponseMap.internal.Range(func(key, val interface{}) bool {
@@ -252,7 +252,7 @@ func TestCachedResponse(t *testing.T) {
 		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
 	}
 
-	respChannel2, cancelWatch2 := orchestrator.CreateWatch(req2)
+	respChannel2, cancelWatch2 := orchestrator.CreateWatch(transport.NewRequestV2(&req2))
 	assert.NotNil(t, respChannel2)
 	assert.Equal(t, 2, len(orchestrator.downstreamResponseMap.responseChannels))
 	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
@@ -311,11 +311,11 @@ func TestMultipleWatchersAndUpstreams(t *testing.T) {
 		},
 	}
 
-	respChannel1, cancelWatch1 := orchestrator.CreateWatch(req1)
+	respChannel1, cancelWatch1 := orchestrator.CreateWatch(transport.NewRequestV2(&req1))
 	assert.NotNil(t, respChannel1)
-	respChannel2, cancelWatch2 := orchestrator.CreateWatch(req2)
+	respChannel2, cancelWatch2 := orchestrator.CreateWatch(transport.NewRequestV2(&req2))
 	assert.NotNil(t, respChannel2)
-	respChannel3, cancelWatch3 := orchestrator.CreateWatch(req3)
+	respChannel3, cancelWatch3 := orchestrator.CreateWatch(transport.NewRequestV2(&req3))
 	assert.NotNil(t, respChannel3)
 
 	upstreamResponseLDS := v2.DiscoveryResponse{
@@ -340,9 +340,9 @@ func TestMultipleWatchersAndUpstreams(t *testing.T) {
 	upstreamResponseChannelLDS <- transport.NewResponseV2(&req1, &upstreamResponseLDS)
 	upstreamResponseChannelCDS <- transport.NewResponseV2(&req3, &upstreamResponseCDS)
 
-	gotResponseFromChannel1 := <-respChannel1
-	gotResponseFromChannel2 := <-respChannel2
-	gotResponseFromChannel3 := <-respChannel3
+	gotResponseFromChannel1 := <-respChannel1.GetChannel().V2
+	gotResponseFromChannel2 := <-respChannel2.GetChannel().V2
+	gotResponseFromChannel3 := <-respChannel3.GetChannel().V2
 
 	assert.Equal(t, 3, len(orchestrator.downstreamResponseMap.responseChannels))
 	testutils.AssertSyncMapLen(t, 2, orchestrator.upstreamResponseMap.internal)
