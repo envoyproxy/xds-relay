@@ -62,7 +62,7 @@ func TestOpenStreamShouldReturnNonEmptyResponseChannel(t *testing.T) {
 }
 
 func TestOpenStreamShouldSendTheFirstRequestToOriginServer(t *testing.T) {
-	var message transport.Request
+	var message *v2.DiscoveryRequest
 	responseChan := make(chan *v2.DiscoveryResponse)
 	wait := make(chan bool)
 	client := upstream.NewMock(
@@ -74,7 +74,7 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServer(t *testing.T) {
 		responseChan,
 		responseChan,
 		func(m interface{}) error {
-			message = m.(transport.Request)
+			message = m.(*v2.DiscoveryRequest)
 			wait <- true
 			return nil
 		},
@@ -88,8 +88,8 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServer(t *testing.T) {
 		}))
 	<-wait
 	assert.NotNil(t, message)
-	assert.Equal(t, message.GetRaw().V2.GetNode(), node)
-	assert.Equal(t, message.GetTypeURL(), upstream.ListenerTypeURL)
+	assert.Equal(t, message.GetNode(), node)
+	assert.Equal(t, message.GetTypeUrl(), upstream.ListenerTypeURL)
 	done()
 }
 
@@ -135,7 +135,7 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonce(t *testing
 	lastAppliedVersion := ""
 	index := 0
 	client := createMockClientWithResponse(time.Second, responseChan, func(m interface{}) error {
-		message := m.(transport.Request)
+		message := m.(*v2.DiscoveryRequest)
 
 		assert.Equal(t, message.GetVersionInfo(), lastAppliedVersion)
 		assert.Equal(t, message.GetResponseNonce(), lastAppliedVersion)
