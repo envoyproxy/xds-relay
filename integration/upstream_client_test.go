@@ -24,6 +24,7 @@ import (
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	corev2 "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	"github.com/envoyproxy/xds-relay/internal/app/transport"
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 )
@@ -57,7 +58,7 @@ func TestXdsClientGetsIncrementalResponsesFromUpstreamServer(t *testing.T) {
 				if !more {
 					return
 				}
-				assert.Equal(t, r.VersionInfo, "v"+strconv.Itoa(version))
+				assert.Equal(t, r.GetPayloadVersion(), "v"+strconv.Itoa(version))
 				version++
 				wg.Done()
 			}
@@ -158,18 +159,18 @@ func TestClientContextCancellationShouldCloseAllResponseChannels(t *testing.T) {
 		log.MockLogger,
 		stats.NewMockScope("mock"),
 	)
-	respCh1, _, _ := client.OpenStream(v2.DiscoveryRequest{
+	respCh1, _, _ := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{
 		TypeUrl: upstream.ClusterTypeURL,
 		Node: &corev2.Node{
 			Id: nodeID,
 		},
-	})
-	respCh2, _, _ := client.OpenStream(v2.DiscoveryRequest{
+	}))
+	respCh2, _, _ := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{
 		TypeUrl: upstream.ClusterTypeURL,
 		Node: &corev2.Node{
 			Id: nodeID,
 		},
-	})
+	}))
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -201,7 +202,7 @@ func setup(
 	logger log.Logger,
 	snapshotv2 resourcev2.TestSnapshot,
 	configv2 gcpcachev2.SnapshotCache,
-	cb *gcptestv2.Callbacks) (<-chan *v2.DiscoveryResponse, func(), error) {
+	cb *gcptestv2.Callbacks) (<-chan transport.Response, func(), error) {
 	srv2 := gcpserverv2.NewServer(ctx, configv2, cb)
 	srv3 := gcpserverv3.NewServer(ctx, nil, nil)
 
@@ -220,12 +221,12 @@ func setup(
 		return nil, nil, err
 	}
 
-	respCh, shutdown, err := client.OpenStream(v2.DiscoveryRequest{
+	respCh, shutdown, err := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{
 		TypeUrl: upstream.ClusterTypeURL,
 		Node: &corev2.Node{
 			Id: nodeID,
 		},
-	})
+	}))
 
 	if err != nil {
 		logger.Error(ctx, "Open stream failed %s", err.Error())
