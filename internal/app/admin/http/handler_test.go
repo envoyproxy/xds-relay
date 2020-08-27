@@ -218,16 +218,16 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
 		orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
 		assert.NotNil(t, orchestrator)
 
-		gcpReq := gcp.Request{
+		gcpReq1 := gcp.Request{
 			TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
 		}
-		ldsRespChannel, cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq))
+		ldsRespChannel, cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq1))
 		assert.NotNil(t, ldsRespChannel)
 
-		gcpReq = gcp.Request{
+		gcpReq2 := gcp.Request{
 			TypeUrl: "type.googleapis.com/envoy.api.v2.Cluster",
 		}
-		cdsRespChannel, cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq))
+		cdsRespChannel, cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq2))
 		assert.NotNil(t, cdsRespChannel)
 
 		listener := &v2.Listener{
