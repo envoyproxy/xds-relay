@@ -195,7 +195,7 @@ func send(
 			// Ref: https://github.com/grpc/grpc-go/issues/1229#issuecomment-302755717
 			// Call SendMsg in a timeout because it can block in some cases.
 			err := util.DoWithTimeout(ctx, func() error {
-				return stream.SendMsg(request)
+				return stream.SendMsg(request.GetRaw().V2)
 			}, callOptions.Timeout)
 			if err != nil {
 				handleError(ctx, logger, "Error in SendMsg", cancelFunc, err)
