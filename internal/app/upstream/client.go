@@ -129,34 +129,43 @@ func New(
 func (m *client) OpenStream(request transport.Request) (<-chan transport.Response, func(), error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	var (
-		stream grpc.ClientStream
+		s      grpc.ClientStream
+		stream transport.Stream
 		err    error
 		scope  tally.Scope
 	)
 	switch request.GetTypeURL() {
 	case resourcev2.ListenerType:
-		stream, err = m.ldsClientV2.StreamListeners(ctx)
+		s, err = m.ldsClientV2.StreamListeners(ctx)
+		stream = transport.NewStreamV2(s, request)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamLDS)
 	case resourcev3.ListenerType:
-		stream, err = m.ldsClientV3.StreamListeners(ctx)
+		s, err = m.ldsClientV3.StreamListeners(ctx)
+		stream = transport.NewStreamV2(s, request)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamLDS)
 	case resourcev2.ClusterType:
-		stream, err = m.cdsClientV2.StreamClusters(ctx)
+		s, err = m.cdsClientV2.StreamClusters(ctx)
+		stream = transport.NewStreamV2(s, request)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamCDS)
 	case resourcev3.ClusterType:
-		stream, err = m.cdsClientV3.StreamClusters(ctx)
+		s, err = m.cdsClientV3.StreamClusters(ctx)
+		stream = transport.NewStreamV2(s, request)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamCDS)
 	case resourcev2.RouteType:
-		stream, err = m.rdsClientV2.StreamRoutes(ctx)
+		s, err = m.rdsClientV2.StreamRoutes(ctx)
+		stream = transport.NewStreamV2(s, request)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamRDS)
 	case resourcev3.RouteType:
-		stream, err = m.rdsClientV3.StreamRoutes(ctx)
+		s, err = m.rdsClientV3.StreamRoutes(ctx)
+		stream = transport.NewStreamV2(s, request)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamRDS)
 	case resourcev2.EndpointType:
-		stream, err = m.edsClientV2.StreamEndpoints(ctx)
+		s, err = m.edsClientV2.StreamEndpoints(ctx)
+		stream = transport.NewStreamV2(s, request)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamEDS)
 	case resourcev3.EndpointType:
-		stream, err = m.edsClientV3.StreamEndpoints(ctx)
+		s, err = m.edsClientV3.StreamEndpoints(ctx)
+		stream = transport.NewStreamV2(s, request)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamEDS)
 	default:
 		defer cancel()
@@ -199,7 +208,7 @@ func send(
 	logger log.Logger,
 	cancelFunc context.CancelFunc,
 	request transport.Request,
-	stream grpc.ClientStream,
+	stream transport.Stream,
 	signal chan *version,
 	callOptions CallOptions) {
 	for {
@@ -208,13 +217,12 @@ func send(
 			if !ok {
 				return
 			}
-			discoveryRequest := request.GetRaw().V2
-			discoveryRequest.ResponseNonce = sig.nonce
-			discoveryRequest.VersionInfo = sig.version
+			request.UpdateNonce(sig.nonce)
+			request.UpdateVersion(sig.version)
 			// Ref: https://github.com/grpc/grpc-go/issues/1229#issuecomment-302755717
 			// Call SendMsg in a timeout because it can block in some cases.
 			err := util.DoWithTimeout(ctx, func() error {
-				return stream.SendMsg(request.GetRaw().V2)
+				return stream.SendMsg()
 			}, callOptions.Timeout)
 			if err != nil {
 				handleError(ctx, logger, "Error in SendMsg", cancelFunc, err)
@@ -240,24 +248,25 @@ func recv(
 	logger log.Logger,
 	request transport.Request,
 	response chan transport.Response,
-	stream grpc.ClientStream,
+	stream transport.Stream,
 	signal chan *version) {
 	for {
-		resp := new(v2.DiscoveryResponse)
-		if err := stream.RecvMsg(resp); err != nil {
+		var resp transport.Response
+		var err error
+		if resp, err = stream.RecvMsg(); err != nil {
 			handleError(ctx, logger, "Error in RecvMsg", cancelFunc, err)
 			break
 		}
 		logger.With(
 			"response_version", resp.GetVersionInfo(),
-			"response_type", resp.GetTypeUrl(),
+			"response_type", resp.GetTypeURL(),
 			"resource_length", len(resp.GetResources()),
 		).Debug(context.Background(), "received message")
 		select {
 		case <-ctx.Done():
 			break
 		default:
-			response <- transport.NewResponseV2(request.GetRaw().V2, resp)
+			response <- resp
 			signal <- &version{version: resp.GetVersionInfo(), nonce: resp.GetNonce()}
 		}
 	}

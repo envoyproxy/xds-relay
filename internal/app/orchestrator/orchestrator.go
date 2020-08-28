@@ -148,7 +148,7 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 		// TODO (https://github.com/envoyproxy/xds-relay/issues/56). Can we
 		// condense this key but still make it granular enough to uniquely
 		// identify a request?
-		aggregatedKey = fmt.Sprintf("%s%s", unaggregatedPrefix, req.GetRaw().V2)
+		aggregatedKey = fmt.Sprintf("%s", unaggregatedPrefix)
 	}
 
 	o.logger.With(
@@ -166,7 +166,7 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 		// If we fail to register the watch, we need to kill this stream by
 		// closing the response channel.
 		o.logger.With("error", err).With("aggregated_key", aggregatedKey).With(
-			"request", req.GetRaw().V2).Error(ctx, "failed to add watch")
+			"request", req.GetRequest()).Error(ctx, "failed to add watch")
 		metrics.OrchestratorWatchErrorsSubscope(o.scope, aggregatedKey).Counter(metrics.ErrorRegisterWatch).Inc(1)
 		w := o.downstreamResponseMap.delete(req)
 		return w, nil

@@ -26,8 +26,12 @@ type Request interface {
 	GetZone() string
 	GetSubZone() string
 	GetResponseNonce() string
-	GetRaw() *RequestVersion
+	GetVersionedRequest() *RequestVersion
+	GetRequest() interface{}
 	CreateWatch() Watch
+	UpdateVersion(version string)
+	UpdateNonce(nonce string)
+	CreateResponse(interface{}) Response
 }
 
 // NewRequestV2 creates a Request objects which wraps v2.DiscoveryRequest
@@ -107,9 +111,14 @@ func (r *RequestV2) GetSubZone() string {
 	return r.r.GetNode().GetLocality().GetSubZone()
 }
 
-// GetRaw gets the error details
-func (r *RequestV2) GetRaw() *RequestVersion {
+// GetVersionedRequest gets the error details
+func (r *RequestV2) GetVersionedRequest() *RequestVersion {
 	return &RequestVersion{V2: r.r}
+}
+
+// GetRequest gets the error details
+func (r *RequestV2) GetRequest() interface{} {
+	return r.r
 }
 
 // GetResponseNonce gets the error details
@@ -120,4 +129,19 @@ func (r *RequestV2) GetResponseNonce() string {
 // CreateWatch creates a versioned Watch
 func (r *RequestV2) CreateWatch() Watch {
 	return newWatchV2()
+}
+
+// UpdateVersion overrides the versioninfo
+func (r *RequestV2) UpdateVersion(version string) {
+	r.r.VersionInfo = version
+}
+
+// UpdateNonce overrides the versioninfo
+func (r *RequestV2) UpdateNonce(nonce string) {
+	r.r.ResponseNonce = nonce
+}
+
+// CreateResponse overrides the versioninfo
+func (r *RequestV2) CreateResponse(resp interface{}) Response {
+	return NewResponseV2(r.r, resp.(*discoveryv2.DiscoveryResponse))
 }

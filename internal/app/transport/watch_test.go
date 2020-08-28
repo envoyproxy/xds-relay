@@ -7,6 +7,7 @@ import (
 	discoveryv2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
+	"github.com/golang/protobuf/ptypes/any"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -107,4 +108,12 @@ func (r *mockResponse) GetRequest() *RequestVersion {
 
 func (r *mockResponse) Get() *ResponseVersion {
 	return &ResponseVersion{}
+}
+
+func (r *mockResponse) GetVersionInfo() string {
+	return ""
+}
+
+func (r *mockResponse) GetResources() []*any.Any {
+	return nil
 }

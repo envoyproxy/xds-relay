@@ -156,7 +156,7 @@ type marshallableResource struct {
 func resourceToString(resource cache.Resource) (string, error) {
 	var requests []*v2.DiscoveryRequest
 	for request := range resource.Requests {
-		requests = append(requests, request.GetRaw().V2)
+		requests = append(requests, request.GetVersionedRequest().V2)
 	}
 
 	resourceString := &marshallableResource{
