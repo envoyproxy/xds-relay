@@ -195,12 +195,10 @@ func send(
 			if !ok {
 				return
 			}
-			request.UpdateNonce(sig.nonce)
-			request.UpdateVersion(sig.version)
 			// Ref: https://github.com/grpc/grpc-go/issues/1229#issuecomment-302755717
 			// Call SendMsg in a timeout because it can block in some cases.
 			err := util.DoWithTimeout(ctx, func() error {
-				return stream.SendMsg()
+				return stream.SendMsg(sig.version, sig.nonce)
 			}, callOptions.Timeout)
 			if err != nil {
 				handleError(ctx, logger, "Error in SendMsg", cancelFunc, err)

@@ -28,8 +28,6 @@ type Request interface {
 	GetResponseNonce() string
 	GetRaw() *RequestVersion
 	CreateWatch() Watch
-	UpdateVersion(version string)
-	UpdateNonce(nonce string)
 }
 
 // NewRequestV2 creates a Request objects which wraps v2.DiscoveryRequest
@@ -122,14 +120,4 @@ func (r *RequestV2) GetResponseNonce() string {
 // CreateWatch creates a versioned Watch
 func (r *RequestV2) CreateWatch() Watch {
 	return newWatchV2()
-}
-
-// UpdateVersion overrides the versioninfo
-func (r *RequestV2) UpdateVersion(version string) {
-	r.r.VersionInfo = version
-}
-
-// UpdateNonce overrides the versioninfo
-func (r *RequestV2) UpdateNonce(nonce string) {
-	r.r.ResponseNonce = nonce
 }

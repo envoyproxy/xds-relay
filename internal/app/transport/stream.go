@@ -7,7 +7,7 @@ import (
 
 // Stream abstracts the grpc client stream and DiscoveryRequest/Response
 type Stream interface {
-	SendMsg() error
+	SendMsg(version string, nonce string) error
 	RecvMsg() (Response, error)
 	CloseSend() error
 }
@@ -27,8 +27,11 @@ func NewStreamV2(clientStream grpc.ClientStream, req Request) Stream {
 	}
 }
 
-func (s *streamv2) SendMsg() error {
-	return s.grpcClientStream.SendMsg(s.initialRequest.GetRaw().V2)
+func (s *streamv2) SendMsg(version string, nonce string) error {
+	msg := s.initialRequest.GetRaw().V2
+	msg.VersionInfo = version
+	msg.ResponseNonce = nonce
+	return s.grpcClientStream.SendMsg(msg)
 }
 
 func (s *streamv2) RecvMsg() (Response, error) {
