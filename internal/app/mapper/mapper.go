@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 
+	corev2 "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"github.com/envoyproxy/xds-relay/internal/app/metrics"
 	"github.com/envoyproxy/xds-relay/internal/app/transport"
 
@@ -124,20 +125,25 @@ func isNodeMatch(matchPredicate *matchPredicate, req transport.Request) (bool, e
 	if predicate == nil {
 		return false, nil
 	}
-	switch predicate.GetField() {
-	case aggregationv1.NodeFieldType_NODE_CLUSTER:
-		return compare(predicate, req.GetCluster())
-	case aggregationv1.NodeFieldType_NODE_ID:
-		return compare(predicate, req.GetNodeID())
-	case aggregationv1.NodeFieldType_NODE_LOCALITY_REGION:
-		return compare(predicate, req.GetRegion())
-	case aggregationv1.NodeFieldType_NODE_LOCALITY_ZONE:
-		return compare(predicate, req.GetZone())
-	case aggregationv1.NodeFieldType_NODE_LOCALITY_SUBZONE:
-		return compare(predicate, req.GetSubZone())
-	default:
-		return false, fmt.Errorf("RequestNodeMatch does not have a valid NodeFieldType")
+
+	// By construction only one of these is set at any point in time, so checking one by one
+	// sequentially is ok.
+	id_match := predicate.GetIdMatch()
+	if id_match != nil {
+		return compareString(id_match, req.GetNodeID())
 	}
+
+	cluster_match := predicate.GetClusterMatch()
+	if cluster_match != nil {
+		return compareString(cluster_match, req.GetCluster())
+	}
+
+	locality_match := predicate.GetLocalityMatch()
+	if locality_match != nil {
+		return compareLocality(locality_match, req.GetLocality())
+	}
+
+	return false, fmt.Errorf("RequestNodeMatch is invalid")
 }
 
 func isRequestTypeMatch(matchPredicate *matchPredicate, typeURL string) bool {
@@ -402,16 +408,16 @@ func getResultFragmentFromAction(
 	return replacedFragment, nil
 }
 
-func compare(requestNodeMatch *aggregationv1.MatchPredicate_RequestNodeMatch, nodeValue string) (bool, error) {
+func compareString(nodeStringMatch *aggregationv1.NodeStringMatch, nodeValue string) (bool, error) {
 	if nodeValue == "" {
 		return false, fmt.Errorf("MatchPredicate Node field cannot be empty")
 	}
-	exactMatch := requestNodeMatch.GetExactMatch()
+	exactMatch := nodeStringMatch.GetExactMatch()
 	if exactMatch != "" {
 		return nodeValue == exactMatch, nil
 	}
 
-	regexMatch := requestNodeMatch.GetRegexMatch()
+	regexMatch := nodeStringMatch.GetRegexMatch()
 	if regexMatch != "" {
 		match, err := regexp.MatchString(regexMatch, nodeValue)
 		if err != nil {
@@ -421,4 +427,28 @@ func compare(requestNodeMatch *aggregationv1.MatchPredicate_RequestNodeMatch, no
 	}
 
 	return false, nil
+}
+
+func compareLocality(nodeLocalityMatch *aggregationv1.NodeLocalityMatch, reqNodeLocality *corev2.Locality) (bool, error) {
+	// TODO if we can reuse envoy's Locality object, make sure to use cmp.Equal
+	if reqNodeLocality == nil {
+		return false, fmt.Errorf("Locality Node field cannot be empty")
+	}
+
+	regionMatch := true
+	if nodeLocalityMatch.Region != "" && reqNodeLocality.Region != "" {
+		regionMatch = nodeLocalityMatch.Region == reqNodeLocality.Region
+	}
+
+	zoneMatch := true
+	if nodeLocalityMatch.Zone != "" && reqNodeLocality.Zone != "" {
+		zoneMatch = nodeLocalityMatch.Zone == reqNodeLocality.Zone
+	}
+
+	subZoneMatch := true
+	if nodeLocalityMatch.SubZone != "" && reqNodeLocality.SubZone != "" {
+		subZoneMatch = nodeLocalityMatch.SubZone == reqNodeLocality.SubZone
+	}
+
+	return regionMatch && zoneMatch && subZoneMatch, nil
 }
