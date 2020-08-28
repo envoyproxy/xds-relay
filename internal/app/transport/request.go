@@ -2,6 +2,7 @@ package transport
 
 import (
 	discoveryv2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	corev2 "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	structpb "github.com/golang/protobuf/ptypes/struct"
 	status "google.golang.org/genproto/googleapis/rpc/status"
 )
@@ -22,6 +23,7 @@ type Request interface {
 	GetError() *status.Status
 	IsNodeEmpty() bool
 	IsEmptyLocality() bool
+	GetLocality() *corev2.Locality
 	GetRegion() string
 	GetZone() string
 	GetSubZone() string
@@ -90,6 +92,10 @@ func (r *RequestV2) IsNodeEmpty() bool {
 // IsEmptyLocality gets the error details
 func (r *RequestV2) IsEmptyLocality() bool {
 	return r.r.GetNode().Locality == nil
+}
+
+func (r *RequestV2) GetLocality() *corev2.Locality {
+	return r.r.GetNode().Locality
 }
 
 // GetRegion gets the error details
