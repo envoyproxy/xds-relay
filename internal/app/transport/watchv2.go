@@ -29,11 +29,11 @@ func (w *watchV2) GetChannel() *ChannelVersion {
 }
 
 // Send sends the xds response over wire
-func (w *watchV2) Send(s Response) (bool, error) {
+func (w *watchV2) Send(s Response) bool {
 	select {
 	case w.out <- gcpv2.PassthroughResponse{DiscoveryResponse: s.Get().V2, Request: *s.GetRequest().V2}:
-		return true, nil
+		return true
 	default:
-		return false, nil
+		return false
 	}
 }
