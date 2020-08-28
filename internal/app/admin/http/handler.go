@@ -12,6 +12,7 @@ import (
 
 	envoy_api_v2_auth "github.com/envoyproxy/go-control-plane/envoy/api/v2/auth"
 	envoy_service_discovery_v2 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v2"
+	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
 	resource2 "github.com/envoyproxy/go-control-plane/pkg/resource/v2"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
@@ -146,7 +147,7 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 
 type marshallableResource struct {
 	Resp           *marshalledDiscoveryResponse
-	Requests       []*v2.DiscoveryRequest
+	Requests       []types.Resource
 	ExpirationTime time.Time
 }
 
@@ -154,9 +155,13 @@ type marshallableResource struct {
 // the map of requests is converted to a slice of just the keys,
 // since the bool value is meaningless.
 func resourceToString(resource cache.Resource) (string, error) {
-	var requests []*v2.DiscoveryRequest
+	var requests []types.Resource
 	for request := range resource.Requests {
-		requests = append(requests, request.GetRaw().V2)
+		if request.GetRaw().V2 != nil {
+			requests = append(requests, request.GetRaw().V2)
+		} else {
+			requests = append(requests, request.GetRaw().V3)
+		}
 	}
 
 	resourceString := &marshallableResource{

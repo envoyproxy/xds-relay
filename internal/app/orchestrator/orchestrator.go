@@ -148,7 +148,11 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 		// TODO (https://github.com/envoyproxy/xds-relay/issues/56). Can we
 		// condense this key but still make it granular enough to uniquely
 		// identify a request?
-		aggregatedKey = fmt.Sprintf("%s%s", unaggregatedPrefix, req.GetRaw().V2)
+		if req.GetRaw().V2 != nil {
+			aggregatedKey = fmt.Sprintf("%s%s", unaggregatedPrefix, req.GetRaw().V2)
+		} else {
+			aggregatedKey = fmt.Sprintf("%s%s", unaggregatedPrefix, req.GetRaw().V3)
+		}
 	}
 
 	o.logger.With(
