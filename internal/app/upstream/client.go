@@ -9,21 +9,11 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/app/transport"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	"github.com/envoyproxy/go-control-plane/pkg/resource/v2"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 	"github.com/envoyproxy/xds-relay/internal/pkg/util"
 	"github.com/uber-go/tally"
 	"google.golang.org/grpc"
-)
-
-const (
-	// ListenerTypeURL is the resource url for listener
-	ListenerTypeURL = "type.googleapis.com/envoy.api.v2.Listener"
-	// ClusterTypeURL is the resource url for cluster
-	ClusterTypeURL = "type.googleapis.com/envoy.api.v2.Cluster"
-	// EndpointTypeURL is the resource url for endpoints
-	EndpointTypeURL = "type.googleapis.com/envoy.api.v2.ClusterLoadAssignment"
-	// RouteTypeURL is the resource url for route
-	RouteTypeURL = "type.googleapis.com/envoy.api.v2.RouteConfiguration"
 )
 
 // UnsupportedResourceError is a custom error for unsupported typeURL
@@ -122,22 +112,27 @@ func New(
 func (m *client) OpenStream(request transport.Request) (<-chan transport.Response, func(), error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	var (
-		stream grpc.ClientStream
+		s      grpc.ClientStream
+		stream transport.Stream
 		err    error
 		scope  tally.Scope
 	)
 	switch request.GetTypeURL() {
-	case ListenerTypeURL:
-		stream, err = m.ldsClient.StreamListeners(ctx)
+	case resource.ListenerType:
+		s, err = m.ldsClient.StreamListeners(ctx)
+		stream = transport.NewStreamV2(s, request)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamLDS)
-	case ClusterTypeURL:
-		stream, err = m.cdsClient.StreamClusters(ctx)
+	case resource.ClusterType:
+		s, err = m.cdsClient.StreamClusters(ctx)
+		stream = transport.NewStreamV2(s, request)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamCDS)
-	case RouteTypeURL:
-		stream, err = m.rdsClient.StreamRoutes(ctx)
+	case resource.RouteType:
+		s, err = m.rdsClient.StreamRoutes(ctx)
+		stream = transport.NewStreamV2(s, request)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamRDS)
-	case EndpointTypeURL:
-		stream, err = m.edsClient.StreamEndpoints(ctx)
+	case resource.EndpointType:
+		s, err = m.edsClient.StreamEndpoints(ctx)
+		stream = transport.NewStreamV2(s, request)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamEDS)
 	default:
 		defer cancel()
@@ -160,7 +155,7 @@ func (m *client) OpenStream(request transport.Request) (<-chan transport.Respons
 	response := make(chan transport.Response)
 
 	go send(ctx, m.logger, cancel, request, stream, signal, m.callOptions)
-	go recv(ctx, cancel, m.logger, request, response, stream, signal)
+	go recv(ctx, cancel, m.logger, response, stream, signal)
 
 	m.logger.With("request_type", request.GetTypeURL()).Info(ctx, "stream opened")
 
@@ -180,7 +175,7 @@ func send(
 	logger log.Logger,
 	cancelFunc context.CancelFunc,
 	request transport.Request,
-	stream grpc.ClientStream,
+	stream transport.Stream,
 	signal chan *version,
 	callOptions CallOptions) {
 	for {
@@ -189,13 +184,10 @@ func send(
 			if !ok {
 				return
 			}
-			discoveryRequest := request.GetRaw().V2
-			discoveryRequest.ResponseNonce = sig.nonce
-			discoveryRequest.VersionInfo = sig.version
 			// Ref: https://github.com/grpc/grpc-go/issues/1229#issuecomment-302755717
 			// Call SendMsg in a timeout because it can block in some cases.
 			err := util.DoWithTimeout(ctx, func() error {
-				return stream.SendMsg(request.GetRaw().V2)
+				return stream.SendMsg(sig.version, sig.nonce)
 			}, callOptions.Timeout)
 			if err != nil {
 				handleError(ctx, logger, "Error in SendMsg", cancelFunc, err)
@@ -219,26 +211,25 @@ func recv(
 	ctx context.Context,
 	cancelFunc context.CancelFunc,
 	logger log.Logger,
-	request transport.Request,
 	response chan transport.Response,
-	stream grpc.ClientStream,
+	stream transport.Stream,
 	signal chan *version) {
 	for {
-		resp := new(v2.DiscoveryResponse)
-		if err := stream.RecvMsg(resp); err != nil {
+		resp, err := stream.RecvMsg()
+		if err != nil {
 			handleError(ctx, logger, "Error in RecvMsg", cancelFunc, err)
 			break
 		}
 		logger.With(
 			"response_version", resp.GetVersionInfo(),
-			"response_type", resp.GetTypeUrl(),
+			"response_type", resp.GetTypeURL(),
 			"resource_length", len(resp.GetResources()),
 		).Debug(context.Background(), "received message")
 		select {
 		case <-ctx.Done():
 			break
 		default:
-			response <- transport.NewResponseV2(request.GetRaw().V2, resp)
+			response <- resp
 			signal <- &version{version: resp.GetVersionInfo(), nonce: resp.GetNonce()}
 		}
 	}

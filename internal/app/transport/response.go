@@ -2,6 +2,7 @@ package transport
 
 import (
 	discoveryv2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	"github.com/golang/protobuf/ptypes/any"
 )
 
 // ResponseVersion holds either one of the v2/v3 DiscoveryRequests
@@ -16,6 +17,8 @@ type Response interface {
 	GetTypeURL() string
 	GetRequest() *RequestVersion
 	Get() *ResponseVersion
+	GetVersionInfo() string
+	GetResources() []*any.Any
 }
 
 var _ Response = &ResponseV2{}
@@ -57,4 +60,14 @@ func (r *ResponseV2) GetRequest() *RequestVersion {
 // Get returns the original discovery response
 func (r *ResponseV2) Get() *ResponseVersion {
 	return &ResponseVersion{V2: r.resp}
+}
+
+// GetVersionInfo returns the original discovery response
+func (r *ResponseV2) GetVersionInfo() string {
+	return r.resp.GetVersionInfo()
+}
+
+// GetResources returns the original discovery response
+func (r *ResponseV2) GetResources() []*any.Any {
+	return r.resp.GetResources()
 }
