@@ -451,7 +451,8 @@ func TestMarshalDiscoveryResponse(t *testing.T) {
 			listenerAny,
 		},
 	}
-	marshalled := marshalDiscoveryResponse(transport.NewResponseV2(&gcp.Request{}, &resp))
+	marshalled := marshalDiscoveryResponse(
+		transport.NewRequestV2(&gcp.Request{}).CreateResponse(transport.ResponseVersion{V2: &resp}))
 	assert.NotNil(t, marshalled)
 	assert.Equal(t, resp.VersionInfo, marshalled.VersionInfo)
 	assert.Equal(t, resp.TypeUrl, marshalled.TypeURL)

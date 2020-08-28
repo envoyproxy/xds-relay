@@ -6,8 +6,8 @@ import (
 	status "google.golang.org/genproto/googleapis/rpc/status"
 )
 
-// RequestVersion holds either one of the v2/v3 DiscoveryRequests
-type RequestVersion struct {
+// requestVersion holds either one of the v2/v3 DiscoveryRequests
+type requestVersion struct {
 	V2 *discoveryv2.DiscoveryRequest
 }
 
@@ -26,12 +26,12 @@ type Request interface {
 	GetZone() string
 	GetSubZone() string
 	GetResponseNonce() string
-	GetVersionedRequest() *RequestVersion
 	GetRequest() interface{}
 	CreateWatch() Watch
 	UpdateVersion(version string)
 	UpdateNonce(nonce string)
-	CreateResponse(interface{}) Response
+	CreateResponse(ResponseVersion) Response
+	getVersionedRequest() *requestVersion
 }
 
 // NewRequestV2 creates a Request objects which wraps v2.DiscoveryRequest
@@ -112,8 +112,8 @@ func (r *RequestV2) GetSubZone() string {
 }
 
 // GetVersionedRequest gets the error details
-func (r *RequestV2) GetVersionedRequest() *RequestVersion {
-	return &RequestVersion{V2: r.r}
+func (r *RequestV2) getVersionedRequest() *requestVersion {
+	return &requestVersion{V2: r.r}
 }
 
 // GetRequest gets the error details
@@ -141,7 +141,7 @@ func (r *RequestV2) UpdateNonce(nonce string) {
 	r.r.ResponseNonce = nonce
 }
 
-// CreateResponse overrides the versioninfo
-func (r *RequestV2) CreateResponse(resp interface{}) Response {
-	return NewResponseV2(r.r, resp.(*discoveryv2.DiscoveryResponse))
+// CreateResponse creates a Response instance
+func (r *RequestV2) CreateResponse(resp ResponseVersion) Response {
+	return newResponseV2(r.r, resp.V2)
 }

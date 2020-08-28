@@ -155,7 +155,7 @@ func (m *client) OpenStream(request transport.Request) (<-chan transport.Respons
 	response := make(chan transport.Response)
 
 	go send(ctx, m.logger, cancel, request, stream, signal, m.callOptions)
-	go recv(ctx, cancel, m.logger, request, response, stream, signal)
+	go recv(ctx, cancel, m.logger, response, stream, signal)
 
 	m.logger.With("request_type", request.GetTypeURL()).Info(ctx, "stream opened")
 
@@ -213,7 +213,6 @@ func recv(
 	ctx context.Context,
 	cancelFunc context.CancelFunc,
 	logger log.Logger,
-	request transport.Request,
 	response chan transport.Response,
 	stream transport.Stream,
 	signal chan *version) {

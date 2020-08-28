@@ -28,7 +28,7 @@ func NewStreamV2(clientStream grpc.ClientStream, req Request) Stream {
 }
 
 func (s *streamv2) SendMsg() error {
-	return s.grpcClientStream.SendMsg(s.initialRequest.GetVersionedRequest().V2)
+	return s.grpcClientStream.SendMsg(s.initialRequest.getVersionedRequest().V2)
 }
 
 func (s *streamv2) RecvMsg() (Response, error) {
@@ -36,7 +36,7 @@ func (s *streamv2) RecvMsg() (Response, error) {
 	if err := s.grpcClientStream.RecvMsg(resp); err != nil {
 		return nil, err
 	}
-	return NewResponseV2(s.initialRequest.GetVersionedRequest().V2, resp), nil
+	return newResponseV2(s.initialRequest.getVersionedRequest().V2, resp), nil
 }
 
 func (s *streamv2) CloseSend() error {

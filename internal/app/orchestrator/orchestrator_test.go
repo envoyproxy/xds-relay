@@ -157,7 +157,7 @@ func TestGoldenPath(t *testing.T) {
 			},
 		},
 	}
-	upstreamResponseChannel <- transport.NewResponseV2(&req, &resp)
+	upstreamResponseChannel <- transport.NewRequestV2(&req).CreateResponse(transport.ResponseVersion{V2: &resp})
 
 	gotResponse := <-respChannel.GetChannel().V2
 	assertEqualResponse(t, gotResponse, resp, req)
@@ -209,7 +209,9 @@ func TestCachedResponse(t *testing.T) {
 			},
 		},
 	}
-	watchers, err := orchestrator.cache.SetResponse(aggregatedKey, transport.NewResponseV2(&req, &mockResponse))
+	watchers, err := orchestrator.cache.SetResponse(
+		aggregatedKey,
+		transport.NewRequestV2(&req).CreateResponse(transport.ResponseVersion{V2: &mockResponse}))
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(watchers))
 
@@ -236,7 +238,7 @@ func TestCachedResponse(t *testing.T) {
 		},
 	}
 
-	upstreamResponseChannel <- transport.NewResponseV2(&req, &resp)
+	upstreamResponseChannel <- transport.NewRequestV2(&req).CreateResponse(transport.ResponseVersion{V2: &resp})
 	gotResponse = <-respChannel.GetChannel().V2
 	assertEqualResponse(t, gotResponse, resp, req)
 	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
@@ -337,8 +339,10 @@ func TestMultipleWatchersAndUpstreams(t *testing.T) {
 		},
 	}
 
-	upstreamResponseChannelLDS <- transport.NewResponseV2(&req1, &upstreamResponseLDS)
-	upstreamResponseChannelCDS <- transport.NewResponseV2(&req3, &upstreamResponseCDS)
+	upstreamResponseChannelLDS <- transport.NewRequestV2(&req1).
+		CreateResponse(transport.ResponseVersion{V2: &upstreamResponseLDS})
+	upstreamResponseChannelCDS <- transport.NewRequestV2(&req3).
+		CreateResponse(transport.ResponseVersion{V2: &upstreamResponseCDS})
 
 	gotResponseFromChannel1 := <-respChannel1.GetChannel().V2
 	gotResponseFromChannel2 := <-respChannel2.GetChannel().V2

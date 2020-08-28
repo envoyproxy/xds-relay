@@ -1,11 +1,10 @@
 package transport
 
 import (
-	"fmt"
-
 	gcpv2 "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 )
 
+// ChannelVersion holds either a V2 or V2 gcp.Response
 type ChannelVersion struct {
 	V2 chan gcpv2.Response
 }
@@ -14,7 +13,7 @@ type ChannelVersion struct {
 type Watch interface {
 	Close()
 	GetChannel() *ChannelVersion
-	Send(Response) (bool, error)
+	Send(Response) bool
 }
 
 var _ Watch = &watchV2{}
@@ -42,16 +41,11 @@ func (w *watchV2) GetChannel() *ChannelVersion {
 }
 
 // Send sends the xds response over wire
-func (w *watchV2) Send(s Response) (bool, error) {
-	resp, ok := s.(*ResponseV2)
-	if !ok {
-		return false, fmt.Errorf("payload %s could not be casted to DiscoveryResponse", s)
-	}
-
+func (w *watchV2) Send(s Response) bool {
 	select {
-	case w.out <- gcpv2.PassthroughResponse{DiscoveryResponse: resp.resp, Request: *s.GetRequest().V2}:
-		return true, nil
+	case w.out <- gcpv2.PassthroughResponse{DiscoveryResponse: s.Get().V2, Request: *s.getRequest().V2}:
+		return true
 	default:
-		return false, nil
+		return false
 	}
 }

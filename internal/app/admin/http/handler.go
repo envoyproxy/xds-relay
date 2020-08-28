@@ -146,7 +146,7 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 
 type marshallableResource struct {
 	Resp           *marshalledDiscoveryResponse
-	Requests       []*v2.DiscoveryRequest
+	Requests       []interface{}
 	ExpirationTime time.Time
 }
 
@@ -154,9 +154,9 @@ type marshallableResource struct {
 // the map of requests is converted to a slice of just the keys,
 // since the bool value is meaningless.
 func resourceToString(resource cache.Resource) (string, error) {
-	var requests []*v2.DiscoveryRequest
+	var requests []interface{}
 	for request := range resource.Requests {
-		requests = append(requests, request.GetVersionedRequest().V2)
+		requests = append(requests, request.GetRequest())
 	}
 
 	resourceString := &marshallableResource{
