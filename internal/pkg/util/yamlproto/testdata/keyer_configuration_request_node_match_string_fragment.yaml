@@ -6,3 +6,17 @@ fragments:
             exact_match: "woooow"
       result:
         string_fragment: "abc"
+    - match:
+        request_node_match:
+          cluster_match:
+            exact_match: "cluster-1"
+      result:
+        string_fragment: "abc"
+    - match:
+        request_node_match:
+          locality_match:
+            region: "r1"
+            zone: "z1"
+            sub_zone: "sz-1"
+      result:
+        string_fragment: "abc"
