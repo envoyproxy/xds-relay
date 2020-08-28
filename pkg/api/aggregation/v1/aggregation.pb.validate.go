@@ -125,6 +125,160 @@ var _ interface {
 	ErrorName() string
 } = KeyerConfigurationValidationError{}
 
+// Validate checks the field values on NodeStringMatch with the rules defined
+// in the proto definition for this message. If any rules are violated, an
+// error is returned.
+func (m *NodeStringMatch) Validate() error {
+	if m == nil {
+		return nil
+	}
+
+	switch m.Type.(type) {
+
+	case *NodeStringMatch_ExactMatch:
+		// no validation rules for ExactMatch
+
+	case *NodeStringMatch_RegexMatch:
+		// no validation rules for RegexMatch
+
+	default:
+		return NodeStringMatchValidationError{
+			field:  "Type",
+			reason: "value is required",
+		}
+
+	}
+
+	return nil
+}
+
+// NodeStringMatchValidationError is the validation error returned by
+// NodeStringMatch.Validate if the designated constraints aren't met.
+type NodeStringMatchValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e NodeStringMatchValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e NodeStringMatchValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e NodeStringMatchValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e NodeStringMatchValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e NodeStringMatchValidationError) ErrorName() string { return "NodeStringMatchValidationError" }
+
+// Error satisfies the builtin error interface
+func (e NodeStringMatchValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sNodeStringMatch.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = NodeStringMatchValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = NodeStringMatchValidationError{}
+
+// Validate checks the field values on NodeLocalityMatch with the rules defined
+// in the proto definition for this message. If any rules are violated, an
+// error is returned.
+func (m *NodeLocalityMatch) Validate() error {
+	if m == nil {
+		return nil
+	}
+
+	// no validation rules for Region
+
+	// no validation rules for Zone
+
+	// no validation rules for SubZone
+
+	return nil
+}
+
+// NodeLocalityMatchValidationError is the validation error returned by
+// NodeLocalityMatch.Validate if the designated constraints aren't met.
+type NodeLocalityMatchValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e NodeLocalityMatchValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e NodeLocalityMatchValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e NodeLocalityMatchValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e NodeLocalityMatchValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e NodeLocalityMatchValidationError) ErrorName() string {
+	return "NodeLocalityMatchValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e NodeLocalityMatchValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sNodeLocalityMatch.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = NodeLocalityMatchValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = NodeLocalityMatchValidationError{}
+
 // Validate checks the field values on MatchPredicate with the rules defined in
 // the proto definition for this message. If any rules are violated, an error
 // is returned.
@@ -658,20 +812,43 @@ func (m *MatchPredicate_RequestNodeMatch) Validate() error {
 		return nil
 	}
 
-	if _, ok := NodeFieldType_name[int32(m.GetField())]; !ok {
-		return MatchPredicate_RequestNodeMatchValidationError{
-			field:  "Field",
-			reason: "value must be one of the defined enum values",
-		}
-	}
-
 	switch m.Type.(type) {
 
-	case *MatchPredicate_RequestNodeMatch_ExactMatch:
-		// no validation rules for ExactMatch
+	case *MatchPredicate_RequestNodeMatch_IdMatch:
 
-	case *MatchPredicate_RequestNodeMatch_RegexMatch:
-		// no validation rules for RegexMatch
+		if v, ok := interface{}(m.GetIdMatch()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return MatchPredicate_RequestNodeMatchValidationError{
+					field:  "IdMatch",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	case *MatchPredicate_RequestNodeMatch_ClusterMatch:
+
+		if v, ok := interface{}(m.GetClusterMatch()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return MatchPredicate_RequestNodeMatchValidationError{
+					field:  "ClusterMatch",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	case *MatchPredicate_RequestNodeMatch_LocalityMatch:
+
+		if v, ok := interface{}(m.GetLocalityMatch()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return MatchPredicate_RequestNodeMatchValidationError{
+					field:  "LocalityMatch",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
 
 	default:
 		return MatchPredicate_RequestNodeMatchValidationError{

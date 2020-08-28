@@ -40,6 +40,30 @@ enum NodeFieldType {
   NODE_LOCALITY_SUBZONE = 4;
 }
 
+// TODO: can we reuse envoy's type.matcher.v3.StringMatcher instead?
+message NodeStringMatch {
+  oneof type {
+    option (validate.required) = true;
+
+    // Match on the extract string value.
+    string exact_match = 2;
+
+    // Match on a regex pattern.
+    // TODO potentially use "safe regex"
+    // https://github.com/envoyproxy/envoy/blob/10f756efa17e56c8d4d1033be7b4286410db4e01/api/envoy/type/matcher/v3/regex.proto
+    string regex_match = 3;
+  }
+}
+
+// TODO: how can we import envoy's definition of Locality?
+message NodeLocalityMatch {
+  string region = 1;
+
+  string zone = 2;
+
+  string sub_zone = 3;
+}
+
 // This is a recursive structure which allows complex nested match
 // configurations to be built using various logical operators.
 // [#next-free-field: 7]
@@ -53,23 +77,17 @@ message MatchPredicate {
     repeated string types = 1 [(validate.rules).repeated.min_items = 1];
   }
 
-  // Match on a Field in Envoy's request node.
+  // Match on a field in Envoy's request node.
   // [#next-free-field: 4]
   message RequestNodeMatch {
-
-    // Specifies the Envoy Request field that should be matched on.
-    NodeFieldType field = 1 [(validate.rules).enum.defined_only = true];
-
     oneof type {
       option (validate.required) = true;
 
-      // Match on the extract string value.
-      string exact_match = 2;
+      NodeStringMatch id_match = 1;
 
-      // Match on a regex pattern.
-      // TODO potentially use "safe regex"
-      // https://github.com/envoyproxy/envoy/blob/10f756efa17e56c8d4d1033be7b4286410db4e01/api/envoy/type/matcher/v3/regex.proto
-      string regex_match = 3;
+      NodeStringMatch cluster_match = 2;
+
+      NodeLocalityMatch locality_match = 3;
     }
   }
 
