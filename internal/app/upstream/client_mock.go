@@ -23,10 +23,10 @@ func NewMockClient(
 	cdsClient v2.ClusterDiscoveryServiceClient,
 	callOptions CallOptions) Client {
 	return &client{
-		ldsClient:   ldsClient,
-		rdsClient:   rdsClient,
-		edsClient:   edsClient,
-		cdsClient:   cdsClient,
+		ldsClientV2: ldsClient,
+		rdsClientV2: rdsClient,
+		edsClientV2: edsClient,
+		cdsClientV2: cdsClient,
 		callOptions: callOptions,
 		logger:      log.MockLogger,
 		scope:       stats.NewMockScope("mock"),
