@@ -128,19 +128,19 @@ func isNodeMatch(matchPredicate *matchPredicate, req transport.Request) (bool, e
 
 	// By construction only one of these is set at any point in time, so checking one by one
 	// sequentially is ok.
-	id_match := predicate.GetIdMatch()
-	if id_match != nil {
-		return compareString(id_match, req.GetNodeID())
+	idMatch := predicate.GetIdMatch()
+	if idMatch != nil {
+		return compareString(idMatch, req.GetNodeID())
 	}
 
-	cluster_match := predicate.GetClusterMatch()
-	if cluster_match != nil {
-		return compareString(cluster_match, req.GetCluster())
+	clusterMatch := predicate.GetClusterMatch()
+	if clusterMatch != nil {
+		return compareString(clusterMatch, req.GetCluster())
 	}
 
-	locality_match := predicate.GetLocalityMatch()
-	if locality_match != nil {
-		return compareLocality(locality_match, req.GetLocality())
+	localityMatch := predicate.GetLocalityMatch()
+	if localityMatch != nil {
+		return compareLocality(localityMatch, req.GetLocality())
 	}
 
 	return false, fmt.Errorf("RequestNodeMatch is invalid")
@@ -429,7 +429,8 @@ func compareString(nodeStringMatch *aggregationv1.NodeStringMatch, nodeValue str
 	return false, nil
 }
 
-func compareLocality(nodeLocalityMatch *aggregationv1.NodeLocalityMatch, reqNodeLocality *corev2.Locality) (bool, error) {
+func compareLocality(nodeLocalityMatch *aggregationv1.NodeLocalityMatch,
+	reqNodeLocality *corev2.Locality) (bool, error) {
 	// TODO if we can reuse envoy's Locality object, make sure to use cmp.Equal
 	if reqNodeLocality == nil {
 		return false, fmt.Errorf("Locality Node field cannot be empty")
