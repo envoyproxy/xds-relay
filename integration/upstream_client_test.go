@@ -15,6 +15,7 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/pkg/stats"
 
 	gcpcachev2 "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
+	"github.com/envoyproxy/go-control-plane/pkg/resource/v2"
 	gcpserverv2 "github.com/envoyproxy/go-control-plane/pkg/server/v2"
 	gcpserverv3 "github.com/envoyproxy/go-control-plane/pkg/server/v3"
 	gcptest "github.com/envoyproxy/go-control-plane/pkg/test"
@@ -160,13 +161,13 @@ func TestClientContextCancellationShouldCloseAllResponseChannels(t *testing.T) {
 		stats.NewMockScope("mock"),
 	)
 	respCh1, _, _ := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{
-		TypeUrl: upstream.ClusterTypeURL,
+		TypeUrl: resource.ClusterType,
 		Node: &corev2.Node{
 			Id: nodeID,
 		},
 	}))
 	respCh2, _, _ := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{
-		TypeUrl: upstream.ClusterTypeURL,
+		TypeUrl: resource.ClusterType,
 		Node: &corev2.Node{
 			Id: nodeID,
 		},
@@ -222,7 +223,7 @@ func setup(
 	}
 
 	respCh, shutdown, err := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{
-		TypeUrl: upstream.ClusterTypeURL,
+		TypeUrl: resource.ClusterType,
 		Node: &corev2.Node{
 			Id: nodeID,
 		},
