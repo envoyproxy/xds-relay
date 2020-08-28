@@ -109,7 +109,7 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 	gcpReq := gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
 	}
-	respChannel, cancelWatch := orchestrator.CreateWatch(gcpReq)
+	respChannel, cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq))
 	assert.NotNil(t, respChannel)
 
 	listener := &v2.Listener{
@@ -125,7 +125,7 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 		},
 	}
 	upstreamResponseChannel <- &resp
-	gotResponse := <-respChannel
+	gotResponse := <-respChannel.GetChannel().V2
 	gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
 	assert.NoError(t, err)
 	assert.Equal(t, resp, *gotDiscoveryResponse)
@@ -218,16 +218,16 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
 		orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
 		assert.NotNil(t, orchestrator)
 
-		gcpReq := gcp.Request{
+		gcpReq1 := gcp.Request{
 			TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
 		}
-		ldsRespChannel, cancelLDSWatch := orchestrator.CreateWatch(gcpReq)
+		ldsRespChannel, cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq1))
 		assert.NotNil(t, ldsRespChannel)
 
-		gcpReq = gcp.Request{
+		gcpReq2 := gcp.Request{
 			TypeUrl: "type.googleapis.com/envoy.api.v2.Cluster",
 		}
-		cdsRespChannel, cancelCDSWatch := orchestrator.CreateWatch(gcpReq)
+		cdsRespChannel, cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq2))
 		assert.NotNil(t, cdsRespChannel)
 
 		listener := &v2.Listener{
@@ -243,7 +243,7 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
 			},
 		}
 		upstreamResponseChannelLDS <- &resp
-		gotResponse := <-ldsRespChannel
+		gotResponse := <-ldsRespChannel.GetChannel().V2
 		gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
 		assert.NoError(t, err)
 		assert.Equal(t, resp, *gotDiscoveryResponse)
@@ -261,7 +261,7 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
 			},
 		}
 		upstreamResponseChannelCDS <- &resp
-		gotResponse = <-cdsRespChannel
+		gotResponse = <-cdsRespChannel.GetChannel().V2
 		gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
 		assert.NoError(t, err)
 		assert.Equal(t, resp, *gotDiscoveryResponse)

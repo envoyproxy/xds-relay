@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	api "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	gcpv2 "github.com/envoyproxy/go-control-plane/pkg/server/v2"
 	"github.com/envoyproxy/xds-relay/internal/app/metrics"
 
 	handler "github.com/envoyproxy/xds-relay/internal/app/admin/http"
@@ -25,8 +27,6 @@ import (
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
 
-	api "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	gcp "github.com/envoyproxy/go-control-plane/pkg/server/v2"
 	"google.golang.org/grpc"
 )
 
@@ -114,19 +114,14 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	handler.RegisterHandlers(bootstrapConfig, &orchestrator, logger)
 
 	// Start server.
-	gcpServer := gcp.NewServer(ctx, orchestrator, nil)
 	server := grpc.NewServer()
+	registerEndpoints(ctx, server, orchestrator)
 	serverPort := strconv.FormatUint(uint64(bootstrapConfig.Server.Address.PortValue), 10)
 	serverAddress := net.JoinHostPort(bootstrapConfig.Server.Address.Address, serverPort)
 	listener, err := net.Listen("tcp", serverAddress) // #nosec
 	if err != nil {
 		logger.With("error", err).Fatal(ctx, "failed to bind server to listener")
 	}
-
-	api.RegisterEndpointDiscoveryServiceServer(server, gcpServer)
-	api.RegisterClusterDiscoveryServiceServer(server, gcpServer)
-	api.RegisterRouteDiscoveryServiceServer(server, gcpServer)
-	api.RegisterListenerDiscoveryServiceServer(server, gcpServer)
 
 	if mode != "serve" {
 		return
@@ -170,4 +165,12 @@ func registerShutdownHandler(
 			logger.Error(ctx, "shutdown error: ", err.Error())
 		}
 	}()
+}
+
+func registerEndpoints(ctx context.Context, g *grpc.Server, o orchestrator.Orchestrator) {
+	gcpv2 := gcpv2.NewServer(ctx, orchestrator.NewV2(o), nil)
+	api.RegisterRouteDiscoveryServiceServer(g, gcpv2)
+	api.RegisterClusterDiscoveryServiceServer(g, gcpv2)
+	api.RegisterEndpointDiscoveryServiceServer(g, gcpv2)
+	api.RegisterListenerDiscoveryServiceServer(g, gcpv2)
 }
