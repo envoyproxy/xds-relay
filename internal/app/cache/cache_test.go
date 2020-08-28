@@ -74,8 +74,7 @@ var testDiscoveryResponse = v2.DiscoveryResponse{
 }
 
 var testResource = Resource{
-	Resp: transport.NewRequestV2(&v2.DiscoveryRequest{}).
-		CreateResponse(transport.ResponseVersion{V2: &testDiscoveryResponse}),
+	Resp:     transport.NewResponseV2(&v2.DiscoveryRequest{}, &testDiscoveryResponse),
 	Requests: make(map[transport.Request]bool),
 }
 

@@ -15,10 +15,10 @@ type Response interface {
 	GetPayloadVersion() string
 	GetNonce() string
 	GetTypeURL() string
+	GetRequest() *RequestVersion
 	Get() *ResponseVersion
 	GetVersionInfo() string
 	GetResources() []*any.Any
-	getRequest() *requestVersion
 }
 
 var _ Response = &ResponseV2{}
@@ -30,7 +30,7 @@ type ResponseV2 struct {
 }
 
 // NewResponseV2 creates a new instance of wrapped Response
-func newResponseV2(req *discoveryv2.DiscoveryRequest, resp *discoveryv2.DiscoveryResponse) Response {
+func NewResponseV2(req *discoveryv2.DiscoveryRequest, resp *discoveryv2.DiscoveryResponse) Response {
 	return &ResponseV2{
 		req:  req,
 		resp: resp,
@@ -53,8 +53,8 @@ func (r *ResponseV2) GetNonce() string {
 }
 
 // GetRequest returns the original request associated with the response
-func (r *ResponseV2) getRequest() *requestVersion {
-	return &requestVersion{V2: r.req}
+func (r *ResponseV2) GetRequest() *RequestVersion {
+	return &RequestVersion{V2: r.req}
 }
 
 // Get returns the original discovery response

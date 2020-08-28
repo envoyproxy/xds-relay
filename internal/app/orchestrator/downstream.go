@@ -110,7 +110,12 @@ func (d *downstreamResponseMap) getAggregatedKeys(m *mapper.Mapper) (map[string]
 func (responseChannel *responseChannel) addResponse(resp transport.Response) error {
 	responseChannel.wg.Add(1)
 	defer responseChannel.wg.Done()
-	if sent := responseChannel.watch.Send(resp); sent {
+	ok, err := responseChannel.watch.Send(resp)
+	if err != nil {
+		return err
+	}
+
+	if ok {
 		return nil
 	}
 
