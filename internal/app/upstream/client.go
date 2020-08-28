@@ -226,9 +226,8 @@ func recv(
 	stream transport.Stream,
 	signal chan *version) {
 	for {
-		var resp transport.Response
-		var err error
-		if resp, err = stream.RecvMsg(); err != nil {
+		resp, err := stream.RecvMsg()
+		if err != nil {
 			handleError(ctx, logger, "Error in RecvMsg", cancelFunc, err)
 			break
 		}
