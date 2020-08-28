@@ -9,7 +9,12 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/app/transport"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	clusterservice "github.com/envoyproxy/go-control-plane/envoy/service/cluster/v3"
+	endpointservice "github.com/envoyproxy/go-control-plane/envoy/service/endpoint/v3"
+	listenerservice "github.com/envoyproxy/go-control-plane/envoy/service/listener/v3"
+	routeservice "github.com/envoyproxy/go-control-plane/envoy/service/route/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/resource/v2"
+	resourcev3 "github.com/envoyproxy/go-control-plane/pkg/resource/v3"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 	"github.com/envoyproxy/xds-relay/internal/pkg/util"
 	"github.com/uber-go/tally"
@@ -51,6 +56,10 @@ type client struct {
 	rdsClient   v2.RouteDiscoveryServiceClient
 	edsClient   v2.EndpointDiscoveryServiceClient
 	cdsClient   v2.ClusterDiscoveryServiceClient
+	ldsClientV3 listenerservice.ListenerDiscoveryServiceClient
+	rdsClientV3 routeservice.RouteDiscoveryServiceClient
+	edsClientV3 endpointservice.EndpointDiscoveryServiceClient
+	cdsClientV3 clusterservice.ClusterDiscoveryServiceClient
 	callOptions CallOptions
 
 	logger log.Logger
@@ -96,6 +105,11 @@ func New(
 	edsClient := v2.NewEndpointDiscoveryServiceClient(conn)
 	cdsClient := v2.NewClusterDiscoveryServiceClient(conn)
 
+	ldsClientV3 := listenerservice.NewListenerDiscoveryServiceClient(conn)
+	rdsClientV3 := routeservice.NewRouteDiscoveryServiceClient(conn)
+	edsClientV3 := endpointservice.NewEndpointDiscoveryServiceClient(conn)
+	cdsClientV3 := clusterservice.NewClusterDiscoveryServiceClient(conn)
+
 	go shutDown(ctx, conn)
 
 	return &client{
@@ -103,6 +117,10 @@ func New(
 		rdsClient:   rdsClient,
 		edsClient:   edsClient,
 		cdsClient:   cdsClient,
+		ldsClientV3: ldsClientV3,
+		rdsClientV3: rdsClientV3,
+		edsClientV3: edsClientV3,
+		cdsClientV3: cdsClientV3,
 		callOptions: callOptions,
 		logger:      namedLogger,
 		scope:       subScope,
@@ -132,6 +150,22 @@ func (m *client) OpenStream(request transport.Request) (<-chan transport.Respons
 		scope = m.scope.SubScope(metrics.ScopeUpstreamRDS)
 	case resource.EndpointType:
 		s, err = m.edsClient.StreamEndpoints(ctx)
+		stream = transport.NewStreamV2(s, request)
+		scope = m.scope.SubScope(metrics.ScopeUpstreamEDS)
+	case resourcev3.ListenerType:
+		s, err = m.ldsClientV3.StreamListeners(ctx)
+		stream = transport.NewStreamV2(s, request)
+		scope = m.scope.SubScope(metrics.ScopeUpstreamLDS)
+	case resourcev3.ClusterType:
+		s, err = m.cdsClientV3.StreamClusters(ctx)
+		stream = transport.NewStreamV2(s, request)
+		scope = m.scope.SubScope(metrics.ScopeUpstreamCDS)
+	case resourcev3.RouteType:
+		s, err = m.rdsClientV3.StreamRoutes(ctx)
+		stream = transport.NewStreamV2(s, request)
+		scope = m.scope.SubScope(metrics.ScopeUpstreamRDS)
+	case resourcev3.EndpointType:
+		s, err = m.edsClientV3.StreamEndpoints(ctx)
 		stream = transport.NewStreamV2(s, request)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamEDS)
 	default:
@@ -194,7 +228,6 @@ func send(
 				return
 			}
 			logger.With(
-				"node_id", request.GetNodeID(),
 				"request_type", request.GetTypeURL(),
 				"request_version", request.GetVersionInfo(),
 			).Debug(ctx, "sent message")
