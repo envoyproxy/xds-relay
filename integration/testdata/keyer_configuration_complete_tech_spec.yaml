@@ -21,8 +21,8 @@ fragments:
                     - "type.googleapis.com/envoy.api.v2.Listener"
                     - "type.googleapis.com/envoy.api.v2.Cluster"
               - request_node_match:
-                  field: 0 
-                  exact_match: "canary"
+                  id_match:
+                    exact_match: "canary"
         result:
           string_fragment: "canary"
       - match:

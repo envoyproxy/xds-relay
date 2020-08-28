@@ -300,17 +300,17 @@ var negativeTestsForKeyerConfigurationProto = []TableEntry{
 				"MatchPredicate_MatchSet.Rules: value must contain at least 2 item(s)",
 		},
 	},
-	{
-		Description: "reqesut_node_match cotaining invalid enum value",
-		Parameters: []interface{}{
-			"keyer_configuration_request_node_match_invalid_enum.yaml",
-			"invalid KeyerConfiguration.Fragments[0]: embedded message failed validation | caused by: " +
-				"invalid KeyerConfiguration_Fragment.Rules[0]: embedded message failed validation | caused " +
-				"by: invalid KeyerConfiguration_Fragment_Rule.Match: embedded message failed validation | caused " +
-				"by: invalid MatchPredicate.RequestNodeMatch: embedded message failed validation | caused " +
-				"by: invalid MatchPredicate_RequestNodeMatch.Field: value must be one of the defined enum values",
-		},
-	},
+	// {
+	// 	Description: "reqesut_node_match cotaining invalid enum value",
+	// 	Parameters: []interface{}{
+	// 		"keyer_configuration_request_node_match_invalid_enum.yaml",
+	// 		"invalid KeyerConfiguration.Fragments[0]: embedded message failed validation | caused by: " +
+	// 			"invalid KeyerConfiguration_Fragment.Rules[0]: embedded message failed validation | caused " +
+	// 			"by: invalid KeyerConfiguration_Fragment_Rule.Match: embedded message failed validation | caused " +
+	// 			"by: invalid MatchPredicate.RequestNodeMatch: embedded message failed validation | caused " +
+	// 			"by: invalid MatchPredicate_RequestNodeMatch.Field: value must be one of the defined enum values",
+	// 	},
+	// },
 }
 
 var _ = Describe("yamlproto tests", func() {

@@ -2,7 +2,7 @@ fragments:
   - rules:
     - match:
         request_node_match:
-          field: 0
-          exact_match: "woooow"
+          id_match:
+            exact_match: "woooow"
       result:
         string_fragment: "abc"
