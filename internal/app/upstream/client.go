@@ -16,17 +16,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-const (
-	// ListenerTypeURL is the resource url for listener
-	ListenerTypeURL = resource.ListenerType
-	// ClusterTypeURL is the resource url for cluster
-	ClusterTypeURL = resource.ClusterType
-	// EndpointTypeURL is the resource url for endpoints
-	EndpointTypeURL = resource.EndpointType
-	// RouteTypeURL is the resource url for route
-	RouteTypeURL = resource.RouteType
-)
-
 // UnsupportedResourceError is a custom error for unsupported typeURL
 type UnsupportedResourceError struct {
 	TypeURL string
@@ -129,19 +118,19 @@ func (m *client) OpenStream(request transport.Request) (<-chan transport.Respons
 		scope  tally.Scope
 	)
 	switch request.GetTypeURL() {
-	case ListenerTypeURL:
+	case resource.ListenerType:
 		s, err = m.ldsClient.StreamListeners(ctx)
 		stream = transport.NewStreamV2(s, request)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamLDS)
-	case ClusterTypeURL:
+	case resource.ClusterType:
 		s, err = m.cdsClient.StreamClusters(ctx)
 		stream = transport.NewStreamV2(s, request)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamCDS)
-	case RouteTypeURL:
+	case resource.RouteType:
 		s, err = m.rdsClient.StreamRoutes(ctx)
 		stream = transport.NewStreamV2(s, request)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamRDS)
-	case EndpointTypeURL:
+	case resource.EndpointType:
 		s, err = m.edsClient.StreamEndpoints(ctx)
 		stream = transport.NewStreamV2(s, request)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamEDS)
