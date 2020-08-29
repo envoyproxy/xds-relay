@@ -73,8 +73,18 @@ var _ = Describe("TestWatch", func() {
 		}()
 		wg.Wait()
 	}, []table.TableEntry{
-		table.Entry("V2", newWatchV2(), NewResponseV2(discoveryRequestv2, discoveryResponsev2), cachev2.PassthroughResponse{DiscoveryResponse: discoveryResponsev2, Request: *discoveryRequestv2}, V2),
-		table.Entry("V3", newWatchV3(), NewResponseV3(discoveryRequestv3, discoveryResponsev3), cachev3.PassthroughResponse{DiscoveryResponse: discoveryResponsev3, Request: *discoveryRequestv3}, V3),
+		table.Entry(
+			"V2",
+			newWatchV2(),
+			NewResponseV2(discoveryRequestv2, discoveryResponsev2),
+			cachev2.PassthroughResponse{DiscoveryResponse: discoveryResponsev2, Request: *discoveryRequestv2},
+			V2),
+		table.Entry(
+			"V3",
+			newWatchV3(),
+			NewResponseV3(discoveryRequestv3, discoveryResponsev3),
+			cachev3.PassthroughResponse{DiscoveryResponse: discoveryResponsev3, Request: *discoveryRequestv3},
+			V3),
 	}...)
 
 	table.DescribeTable("TestSendFalseWhenBlocked", func(w Watch, resp Response) {

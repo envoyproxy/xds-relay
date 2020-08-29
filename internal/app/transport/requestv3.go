@@ -58,16 +58,6 @@ func (r *RequestV3) GetTypeURL() string {
 	return r.r.GetTypeUrl()
 }
 
-// IsNodeEmpty gets the error details
-func (r *RequestV3) IsNodeEmpty() bool {
-	return r.r.Node == nil
-}
-
-// IsEmptyLocality gets the error details
-func (r *RequestV3) IsEmptyLocality() bool {
-	return r.r.GetNode().Locality == nil
-}
-
 // GetRegion gets the error details
 func (r *RequestV3) GetRegion() string {
 	return r.r.GetNode().GetLocality().GetRegion()

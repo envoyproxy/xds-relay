@@ -22,8 +22,6 @@ type Request interface {
 	GetNodeMetadata() *structpb.Struct
 	GetCluster() string
 	GetError() *status.Status
-	IsNodeEmpty() bool
-	IsEmptyLocality() bool
 	GetRegion() string
 	GetZone() string
 	GetSubZone() string
