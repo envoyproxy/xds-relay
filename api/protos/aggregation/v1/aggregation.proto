@@ -40,7 +40,6 @@ enum NodeFieldType {
   NODE_LOCALITY_SUBZONE = 4;
 }
 
-// TODO: can we reuse envoy's type.matcher.v3.StringMatcher instead?
 message NodeStringMatch {
   oneof type {
     option (validate.required) = true;
@@ -55,7 +54,6 @@ message NodeStringMatch {
   }
 }
 
-// TODO: how can we import envoy's definition of Locality?
 message NodeLocalityMatch {
   string region = 1;
 
