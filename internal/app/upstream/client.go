@@ -254,7 +254,7 @@ func recv(
 			break
 		}
 		logger.With(
-			"response_version", resp.GetVersionInfo(),
+			"response_version", resp.GetPayloadVersion(),
 			"response_type", resp.GetTypeURL(),
 			"resource_length", len(resp.GetResources()),
 		).Debug(context.Background(), "received message")
@@ -263,7 +263,7 @@ func recv(
 			break
 		default:
 			response <- resp
-			signal <- &version{version: resp.GetVersionInfo(), nonce: resp.GetNonce()}
+			signal <- &version{version: resp.GetPayloadVersion(), nonce: resp.GetNonce()}
 		}
 	}
 	closeChannels(signal, response)

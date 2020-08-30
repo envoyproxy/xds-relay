@@ -18,11 +18,13 @@ var responseV2 = discoveryv2.DiscoveryResponse{
 	VersionInfo: resourceVersion,
 	TypeUrl:     typeURL,
 	Resources:   []*anypb.Any{},
+	Nonce:       nonce,
 }
 var responseV3 = discoveryv3.DiscoveryResponse{
 	VersionInfo: resourceVersion,
 	TypeUrl:     typeURL,
 	Resources:   []*anypb.Any{},
+	Nonce:       nonce,
 }
 
 func TestGetPayloadVersion(t *testing.T) {
