@@ -274,7 +274,7 @@ var positiveTests = []TableEntry{
 		Description: "AnyMatch With exact Node Id result",
 		Parameters: []interface{}{
 			getAnyMatch(true),
-			getResultRequestNodeFragment(nodeIDField, getExactAction()),
+			getResultRequestNodeIDFragment(getExactAction()),
 			clusterTypeURL,
 			nodeid,
 		},
@@ -283,7 +283,7 @@ var positiveTests = []TableEntry{
 		Description: "AnyMatch With regex Node Id result",
 		Parameters: []interface{}{
 			getAnyMatch(true),
-			getResultRequestNodeFragment(nodeIDField, getRegexAction("n....d", "replace")),
+			getResultRequestNodeIDFragment(getRegexAction("n....d", "replace")),
 			clusterTypeURL,
 			"replace",
 		},
@@ -292,7 +292,7 @@ var positiveTests = []TableEntry{
 		Description: "AnyMatch With exact Node Cluster match",
 		Parameters: []interface{}{
 			getAnyMatch(true),
-			getResultRequestNodeFragment(nodeClusterField, getExactAction()),
+			getResultRequestNodeClusterFragment(getExactAction()),
 			clusterTypeURL,
 			nodecluster,
 		},
@@ -301,65 +301,65 @@ var positiveTests = []TableEntry{
 		Description: "AnyMatch With regex Node Cluster match",
 		Parameters: []interface{}{
 			getAnyMatch(true),
-			getResultRequestNodeFragment(nodeClusterField, getRegexAction("c.*r", "replace")),
+			getResultRequestNodeClusterFragment(getRegexAction("c.*r", "replace")),
 			clusterTypeURL,
 			"replace",
 		},
 	},
-	{
-		Description: "AnyMatch With Exact Node Region match",
-		Parameters: []interface{}{
-			getAnyMatch(true),
-			getResultRequestNodeFragment(nodeRegionField, getExactAction()),
-			clusterTypeURL,
-			noderegion,
-		},
-	},
-	{
-		Description: "AnyMatch With regex Node Region match",
-		Parameters: []interface{}{
-			getAnyMatch(true),
-			getResultRequestNodeFragment(nodeRegionField, getRegexAction("r(egion)", "p$1")),
-			clusterTypeURL,
-			"pegion",
-		},
-	},
-	{
-		Description: "AnyMatch With exact Node Zone match",
-		Parameters: []interface{}{
-			getAnyMatch(true),
-			getResultRequestNodeFragment(nodeZoneField, getExactAction()),
-			clusterTypeURL,
-			nodezone,
-		},
-	},
-	{
-		Description: "AnyMatch With regex Node Zone match",
-		Parameters: []interface{}{
-			getAnyMatch(true),
-			getResultRequestNodeFragment(nodeZoneField, getRegexAction("z..e$", "newzone")),
-			clusterTypeURL,
-			"newzone",
-		},
-	},
-	{
-		Description: "AnyMatch With exact Node Subzone match",
-		Parameters: []interface{}{
-			getAnyMatch(true),
-			getResultRequestNodeFragment(nodeSubZoneField, getExactAction()),
-			clusterTypeURL,
-			nodesubzone,
-		},
-	},
-	{
-		Description: "AnyMatch With regex Node Subzone match",
-		Parameters: []interface{}{
-			getAnyMatch(true),
-			getResultRequestNodeFragment(nodeSubZoneField, getRegexAction("[^0-9](u|v)b{1}...e", "zone")),
-			clusterTypeURL,
-			"zone",
-		},
-	},
+	// {
+	// 	Description: "AnyMatch With Exact Node Region match",
+	// 	Parameters: []interface{}{
+	// 		getAnyMatch(true),
+	// 		getResultRequestNodeFragment(nodeRegionField, getExactAction()),
+	// 		clusterTypeURL,
+	// 		noderegion,
+	// 	},
+	// },
+	// {
+	// 	Description: "AnyMatch With regex Node Region match",
+	// 	Parameters: []interface{}{
+	// 		getAnyMatch(true),
+	// 		getResultRequestNodeFragment(nodeRegionField, getRegexAction("r(egion)", "p$1")),
+	// 		clusterTypeURL,
+	// 		"pegion",
+	// 	},
+	// },
+	// {
+	// 	Description: "AnyMatch With exact Node Zone match",
+	// 	Parameters: []interface{}{
+	// 		getAnyMatch(true),
+	// 		getResultRequestNodeFragment(nodeZoneField, getExactAction()),
+	// 		clusterTypeURL,
+	// 		nodezone,
+	// 	},
+	// },
+	// {
+	// 	Description: "AnyMatch With regex Node Zone match",
+	// 	Parameters: []interface{}{
+	// 		getAnyMatch(true),
+	// 		getResultRequestNodeFragment(nodeZoneField, getRegexAction("z..e$", "newzone")),
+	// 		clusterTypeURL,
+	// 		"newzone",
+	// 	},
+	// },
+	// {
+	// 	Description: "AnyMatch With exact Node Subzone match",
+	// 	Parameters: []interface{}{
+	// 		getAnyMatch(true),
+	// 		getResultRequestNodeFragment(nodeSubZoneField, getExactAction()),
+	// 		clusterTypeURL,
+	// 		nodesubzone,
+	// 	},
+	// },
+	// {
+	// 	Description: "AnyMatch With regex Node Subzone match",
+	// 	Parameters: []interface{}{
+	// 		getAnyMatch(true),
+	// 		getResultRequestNodeFragment(nodeSubZoneField, getRegexAction("[^0-9](u|v)b{1}...e", "zone")),
+	// 		clusterTypeURL,
+	// 		"zone",
+	// 	},
+	// },
 	{
 		Description: "AnyMatch With result concatenation",
 		Parameters: []interface{}{
@@ -369,15 +369,15 @@ var positiveTests = []TableEntry{
 			nodeid + nodecluster,
 		},
 	},
-	{
-		Description: "AnyMatch With result concatenation recursive",
-		Parameters: []interface{}{
-			getAnyMatch(true),
-			getRepeatedResultPredicate2(),
-			clusterTypeURL,
-			"str" + noderegion + nodezone + "nTid" + nodecluster,
-		},
-	},
+	// {
+	// 	Description: "AnyMatch With result concatenation recursive",
+	// 	Parameters: []interface{}{
+	// 		getAnyMatch(true),
+	// 		getRepeatedResultPredicate2(),
+	// 		clusterTypeURL,
+	// 		"str" + noderegion + nodezone + "nTid" + nodecluster,
+	// 	},
+	// },
 	{
 		Description: "AnyMatch With resource names fragment element 0",
 		Parameters: []interface{}{
@@ -754,7 +754,7 @@ var regexpErrorCases = []TableEntry{
 		Description: "Regex compilation failure in RegexAction pattern should return error",
 		Parameters: []interface{}{
 			getAnyMatch(true),
-			getResultRequestNodeFragment(nodeIDField, getRegexAction("\xbd\xb2", "")),
+			getResultRequestNodeIDFragment(getRegexAction("\xbd\xb2", "")),
 		},
 	},
 }
@@ -783,7 +783,7 @@ var regexpErrorCasesMultipleFragments = []TableEntry{
 		Parameters: []interface{}{
 			getAnyMatch(true),
 			getAnyMatch(true),
-			getResultRequestNodeFragment(nodeIDField, getRegexAction("\xbd\xb2", "")),
+			getResultRequestNodeIDFragment(getRegexAction("\xbd\xb2", "")),
 			getResultStringFragment(),
 		},
 	},
@@ -793,7 +793,7 @@ var regexpErrorCasesMultipleFragments = []TableEntry{
 			getAnyMatch(true),
 			getAnyMatch(true),
 			getResultStringFragment(),
-			getResultRequestNodeFragment(nodeIDField, getRegexAction("\xbd\xb2", "")),
+			getResultRequestNodeIDFragment(getRegexAction("\xbd\xb2", "")),
 		},
 	},
 	{
@@ -812,7 +812,7 @@ var emptyFragmentErrorCases = []TableEntry{
 		Description: "empty node id in request predicate",
 		Parameters: []interface{}{
 			getRequestNodeIDExactMatch(nodeid),
-			getResultRequestNodeFragment(nodeIDField, getExactAction()),
+			getResultRequestNodeIDFragment(getExactAction()),
 			getDiscoveryRequestWithNode(getNode("", nodecluster, noderegion, nodezone, nodesubzone)),
 			"MatchPredicate Node field cannot be empty",
 		},
@@ -821,7 +821,7 @@ var emptyFragmentErrorCases = []TableEntry{
 		Description: "empty node cluster in request predicate",
 		Parameters: []interface{}{
 			getRequestNodeClusterExactMatch(nodecluster),
-			getResultRequestNodeFragment(nodeIDField, getExactAction()),
+			getResultRequestNodeIDFragment(getExactAction()),
 			getDiscoveryRequestWithNode(getNode(nodeid, "", noderegion, nodezone, nodesubzone)),
 			"MatchPredicate Node field cannot be empty",
 		},
@@ -830,7 +830,7 @@ var emptyFragmentErrorCases = []TableEntry{
 		Description: "empty node id in response action",
 		Parameters: []interface{}{
 			getAnyMatch(true),
-			getResultRequestNodeFragment(nodeIDField, getExactAction()),
+			getResultRequestNodeIDFragment(getExactAction()),
 			getDiscoveryRequestWithNode(getNode("", nodecluster, noderegion, nodezone, nodesubzone)),
 			"RequestNodeFragment exact match resulted in an empty fragment",
 		},
@@ -839,43 +839,43 @@ var emptyFragmentErrorCases = []TableEntry{
 		Description: "empty node cluster in response action",
 		Parameters: []interface{}{
 			getAnyMatch(true),
-			getResultRequestNodeFragment(nodeClusterField, getExactAction()),
+			getResultRequestNodeClusterFragment(getExactAction()),
 			getDiscoveryRequestWithNode(getNode(nodeid, "", noderegion, nodezone, nodesubzone)),
 			"RequestNodeFragment exact match resulted in an empty fragment",
 		},
 	},
-	{
-		Description: "empty node region in response action",
-		Parameters: []interface{}{
-			getAnyMatch(true),
-			getResultRequestNodeFragment(nodeRegionField, getExactAction()),
-			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "", nodezone, nodesubzone)),
-			"RequestNodeFragment exact match resulted in an empty fragment",
-		},
-	},
-	{
-		Description: "empty node zone in response action",
-		Parameters: []interface{}{
-			getAnyMatch(true),
-			getResultRequestNodeFragment(nodeZoneField, getExactAction()),
-			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, "", nodesubzone)),
-			"RequestNodeFragment exact match resulted in an empty fragment",
-		},
-	},
-	{
-		Description: "empty node subzone in response action",
-		Parameters: []interface{}{
-			getAnyMatch(true),
-			getResultRequestNodeFragment(nodeSubZoneField, getExactAction()),
-			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, "")),
-			"RequestNodeFragment exact match resulted in an empty fragment",
-		},
-	},
+	// {
+	// 	Description: "empty node region in response action",
+	// 	Parameters: []interface{}{
+	// 		getAnyMatch(true),
+	// 		getResultRequestNodeFragment(nodeRegionField, getExactAction()),
+	// 		getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "", nodezone, nodesubzone)),
+	// 		"RequestNodeFragment exact match resulted in an empty fragment",
+	// 	},
+	// },
+	// {
+	// 	Description: "empty node zone in response action",
+	// 	Parameters: []interface{}{
+	// 		getAnyMatch(true),
+	// 		getResultRequestNodeFragment(nodeZoneField, getExactAction()),
+	// 		getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, "", nodesubzone)),
+	// 		"RequestNodeFragment exact match resulted in an empty fragment",
+	// 	},
+	// },
+	// {
+	// 	Description: "empty node subzone in response action",
+	// 	Parameters: []interface{}{
+	// 		getAnyMatch(true),
+	// 		getResultRequestNodeFragment(nodeSubZoneField, getExactAction()),
+	// 		getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, "")),
+	// 		"RequestNodeFragment exact match resulted in an empty fragment",
+	// 	},
+	// },
 	{
 		Description: "empty node id in regex response action",
 		Parameters: []interface{}{
 			getAnyMatch(true),
-			getResultRequestNodeFragment(nodeIDField, getRegexAction(nodeid, "")),
+			getResultRequestNodeIDFragment(getRegexAction(nodeid, "")),
 			getDiscoveryRequest(),
 			"RequestNodeFragment regex match resulted in an empty fragment",
 		},
@@ -884,47 +884,38 @@ var emptyFragmentErrorCases = []TableEntry{
 		Description: "empty node cluster in regex response action",
 		Parameters: []interface{}{
 			getAnyMatch(true),
-			getResultRequestNodeFragment(nodeClusterField, getRegexAction(nodecluster, "")),
+			getResultRequestNodeClusterFragment(getRegexAction(nodecluster, "")),
 			getDiscoveryRequest(),
 			"RequestNodeFragment regex match resulted in an empty fragment",
 		},
 	},
-	{
-		Description: "empty node region in regex response action",
-		Parameters: []interface{}{
-			getAnyMatch(true),
-			getResultRequestNodeFragment(nodeRegionField, getRegexAction(noderegion, "")),
-			getDiscoveryRequest(),
-			"RequestNodeFragment regex match resulted in an empty fragment",
-		},
-	},
-	{
-		Description: "empty node zone in regex response action",
-		Parameters: []interface{}{
-			getAnyMatch(true),
-			getResultRequestNodeFragment(nodeZoneField, getRegexAction(nodezone, "")),
-			getDiscoveryRequest(),
-			"RequestNodeFragment regex match resulted in an empty fragment",
-		},
-	},
-	{
-		Description: "empty node subzone in regex response action",
-		Parameters: []interface{}{
-			getAnyMatch(true),
-			getResultRequestNodeFragment(nodeSubZoneField, getRegexAction(nodesubzone, "")),
-			getDiscoveryRequest(),
-			"RequestNodeFragment regex match resulted in an empty fragment",
-		},
-	},
-	{
-		Description: "non matching field type",
-		Parameters: []interface{}{
-			getAnyMatch(true),
-			getResultRequestNodeFragment(10, getExactAction()),
-			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "", nodezone, nodesubzone)),
-			"RequestNodeFragment Invalid NodeFieldType",
-		},
-	},
+	// {
+	// 	Description: "empty node region in regex response action",
+	// 	Parameters: []interface{}{
+	// 		getAnyMatch(true),
+	// 		getResultRequestNodeFragment(nodeRegionField, getRegexAction(noderegion, "")),
+	// 		getDiscoveryRequest(),
+	// 		"RequestNodeFragment regex match resulted in an empty fragment",
+	// 	},
+	// },
+	// {
+	// 	Description: "empty node zone in regex response action",
+	// 	Parameters: []interface{}{
+	// 		getAnyMatch(true),
+	// 		getResultRequestNodeFragment(nodeZoneField, getRegexAction(nodezone, "")),
+	// 		getDiscoveryRequest(),
+	// 		"RequestNodeFragment regex match resulted in an empty fragment",
+	// 	},
+	// },
+	// {
+	// 	Description: "empty node subzone in regex response action",
+	// 	Parameters: []interface{}{
+	// 		getAnyMatch(true),
+	// 		getResultRequestNodeFragment(nodeSubZoneField, getRegexAction(nodesubzone, "")),
+	// 		getDiscoveryRequest(),
+	// 		"RequestNodeFragment regex match resulted in an empty fragment",
+	// 	},
+	// },
 	{
 		Description: "resource fragment is negative",
 		Parameters: []interface{}{
@@ -1321,41 +1312,41 @@ func getRepeatedResultPredicate1() *ResultPredicate {
 		Type: &aggregationv1.ResultPredicate_AndResult_{
 			AndResult: &aggregationv1.ResultPredicate_AndResult{
 				ResultPredicates: []*aggregationv1.ResultPredicate{
-					getResultRequestNodeFragment(nodeIDField, getExactAction()),
-					getResultRequestNodeFragment(nodeClusterField, getExactAction()),
+					getResultRequestNodeIDFragment(getExactAction()),
+					getResultRequestNodeClusterFragment(getExactAction()),
 				},
 			},
 		},
 	}
 }
 
-func getRepeatedResultPredicate2() *ResultPredicate {
-	return &ResultPredicate{
-		Type: &aggregationv1.ResultPredicate_AndResult_{
-			AndResult: &aggregationv1.ResultPredicate_AndResult{
-				ResultPredicates: []*aggregationv1.ResultPredicate{
-					{
-						Type: &aggregationv1.ResultPredicate_AndResult_{
-							AndResult: &aggregationv1.ResultPredicate_AndResult{
-								ResultPredicates: []*aggregationv1.ResultPredicate{
-									{
-										Type: &aggregationv1.ResultPredicate_StringFragment{
-											StringFragment: "str",
-										},
-									},
-									getResultRequestNodeFragment(nodeRegionField, getExactAction()),
-									getResultRequestNodeFragment(nodeZoneField, getExactAction()),
-								},
-							},
-						},
-					},
-					getResultRequestNodeFragment(nodeIDField, getRegexAction("ode", "T")),
-					getResultRequestNodeFragment(nodeClusterField, getExactAction()),
-				},
-			},
-		},
-	}
-}
+// func getRepeatedResultPredicate2() *ResultPredicate {
+// 	return &ResultPredicate{
+// 		Type: &aggregationv1.ResultPredicate_AndResult_{
+// 			AndResult: &aggregationv1.ResultPredicate_AndResult{
+// 				ResultPredicates: []*aggregationv1.ResultPredicate{
+// 					{
+// 						Type: &aggregationv1.ResultPredicate_AndResult_{
+// 							AndResult: &aggregationv1.ResultPredicate_AndResult{
+// 								ResultPredicates: []*aggregationv1.ResultPredicate{
+// 									{
+// 										Type: &aggregationv1.ResultPredicate_StringFragment{
+// 											StringFragment: "str",
+// 										},
+// 									},
+// 									getResultRequestNodeFragment(nodeRegionField, getExactAction()),
+// 									getResultRequestNodeFragment(nodeZoneField, getExactAction()),
+// 								},
+// 							},
+// 						},
+// 					},
+// 					getResultRequestNodeIDFragment(getRegexAction("ode", "T")),
+// 					getResultRequestNodeClusterFragment(getExactAction()),
+// 				},
+// 			},
+// 		},
+// 	}
+// }
 
 func getRepeatedResultPredicate3() *ResultPredicate {
 	return &ResultPredicate{
@@ -1381,14 +1372,27 @@ func getResourceNameFragment(element int, action *aggregationv1.ResultPredicate_
 	}
 }
 
-func getResultRequestNodeFragment(
-	field aggregationv1.NodeFieldType,
+func getResultRequestNodeIDFragment(
 	action *aggregationv1.ResultPredicate_ResultAction) *ResultPredicate {
 	return &ResultPredicate{
 		Type: &aggregationv1.ResultPredicate_RequestNodeFragment_{
 			RequestNodeFragment: &aggregationv1.ResultPredicate_RequestNodeFragment{
-				Field:  field,
-				Action: action,
+				Action: &aggregationv1.ResultPredicate_RequestNodeFragment_IdAction{
+					IdAction: action,
+				},
+			},
+		},
+	}
+}
+
+func getResultRequestNodeClusterFragment(
+	action *aggregationv1.ResultPredicate_ResultAction) *ResultPredicate {
+	return &ResultPredicate{
+		Type: &aggregationv1.ResultPredicate_RequestNodeFragment_{
+			RequestNodeFragment: &aggregationv1.ResultPredicate_RequestNodeFragment{
+				Action: &aggregationv1.ResultPredicate_RequestNodeFragment_ClusterAction{
+					ClusterAction: action,
+				},
 			},
 		},
 	}
