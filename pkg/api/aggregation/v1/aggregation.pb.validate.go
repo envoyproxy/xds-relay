@@ -1203,28 +1203,50 @@ func (m *ResultPredicate_RequestNodeFragment) Validate() error {
 		return nil
 	}
 
-	if _, ok := NodeFieldType_name[int32(m.GetField())]; !ok {
-		return ResultPredicate_RequestNodeFragmentValidationError{
-			field:  "Field",
-			reason: "value must be one of the defined enum values",
-		}
-	}
+	switch m.Action.(type) {
 
-	if m.GetAction() == nil {
+	case *ResultPredicate_RequestNodeFragment_IdAction:
+
+		if v, ok := interface{}(m.GetIdAction()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return ResultPredicate_RequestNodeFragmentValidationError{
+					field:  "IdAction",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	case *ResultPredicate_RequestNodeFragment_ClusterAction:
+
+		if v, ok := interface{}(m.GetClusterAction()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return ResultPredicate_RequestNodeFragmentValidationError{
+					field:  "ClusterAction",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	case *ResultPredicate_RequestNodeFragment_LocalityAction:
+
+		if v, ok := interface{}(m.GetLocalityAction()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return ResultPredicate_RequestNodeFragmentValidationError{
+					field:  "LocalityAction",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	default:
 		return ResultPredicate_RequestNodeFragmentValidationError{
 			field:  "Action",
 			reason: "value is required",
 		}
-	}
 
-	if v, ok := interface{}(m.GetAction()).(interface{ Validate() error }); ok {
-		if err := v.Validate(); err != nil {
-			return ResultPredicate_RequestNodeFragmentValidationError{
-				field:  "Action",
-				reason: "embedded message failed validation",
-				cause:  err,
-			}
-		}
 	}
 
 	return nil

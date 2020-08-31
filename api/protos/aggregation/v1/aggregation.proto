@@ -155,12 +155,16 @@ message ResultPredicate {
   }
 
   // Rules for generating the resulting fragment from a Envoy request node.
-  // [#next-free-field: 3]
+  // [#next-free-field: 4]
   message RequestNodeFragment {
 
-    NodeFieldType field = 1 [(validate.rules).enum.defined_only = true];
+    oneof action {
+      option (validate.required) = true;
 
-    ResultAction action = 2 [(validate.rules).message.required = true];
+      ResultAction id_action = 1;
+      ResultAction cluster_action = 2;
+      NodeLocalityMatch locality_action = 3;
+    }
   }
 
   // Rules for generating the resulting fragment from Envoy request names.
