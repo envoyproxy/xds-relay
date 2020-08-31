@@ -65,12 +65,13 @@ var positiveTests = []TableEntry{
 			&ResultPredicate{
 				Type: &aggregationv1.ResultPredicate_RequestNodeFragment_{
 					RequestNodeFragment: &RequestNodeFragment{
-						Field: 2,
-						Action: &ResultAction{
-							Action: &aggregationv1.ResultPredicate_ResultAction_RegexAction_{
-								RegexAction: &RegexAction{
-									Pattern: "some_regex_for_node_fragment",
-									Replace: "another_replacement",
+						Action: &aggregationv1.ResultPredicate_RequestNodeFragment_IdAction{
+							IdAction: &aggregationv1.ResultPredicate_ResultAction{
+								Action: &aggregationv1.ResultPredicate_ResultAction_RegexAction_{
+									RegexAction: &RegexAction{
+										Pattern: "some_regex_for_node_fragment",
+										Replace: "another_replacement",
+									},
 								},
 							},
 						},
@@ -105,12 +106,13 @@ var positiveTests = []TableEntry{
 							{
 								Type: &aggregationv1.ResultPredicate_RequestNodeFragment_{
 									RequestNodeFragment: &RequestNodeFragment{
-										Field: 2,
-										Action: &ResultAction{
-											Action: &aggregationv1.ResultPredicate_ResultAction_RegexAction_{
-												RegexAction: &RegexAction{
-													Pattern: "some_regex_for_node_fragment",
-													Replace: "another_replacement",
+										Action: &aggregationv1.ResultPredicate_RequestNodeFragment_IdAction{
+											IdAction: &aggregationv1.ResultPredicate_ResultAction{
+												Action: &aggregationv1.ResultPredicate_ResultAction_RegexAction_{
+													RegexAction: &RegexAction{
+														Pattern: "some_regex_for_node_fragment",
+														Replace: "another_replacement",
+													},
 												},
 											},
 										},
