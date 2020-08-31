@@ -366,26 +366,6 @@ func getResultFromResourceNamesPredicate(
 	return true, result, nil
 }
 
-func getNodeValue(nodeField aggregationv1.NodeFieldType, req transport.Request) (string, error) {
-	var nodeValue string
-	switch nodeField {
-	case aggregationv1.NodeFieldType_NODE_CLUSTER:
-		nodeValue = req.GetCluster()
-	case aggregationv1.NodeFieldType_NODE_ID:
-		nodeValue = req.GetNodeID()
-	case aggregationv1.NodeFieldType_NODE_LOCALITY_REGION:
-		nodeValue = req.GetRegion()
-	case aggregationv1.NodeFieldType_NODE_LOCALITY_ZONE:
-		nodeValue = req.GetZone()
-	case aggregationv1.NodeFieldType_NODE_LOCALITY_SUBZONE:
-		nodeValue = req.GetSubZone()
-	default:
-		return "", fmt.Errorf("RequestNodeFragment Invalid NodeFieldType")
-	}
-
-	return nodeValue, nil
-}
-
 func getResultFragmentFromAction(
 	nodeValue string,
 	action *aggregationv1.ResultPredicate_ResultAction) (string, error) {
