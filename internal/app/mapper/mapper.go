@@ -267,11 +267,16 @@ func getResultFromRequestNodePredicate(predicate *resultPredicate, req transport
 		return false, "", nil
 	}
 
-	nodeValue, err := getNodeValue(requestNodeFragment.GetField(), req)
-	if err != nil {
-		return false, "", err
+	var resultFragment string
+	var err error
+	if requestNodeFragment.GetIdAction() != nil {
+		resultFragment, err = getResultFragmentFromAction(req.GetNodeID(), requestNodeFragment.GetIdAction())
+	} else if requestNodeFragment.GetClusterAction() != nil {
+		resultFragment, err = getResultFragmentFromAction(req.GetCluster(), requestNodeFragment.GetClusterAction())
+	} else if requestNodeFragment.GetLocalityAction() != nil {
+		resultFragment, err = getFragmentFromLocalityAction(req.GetLocality(), requestNodeFragment.GetLocalityAction())
 	}
-	resultFragment, err := getResultFragmentFromAction(nodeValue, requestNodeFragment.GetAction())
+
 	if err != nil {
 		return false, "", err
 	}
@@ -406,6 +411,28 @@ func getResultFragmentFromAction(
 	}
 
 	return replacedFragment, nil
+}
+
+func getFragmentFromLocalityAction(
+	locality *corev2.Locality,
+	action *aggregationv1.NodeLocalityMatch) (string, error) {
+	var matches []string
+	if locality.Region != "" && locality.Region == action.Region {
+		matches = append(matches, locality.Region)
+	}
+	if locality.Zone != "" && locality.Zone == action.Zone {
+		matches = append(matches, locality.Zone)
+	}
+	if locality.SubZone != "" && locality.SubZone == action.SubZone {
+		matches = append(matches, locality.SubZone)
+	}
+
+	if len(matches) == 0 {
+		return "", fmt.Errorf("RequestNodeFragment match resulted in an empty fragment")
+	}
+
+	// N.B.: join matches using "|" to indicate they all came from the locality object.
+	return strings.Join(matches, "|"), nil
 }
 
 func compareString(nodeStringMatch *aggregationv1.NodeStringMatch, nodeValue string) (bool, error) {
