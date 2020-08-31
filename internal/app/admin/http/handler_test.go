@@ -435,7 +435,7 @@ func TestMarshalResources(t *testing.T) {
 	})
 	assert.NotNil(t, marshalled)
 	assert.Equal(t, 1, len(marshalled.Listeners))
-	assert.Equal(t, "lds resource", marshalled.Listeners[0].Name)
+	assert.Equal(t, "lds resource", marshalled.Listeners[0].(*v2.Listener).Name)
 }
 
 func TestMarshalDiscoveryResponse(t *testing.T) {
@@ -455,5 +455,5 @@ func TestMarshalDiscoveryResponse(t *testing.T) {
 	assert.NotNil(t, marshalled)
 	assert.Equal(t, resp.VersionInfo, marshalled.VersionInfo)
 	assert.Equal(t, resp.TypeUrl, marshalled.TypeURL)
-	assert.Equal(t, listener.Name, marshalled.Resources.Listeners[0].Name)
+	assert.Equal(t, listener.Name, marshalled.Resources.Listeners[0].(*v2.Listener).Name)
 }
