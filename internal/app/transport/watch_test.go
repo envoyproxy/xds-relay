@@ -10,8 +10,8 @@ import (
 	cachev3 "github.com/envoyproxy/go-control-plane/pkg/cache/v3"
 	gcpv3 "github.com/envoyproxy/go-control-plane/pkg/cache/v3"
 	. "github.com/onsi/ginkgo"
-	"github.com/onsi/ginkgo/extensions/table"
-	"github.com/onsi/gomega"
+	. "github.com/onsi/ginkgo/extensions/table"
+	. "github.com/onsi/gomega"
 )
 
 type version int
@@ -27,7 +27,7 @@ var discoveryRequestv2 = &gcp.Request{}
 var discoveryRequestv3 = &gcpv3.Request{}
 
 var _ = Describe("TestWatch", func() {
-	table.DescribeTable("TestGetChannel", func(w Watch, v version) {
+	DescribeTable("TestGetChannel", func(w Watch, v version) {
 		var wg sync.WaitGroup
 		wg.Add(1)
 		go func() {
@@ -38,17 +38,17 @@ var _ = Describe("TestWatch", func() {
 			case V3:
 				_, more = <-w.GetChannel().V3
 			}
-			gomega.Expect(more).To(gomega.BeFalse())
+			Expect(more).To(BeFalse())
 			wg.Done()
 		}()
 		w.Close()
 		wg.Wait()
-	}, []table.TableEntry{
-		table.Entry("V2", newWatchV2(), V2),
-		table.Entry("V3", newWatchV3(), V3),
+	}, []TableEntry{
+		Entry("V2", newWatchV2(), V2),
+		Entry("V3", newWatchV3(), V3),
 	}...)
 
-	table.DescribeTable("TestSendSuccessful", func(w Watch, r Response, expected interface{}, v version) {
+	DescribeTable("TestSendSuccessful", func(w Watch, r Response, expected interface{}, v version) {
 		var wg sync.WaitGroup
 		wg.Add(2)
 		go func() {
@@ -61,25 +61,25 @@ var _ = Describe("TestWatch", func() {
 				got, more = <-w.GetChannel().V3
 			}
 
-			gomega.Expect(more).To(gomega.BeTrue())
-			gomega.Expect(got).To(gomega.Equal(expected))
+			Expect(more).To(BeTrue())
+			Expect(got).To(Equal(expected))
 			wg.Done()
 		}()
 
 		go func() {
 			ok := w.Send(r)
-			gomega.Expect(ok).To(gomega.BeTrue())
+			Expect(ok).To(BeTrue())
 			wg.Done()
 		}()
 		wg.Wait()
-	}, []table.TableEntry{
-		table.Entry(
+	}, []TableEntry{
+		Entry(
 			"V2",
 			newWatchV2(),
 			NewResponseV2(discoveryRequestv2, discoveryResponsev2),
 			cachev2.PassthroughResponse{DiscoveryResponse: discoveryResponsev2, Request: *discoveryRequestv2},
 			V2),
-		table.Entry(
+		Entry(
 			"V3",
 			newWatchV3(),
 			NewResponseV3(discoveryRequestv3, discoveryResponsev3),
@@ -87,7 +87,7 @@ var _ = Describe("TestWatch", func() {
 			V3),
 	}...)
 
-	table.DescribeTable("TestSendFalseWhenBlocked", func(w Watch, resp Response) {
+	DescribeTable("TestSendFalseWhenBlocked", func(w Watch, resp Response) {
 		var wg sync.WaitGroup
 		wg.Add(2)
 		// We perform 2 sends with no receive on w.Out .
@@ -98,9 +98,9 @@ var _ = Describe("TestWatch", func() {
 		go sendWithCloseChannelOnFailure(w, &wg, resp)
 		go sendWithCloseChannelOnFailure(w, &wg, resp)
 		wg.Wait()
-	}, []table.TableEntry{
-		table.Entry("V2", newWatchV2(), NewResponseV2(discoveryRequestv2, discoveryResponsev2)),
-		table.Entry("V3", newWatchV3(), NewResponseV3(discoveryRequestv3, discoveryResponsev3)),
+	}, []TableEntry{
+		Entry("V2", newWatchV2(), NewResponseV2(discoveryRequestv2, discoveryResponsev2)),
+		Entry("V3", newWatchV3(), NewResponseV3(discoveryRequestv3, discoveryResponsev3)),
 	}...)
 })
 
