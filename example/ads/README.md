@@ -34,24 +34,24 @@ Forward local 15010 to istiod 15010
 kubectl -n istio-system port-forward --address 0.0.0.0 pod/${ISTIOD_POD_NAME} 15010:15010
 ```
 
-Update upstream server address in `examples/ads/config.yaml`
+Update upstream server address in `example/ads/config.yaml`
 
 ### Run xds-relay server
 
 ```
 make compile
 
-./bin/xds-relay -c examples/ads/config.yaml -a examples/ads/rules.yaml
+./bin/xds-relay -c example/ads/config.yaml -a example/ads/rules.yaml
 ```
 
 ### Run envoy to connect to xds-relay
 
-Update xds-relay server address in `examples/ads/front-envoy.yaml`
+Update xds-relay server address in `example/ads/front-envoy.yaml`
 
 Start envoy
 
 ```
-cd examples/ads && docker-compose up --build
+cd example/ads && docker-compose up --build
 ```
 
 Verify config
