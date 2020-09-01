@@ -427,16 +427,16 @@ func getFragmentFromLocalityAction(
 	return strings.Join(matches, "|"), nil
 }
 
-func compareString(nodeStringMatch *aggregationv1.NodeStringMatch, nodeValue string) (bool, error) {
+func compareString(stringMatch *aggregationv1.StringMatch, nodeValue string) (bool, error) {
 	if nodeValue == "" {
 		return false, fmt.Errorf("MatchPredicate Node field cannot be empty")
 	}
-	exactMatch := nodeStringMatch.GetExactMatch()
+	exactMatch := stringMatch.GetExactMatch()
 	if exactMatch != "" {
 		return nodeValue == exactMatch, nil
 	}
 
-	regexMatch := nodeStringMatch.GetRegexMatch()
+	regexMatch := stringMatch.GetRegexMatch()
 	if regexMatch != "" {
 		match, err := regexp.MatchString(regexMatch, nodeValue)
 		if err != nil {

@@ -40,7 +40,7 @@ enum NodeFieldType {
   NODE_LOCALITY_SUBZONE = 4;
 }
 
-message NodeStringMatch {
+message StringMatch {
   oneof type {
     option (validate.required) = true;
 
@@ -81,9 +81,9 @@ message MatchPredicate {
     oneof type {
       option (validate.required) = true;
 
-      NodeStringMatch id_match = 1;
+      StringMatch id_match = 1;
 
-      NodeStringMatch cluster_match = 2;
+      StringMatch cluster_match = 2;
 
       NodeLocalityMatch locality_match = 3;
     }

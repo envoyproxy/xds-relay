@@ -125,24 +125,24 @@ var _ interface {
 	ErrorName() string
 } = KeyerConfigurationValidationError{}
 
-// Validate checks the field values on NodeStringMatch with the rules defined
-// in the proto definition for this message. If any rules are violated, an
-// error is returned.
-func (m *NodeStringMatch) Validate() error {
+// Validate checks the field values on StringMatch with the rules defined in
+// the proto definition for this message. If any rules are violated, an error
+// is returned.
+func (m *StringMatch) Validate() error {
 	if m == nil {
 		return nil
 	}
 
 	switch m.Type.(type) {
 
-	case *NodeStringMatch_ExactMatch:
+	case *StringMatch_ExactMatch:
 		// no validation rules for ExactMatch
 
-	case *NodeStringMatch_RegexMatch:
+	case *StringMatch_RegexMatch:
 		// no validation rules for RegexMatch
 
 	default:
-		return NodeStringMatchValidationError{
+		return StringMatchValidationError{
 			field:  "Type",
 			reason: "value is required",
 		}
@@ -152,9 +152,9 @@ func (m *NodeStringMatch) Validate() error {
 	return nil
 }
 
-// NodeStringMatchValidationError is the validation error returned by
-// NodeStringMatch.Validate if the designated constraints aren't met.
-type NodeStringMatchValidationError struct {
+// StringMatchValidationError is the validation error returned by
+// StringMatch.Validate if the designated constraints aren't met.
+type StringMatchValidationError struct {
 	field  string
 	reason string
 	cause  error
@@ -162,22 +162,22 @@ type NodeStringMatchValidationError struct {
 }
 
 // Field function returns field value.
-func (e NodeStringMatchValidationError) Field() string { return e.field }
+func (e StringMatchValidationError) Field() string { return e.field }
 
 // Reason function returns reason value.
-func (e NodeStringMatchValidationError) Reason() string { return e.reason }
+func (e StringMatchValidationError) Reason() string { return e.reason }
 
 // Cause function returns cause value.
-func (e NodeStringMatchValidationError) Cause() error { return e.cause }
+func (e StringMatchValidationError) Cause() error { return e.cause }
 
 // Key function returns key value.
-func (e NodeStringMatchValidationError) Key() bool { return e.key }
+func (e StringMatchValidationError) Key() bool { return e.key }
 
 // ErrorName returns error name.
-func (e NodeStringMatchValidationError) ErrorName() string { return "NodeStringMatchValidationError" }
+func (e StringMatchValidationError) ErrorName() string { return "StringMatchValidationError" }
 
 // Error satisfies the builtin error interface
-func (e NodeStringMatchValidationError) Error() string {
+func (e StringMatchValidationError) Error() string {
 	cause := ""
 	if e.cause != nil {
 		cause = fmt.Sprintf(" | caused by: %v", e.cause)
@@ -189,14 +189,14 @@ func (e NodeStringMatchValidationError) Error() string {
 	}
 
 	return fmt.Sprintf(
-		"invalid %sNodeStringMatch.%s: %s%s",
+		"invalid %sStringMatch.%s: %s%s",
 		key,
 		e.field,
 		e.reason,
 		cause)
 }
 
-var _ error = NodeStringMatchValidationError{}
+var _ error = StringMatchValidationError{}
 
 var _ interface {
 	Field() string
@@ -204,7 +204,7 @@ var _ interface {
 	Key() bool
 	Cause() error
 	ErrorName() string
-} = NodeStringMatchValidationError{}
+} = StringMatchValidationError{}
 
 // Validate checks the field values on NodeLocalityMatch with the rules defined
 // in the proto definition for this message. If any rules are violated, an

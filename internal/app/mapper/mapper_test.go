@@ -1227,8 +1227,8 @@ func getRequestNodeIDExactMatch(exact string) *MatchPredicate {
 		Type: &aggregationv1.MatchPredicate_RequestNodeMatch_{
 			RequestNodeMatch: &aggregationv1.MatchPredicate_RequestNodeMatch{
 				Type: &aggregationv1.MatchPredicate_RequestNodeMatch_IdMatch{
-					IdMatch: &aggregationv1.NodeStringMatch{
-						Type: &aggregationv1.NodeStringMatch_ExactMatch{
+					IdMatch: &aggregationv1.StringMatch{
+						Type: &aggregationv1.StringMatch_ExactMatch{
 							ExactMatch: exact,
 						},
 					},
@@ -1243,8 +1243,8 @@ func getRequestNodeIDRegexMatch(regex string) *MatchPredicate {
 		Type: &aggregationv1.MatchPredicate_RequestNodeMatch_{
 			RequestNodeMatch: &aggregationv1.MatchPredicate_RequestNodeMatch{
 				Type: &aggregationv1.MatchPredicate_RequestNodeMatch_IdMatch{
-					IdMatch: &aggregationv1.NodeStringMatch{
-						Type: &aggregationv1.NodeStringMatch_RegexMatch{
+					IdMatch: &aggregationv1.StringMatch{
+						Type: &aggregationv1.StringMatch_RegexMatch{
 							RegexMatch: regex,
 						},
 					},
@@ -1259,8 +1259,8 @@ func getRequestNodeClusterExactMatch(exact string) *MatchPredicate {
 		Type: &aggregationv1.MatchPredicate_RequestNodeMatch_{
 			RequestNodeMatch: &aggregationv1.MatchPredicate_RequestNodeMatch{
 				Type: &aggregationv1.MatchPredicate_RequestNodeMatch_ClusterMatch{
-					ClusterMatch: &aggregationv1.NodeStringMatch{
-						Type: &aggregationv1.NodeStringMatch_ExactMatch{
+					ClusterMatch: &aggregationv1.StringMatch{
+						Type: &aggregationv1.StringMatch_ExactMatch{
 							ExactMatch: exact,
 						},
 					},
@@ -1275,8 +1275,8 @@ func getRequestNodeClusterRegexMatch(regex string) *MatchPredicate {
 		Type: &aggregationv1.MatchPredicate_RequestNodeMatch_{
 			RequestNodeMatch: &aggregationv1.MatchPredicate_RequestNodeMatch{
 				Type: &aggregationv1.MatchPredicate_RequestNodeMatch_ClusterMatch{
-					ClusterMatch: &aggregationv1.NodeStringMatch{
-						Type: &aggregationv1.NodeStringMatch_RegexMatch{
+					ClusterMatch: &aggregationv1.StringMatch{
+						Type: &aggregationv1.StringMatch_RegexMatch{
 							RegexMatch: regex,
 						},
 					},
