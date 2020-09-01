@@ -1228,11 +1228,7 @@ func getRequestNodeIDExactMatch(exact string) *MatchPredicate {
 		Type: &aggregationv1.MatchPredicate_RequestNodeMatch_{
 			RequestNodeMatch: &aggregationv1.MatchPredicate_RequestNodeMatch{
 				Type: &aggregationv1.MatchPredicate_RequestNodeMatch_IdMatch{
-					IdMatch: &aggregationv1.StringMatch{
-						Type: &aggregationv1.StringMatch_ExactMatch{
-							ExactMatch: exact,
-						},
-					},
+					IdMatch: getExactMatch(exact),
 				},
 			},
 		},
@@ -1244,11 +1240,7 @@ func getRequestNodeIDRegexMatch(regex string) *MatchPredicate {
 		Type: &aggregationv1.MatchPredicate_RequestNodeMatch_{
 			RequestNodeMatch: &aggregationv1.MatchPredicate_RequestNodeMatch{
 				Type: &aggregationv1.MatchPredicate_RequestNodeMatch_IdMatch{
-					IdMatch: &aggregationv1.StringMatch{
-						Type: &aggregationv1.StringMatch_RegexMatch{
-							RegexMatch: regex,
-						},
-					},
+					IdMatch: getRegexMatch(regex),
 				},
 			},
 		},
@@ -1260,11 +1252,7 @@ func getRequestNodeClusterExactMatch(exact string) *MatchPredicate {
 		Type: &aggregationv1.MatchPredicate_RequestNodeMatch_{
 			RequestNodeMatch: &aggregationv1.MatchPredicate_RequestNodeMatch{
 				Type: &aggregationv1.MatchPredicate_RequestNodeMatch_ClusterMatch{
-					ClusterMatch: &aggregationv1.StringMatch{
-						Type: &aggregationv1.StringMatch_ExactMatch{
-							ExactMatch: exact,
-						},
-					},
+					ClusterMatch: getExactMatch(exact),
 				},
 			},
 		},
@@ -1276,11 +1264,7 @@ func getRequestNodeClusterRegexMatch(regex string) *MatchPredicate {
 		Type: &aggregationv1.MatchPredicate_RequestNodeMatch_{
 			RequestNodeMatch: &aggregationv1.MatchPredicate_RequestNodeMatch{
 				Type: &aggregationv1.MatchPredicate_RequestNodeMatch_ClusterMatch{
-					ClusterMatch: &aggregationv1.StringMatch{
-						Type: &aggregationv1.StringMatch_RegexMatch{
-							RegexMatch: regex,
-						},
-					},
+					ClusterMatch: getRegexMatch(regex),
 				},
 			},
 		},
