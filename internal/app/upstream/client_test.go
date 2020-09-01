@@ -98,11 +98,11 @@ func TestOpenStreamShouldReturnNonEmptyResponseChannel(t *testing.T) {
 }
 
 func TestOpenStreamShouldReturnNonEmptyResponseChannelV3(t *testing.T) {
-	client := createMockClient()
+	client := createMockClientV3()
 
 	respCh, done, err := client.OpenStream(
 		transport.NewRequestV3(&discoveryv3.DiscoveryRequest{
-			TypeUrl: resource.ListenerType,
+			TypeUrl: resourcev3.ListenerType,
 			Node:    &corev3.Node{},
 		}))
 	assert.NotNil(t, respCh)
