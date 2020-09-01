@@ -15,8 +15,11 @@ fragments:
     - match:
         request_node_match:
           locality_match:
-            region: "r1"
-            zone: "z1"
-            sub_zone: "sz-1"
+            region:
+              exact_match: "r1"
+            zone:
+              exact_match: "z1"
+            sub_zone:
+              exact_match: "sz-1"
       result:
         string_fragment: "abc"

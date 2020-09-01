@@ -19,6 +19,7 @@ type FragmentRule = aggregationv1.KeyerConfiguration_Fragment_Rule
 type MatchPredicate = aggregationv1.MatchPredicate
 type ResultPredicate = aggregationv1.ResultPredicate
 type LocalityResultAction = aggregationv1.ResultPredicate_LocalityResultAction
+type StringMatch = aggregationv1.StringMatch
 
 const (
 	clusterTypeURL   = "type.googleapis.com/envoy.api.v2.Cluster"
@@ -96,7 +97,7 @@ var positiveTests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with node locality match",
 		Parameters: []interface{}{
-			getRequestNodeLocality(noderegion, nodezone, nodesubzone),
+			getRequestNodeLocality(getExactMatch(noderegion), getExactMatch(nodezone), getExactMatch(nodesubzone)),
 			getResultStringFragment(),
 			clusterTypeURL,
 			stringFragment,
@@ -143,7 +144,7 @@ var positiveTests = []TableEntry{
 						getRequestNodeClusterExactMatch(nodecluster),
 					}),
 					getRequestNodeAndMatch([]*aggregationv1.MatchPredicate{
-						getRequestNodeLocality(noderegion, nodezone, ""),
+						getRequestNodeLocality(getExactMatch(noderegion), getExactMatch(nodezone), nil),
 					}),
 				}),
 			getResultStringFragment(),
@@ -187,7 +188,7 @@ var positiveTests = []TableEntry{
 						getRequestNodeClusterExactMatch(nodecluster),
 					}),
 					getRequestNodeOrMatch([]*aggregationv1.MatchPredicate{
-						getRequestNodeLocality(noderegion, "", ""),
+						getRequestNodeLocality(getExactMatch(noderegion), nil, nil),
 					}),
 				}),
 			getResultStringFragment(),
@@ -205,7 +206,7 @@ var positiveTests = []TableEntry{
 						getRequestNodeClusterExactMatch(nodecluster),
 					}),
 					getRequestNodeAndMatch([]*aggregationv1.MatchPredicate{
-						getRequestNodeLocality(noderegion, nodezone, ""),
+						getRequestNodeLocality(getExactMatch(noderegion), getExactMatch(nodezone), nil),
 					}),
 				}),
 			getResultStringFragment(),
@@ -546,7 +547,7 @@ var negativeTests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with node region does not match",
 		Parameters: []interface{}{
-			getRequestNodeLocality(noderegion+"\\d", nodezone, nodesubzone),
+			getRequestNodeLocality(getExactMatch(noderegion+"\\d"), getExactMatch(nodezone), getExactMatch(nodesubzone)),
 			getResultStringFragment(),
 			getDiscoveryRequest(),
 		},
@@ -554,7 +555,7 @@ var negativeTests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with node zone does not match",
 		Parameters: []interface{}{
-			getRequestNodeLocality(noderegion, "zon[A-Z]", nodesubzone),
+			getRequestNodeLocality(getExactMatch(noderegion), getExactMatch("zon[A-Z]"), getExactMatch(nodesubzone)),
 			getResultStringFragment(),
 			getDiscoveryRequest(),
 		},
@@ -562,7 +563,7 @@ var negativeTests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with node subzone does not match",
 		Parameters: []interface{}{
-			getRequestNodeLocality(noderegion, nodezone, nodesubzone+"+"),
+			getRequestNodeLocality(getExactMatch(noderegion), getExactMatch(nodezone), getExactMatch(nodesubzone+"+")),
 			getResultStringFragment(),
 			getDiscoveryRequest(),
 		},
@@ -618,7 +619,7 @@ var negativeTests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with exact match request node region mismatch",
 		Parameters: []interface{}{
-			getRequestNodeLocality(noderegion, nodezone, nodesubzone),
+			getRequestNodeLocality(getExactMatch(noderegion), getExactMatch(nodezone), getExactMatch(nodesubzone)),
 			getResultStringFragment(),
 			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "mismatch", nodezone, nodesubzone)),
 		},
@@ -626,7 +627,7 @@ var negativeTests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with exact match request node zone mismatch",
 		Parameters: []interface{}{
-			getRequestNodeLocality(noderegion, nodezone, nodesubzone),
+			getRequestNodeLocality(getExactMatch(noderegion), getExactMatch(nodezone), getExactMatch(nodesubzone)),
 			getResultStringFragment(),
 			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, "mismatch", nodesubzone)),
 		},
@@ -634,7 +635,7 @@ var negativeTests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with exact match request node subzone mismatch",
 		Parameters: []interface{}{
-			getRequestNodeLocality(noderegion, nodezone, nodesubzone),
+			getRequestNodeLocality(getExactMatch(noderegion), getExactMatch(nodezone), getExactMatch(nodesubzone)),
 			getResultStringFragment(),
 			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, "mismatch")),
 		},
@@ -696,7 +697,7 @@ var negativeTests = []TableEntry{
 						getRequestNodeClusterExactMatch(""),
 					}),
 					getRequestNodeOrMatch([]*aggregationv1.MatchPredicate{
-						getRequestNodeLocality("nomatch", "", ""),
+						getRequestNodeLocality(getExactMatch("nomatch"), nil, nil),
 					}),
 				}),
 			getResultStringFragment(),
@@ -713,7 +714,7 @@ var negativeTests = []TableEntry{
 						getRequestNodeClusterExactMatch(""),
 					}),
 					getRequestNodeAndMatch([]*aggregationv1.MatchPredicate{
-						getRequestNodeLocality("", "", ""),
+						getRequestNodeLocality(nil, nil, nil),
 					}),
 				}),
 			getResultStringFragment(),
@@ -780,7 +781,7 @@ var negativeTests = []TableEntry{
 								getRequestNodeClusterExactMatch(nodecluster),
 							}),
 							getRequestNodeAndMatch([]*aggregationv1.MatchPredicate{
-								getRequestNodeLocality(noderegion, nodezone, ""),
+								getRequestNodeLocality(getExactMatch(noderegion), getExactMatch(nodezone), nil),
 							}),
 						}),
 				},
@@ -1286,12 +1287,28 @@ func getRequestNodeClusterRegexMatch(regex string) *MatchPredicate {
 	}
 }
 
-func getRequestNodeLocality(region string, zone string, subZone string) *MatchPredicate {
+func getExactMatch(exact string) *StringMatch {
+	return &aggregationv1.StringMatch{
+		Type: &aggregationv1.StringMatch_ExactMatch{
+			ExactMatch: exact,
+		},
+	}
+}
+
+func getRegexMatch(regex string) *StringMatch {
+	return &aggregationv1.StringMatch{
+		Type: &aggregationv1.StringMatch_RegexMatch{
+			RegexMatch: regex,
+		},
+	}
+}
+
+func getRequestNodeLocality(region *StringMatch, zone *StringMatch, subZone *StringMatch) *MatchPredicate {
 	return &MatchPredicate{
 		Type: &aggregationv1.MatchPredicate_RequestNodeMatch_{
 			RequestNodeMatch: &aggregationv1.MatchPredicate_RequestNodeMatch{
 				Type: &aggregationv1.MatchPredicate_RequestNodeMatch_LocalityMatch{
-					LocalityMatch: &aggregationv1.NodeLocalityMatch{
+					LocalityMatch: &aggregationv1.LocalityMatch{
 						Region:  region,
 						Zone:    zone,
 						SubZone: subZone,
@@ -1333,7 +1350,7 @@ func getRequestTypeNotMatch(typeurls []string) *MatchPredicate {
 func getRequestNodeLocalityNotMatch() *MatchPredicate {
 	return &matchPredicate{
 		Type: &aggregationv1.MatchPredicate_NotMatch{
-			NotMatch: getRequestNodeLocality("r1", "z2", "sz3"),
+			NotMatch: getRequestNodeLocality(getExactMatch("r1"), getExactMatch("z2"), getExactMatch("sz3")),
 		},
 	}
 }

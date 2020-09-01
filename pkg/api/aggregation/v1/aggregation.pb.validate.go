@@ -206,26 +206,50 @@ var _ interface {
 	ErrorName() string
 } = StringMatchValidationError{}
 
-// Validate checks the field values on NodeLocalityMatch with the rules defined
-// in the proto definition for this message. If any rules are violated, an
-// error is returned.
-func (m *NodeLocalityMatch) Validate() error {
+// Validate checks the field values on LocalityMatch with the rules defined in
+// the proto definition for this message. If any rules are violated, an error
+// is returned.
+func (m *LocalityMatch) Validate() error {
 	if m == nil {
 		return nil
 	}
 
-	// no validation rules for Region
+	if v, ok := interface{}(m.GetRegion()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return LocalityMatchValidationError{
+				field:  "Region",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
 
-	// no validation rules for Zone
+	if v, ok := interface{}(m.GetZone()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return LocalityMatchValidationError{
+				field:  "Zone",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
 
-	// no validation rules for SubZone
+	if v, ok := interface{}(m.GetSubZone()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return LocalityMatchValidationError{
+				field:  "SubZone",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
 
 	return nil
 }
 
-// NodeLocalityMatchValidationError is the validation error returned by
-// NodeLocalityMatch.Validate if the designated constraints aren't met.
-type NodeLocalityMatchValidationError struct {
+// LocalityMatchValidationError is the validation error returned by
+// LocalityMatch.Validate if the designated constraints aren't met.
+type LocalityMatchValidationError struct {
 	field  string
 	reason string
 	cause  error
@@ -233,24 +257,22 @@ type NodeLocalityMatchValidationError struct {
 }
 
 // Field function returns field value.
-func (e NodeLocalityMatchValidationError) Field() string { return e.field }
+func (e LocalityMatchValidationError) Field() string { return e.field }
 
 // Reason function returns reason value.
-func (e NodeLocalityMatchValidationError) Reason() string { return e.reason }
+func (e LocalityMatchValidationError) Reason() string { return e.reason }
 
 // Cause function returns cause value.
-func (e NodeLocalityMatchValidationError) Cause() error { return e.cause }
+func (e LocalityMatchValidationError) Cause() error { return e.cause }
 
 // Key function returns key value.
-func (e NodeLocalityMatchValidationError) Key() bool { return e.key }
+func (e LocalityMatchValidationError) Key() bool { return e.key }
 
 // ErrorName returns error name.
-func (e NodeLocalityMatchValidationError) ErrorName() string {
-	return "NodeLocalityMatchValidationError"
-}
+func (e LocalityMatchValidationError) ErrorName() string { return "LocalityMatchValidationError" }
 
 // Error satisfies the builtin error interface
-func (e NodeLocalityMatchValidationError) Error() string {
+func (e LocalityMatchValidationError) Error() string {
 	cause := ""
 	if e.cause != nil {
 		cause = fmt.Sprintf(" | caused by: %v", e.cause)
@@ -262,14 +284,14 @@ func (e NodeLocalityMatchValidationError) Error() string {
 	}
 
 	return fmt.Sprintf(
-		"invalid %sNodeLocalityMatch.%s: %s%s",
+		"invalid %sLocalityMatch.%s: %s%s",
 		key,
 		e.field,
 		e.reason,
 		cause)
 }
 
-var _ error = NodeLocalityMatchValidationError{}
+var _ error = LocalityMatchValidationError{}
 
 var _ interface {
 	Field() string
@@ -277,7 +299,7 @@ var _ interface {
 	Key() bool
 	Cause() error
 	ErrorName() string
-} = NodeLocalityMatchValidationError{}
+} = LocalityMatchValidationError{}
 
 // Validate checks the field values on MatchPredicate with the rules defined in
 // the proto definition for this message. If any rules are violated, an error

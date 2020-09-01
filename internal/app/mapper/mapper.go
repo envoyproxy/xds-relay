@@ -448,7 +448,7 @@ func compareString(stringMatch *aggregationv1.StringMatch, nodeValue string) (bo
 	return false, nil
 }
 
-func compareLocality(nodeLocalityMatch *aggregationv1.NodeLocalityMatch,
+func compareLocality(localityMatch *aggregationv1.LocalityMatch,
 	reqNodeLocality *corev2.Locality) (bool, error) {
 	// TODO if we can reuse envoy's Locality object, make sure to use cmp.Equal
 	if reqNodeLocality == nil {
@@ -456,18 +456,28 @@ func compareLocality(nodeLocalityMatch *aggregationv1.NodeLocalityMatch,
 	}
 
 	regionMatch := true
-	if nodeLocalityMatch.Region != "" && reqNodeLocality.Region != "" {
-		regionMatch = nodeLocalityMatch.Region == reqNodeLocality.Region
+	var err error
+	if localityMatch.GetRegion() != nil {
+		regionMatch, err = compareString(localityMatch.Region, reqNodeLocality.Region)
+		if err != nil {
+			return false, err
+		}
 	}
 
 	zoneMatch := true
-	if nodeLocalityMatch.Zone != "" && reqNodeLocality.Zone != "" {
-		zoneMatch = nodeLocalityMatch.Zone == reqNodeLocality.Zone
+	if localityMatch.GetZone() != nil {
+		zoneMatch, err = compareString(localityMatch.Zone, reqNodeLocality.Zone)
+		if err != nil {
+			return false, err
+		}
 	}
 
 	subZoneMatch := true
-	if nodeLocalityMatch.SubZone != "" && reqNodeLocality.SubZone != "" {
-		subZoneMatch = nodeLocalityMatch.SubZone == reqNodeLocality.SubZone
+	if localityMatch.GetSubZone() != nil {
+		subZoneMatch, err = compareString(localityMatch.SubZone, reqNodeLocality.SubZone)
+		if err != nil {
+			return false, err
+		}
 	}
 
 	return regionMatch && zoneMatch && subZoneMatch, nil

@@ -54,12 +54,12 @@ message StringMatch {
   }
 }
 
-message NodeLocalityMatch {
-  string region = 1;
+message LocalityMatch {
+  StringMatch region = 1;
 
-  string zone = 2;
+  StringMatch zone = 2;
 
-  string sub_zone = 3;
+  StringMatch sub_zone = 3;
 }
 
 // This is a recursive structure which allows complex nested match
@@ -85,7 +85,7 @@ message MatchPredicate {
 
       StringMatch cluster_match = 2;
 
-      NodeLocalityMatch locality_match = 3;
+      LocalityMatch locality_match = 3;
     }
   }
 
