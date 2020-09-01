@@ -32,14 +32,6 @@ message KeyerConfiguration {
   repeated Fragment fragments = 1 [(validate.rules).repeated.min_items = 1];
 }
 
-enum NodeFieldType {
-  NODE_ID = 0;
-  NODE_CLUSTER = 1;
-  NODE_LOCALITY_REGION = 2;
-  NODE_LOCALITY_ZONE = 3;
-  NODE_LOCALITY_SUBZONE = 4;
-}
-
 message StringMatch {
   oneof type {
     option (validate.required) = true;

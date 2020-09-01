@@ -26,61 +26,6 @@ const (
 // of the legacy proto package is being used.
 const _ = proto.ProtoPackageIsVersion4
 
-type NodeFieldType int32
-
-const (
-	NodeFieldType_NODE_ID               NodeFieldType = 0
-	NodeFieldType_NODE_CLUSTER          NodeFieldType = 1
-	NodeFieldType_NODE_LOCALITY_REGION  NodeFieldType = 2
-	NodeFieldType_NODE_LOCALITY_ZONE    NodeFieldType = 3
-	NodeFieldType_NODE_LOCALITY_SUBZONE NodeFieldType = 4
-)
-
-// Enum value maps for NodeFieldType.
-var (
-	NodeFieldType_name = map[int32]string{
-		0: "NODE_ID",
-		1: "NODE_CLUSTER",
-		2: "NODE_LOCALITY_REGION",
-		3: "NODE_LOCALITY_ZONE",
-		4: "NODE_LOCALITY_SUBZONE",
-	}
-	NodeFieldType_value = map[string]int32{
-		"NODE_ID":               0,
-		"NODE_CLUSTER":          1,
-		"NODE_LOCALITY_REGION":  2,
-		"NODE_LOCALITY_ZONE":    3,
-		"NODE_LOCALITY_SUBZONE": 4,
-	}
-)
-
-func (x NodeFieldType) Enum() *NodeFieldType {
-	p := new(NodeFieldType)
-	*p = x
-	return p
-}
-
-func (x NodeFieldType) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (NodeFieldType) Descriptor() protoreflect.EnumDescriptor {
-	return file_aggregation_v1_aggregation_proto_enumTypes[0].Descriptor()
-}
-
-func (NodeFieldType) Type() protoreflect.EnumType {
-	return &file_aggregation_v1_aggregation_proto_enumTypes[0]
-}
-
-func (x NodeFieldType) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use NodeFieldType.Descriptor instead.
-func (NodeFieldType) EnumDescriptor() ([]byte, []int) {
-	return file_aggregation_v1_aggregation_proto_rawDescGZIP(), []int{0}
-}
-
 // [#next-free-field: 2]
 type KeyerConfiguration struct {
 	state         protoimpl.MessageState
@@ -1439,17 +1384,9 @@ var file_aggregation_v1_aggregation_proto_rawDesc = []byte{
 	0x65, 0x64, 0x69, 0x63, 0x61, 0x74, 0x65, 0x2e, 0x52, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x41, 0x63,
 	0x74, 0x69, 0x6f, 0x6e, 0x42, 0x08, 0xfa, 0x42, 0x05, 0x8a, 0x01, 0x02, 0x10, 0x01, 0x52, 0x06,
 	0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x42, 0x0b, 0x0a, 0x04, 0x74, 0x79, 0x70, 0x65, 0x12, 0x03,
-	0xf8, 0x42, 0x01, 0x2a, 0x7b, 0x0a, 0x0d, 0x4e, 0x6f, 0x64, 0x65, 0x46, 0x69, 0x65, 0x6c, 0x64,
-	0x54, 0x79, 0x70, 0x65, 0x12, 0x0b, 0x0a, 0x07, 0x4e, 0x4f, 0x44, 0x45, 0x5f, 0x49, 0x44, 0x10,
-	0x00, 0x12, 0x10, 0x0a, 0x0c, 0x4e, 0x4f, 0x44, 0x45, 0x5f, 0x43, 0x4c, 0x55, 0x53, 0x54, 0x45,
-	0x52, 0x10, 0x01, 0x12, 0x18, 0x0a, 0x14, 0x4e, 0x4f, 0x44, 0x45, 0x5f, 0x4c, 0x4f, 0x43, 0x41,
-	0x4c, 0x49, 0x54, 0x59, 0x5f, 0x52, 0x45, 0x47, 0x49, 0x4f, 0x4e, 0x10, 0x02, 0x12, 0x16, 0x0a,
-	0x12, 0x4e, 0x4f, 0x44, 0x45, 0x5f, 0x4c, 0x4f, 0x43, 0x41, 0x4c, 0x49, 0x54, 0x59, 0x5f, 0x5a,
-	0x4f, 0x4e, 0x45, 0x10, 0x03, 0x12, 0x19, 0x0a, 0x15, 0x4e, 0x4f, 0x44, 0x45, 0x5f, 0x4c, 0x4f,
-	0x43, 0x41, 0x4c, 0x49, 0x54, 0x59, 0x5f, 0x53, 0x55, 0x42, 0x5a, 0x4f, 0x4e, 0x45, 0x10, 0x04,
-	0x42, 0x1e, 0x5a, 0x1c, 0x61, 0x67, 0x67, 0x72, 0x65, 0x67, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x2f,
-	0x76, 0x31, 0x3b, 0x61, 0x67, 0x67, 0x72, 0x65, 0x67, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x76, 0x31,
-	0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0xf8, 0x42, 0x01, 0x42, 0x1e, 0x5a, 0x1c, 0x61, 0x67, 0x67, 0x72, 0x65, 0x67, 0x61, 0x74, 0x69,
+	0x6f, 0x6e, 0x2f, 0x76, 0x31, 0x3b, 0x61, 0x67, 0x67, 0x72, 0x65, 0x67, 0x61, 0x74, 0x69, 0x6f,
+	0x6e, 0x76, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -1464,56 +1401,54 @@ func file_aggregation_v1_aggregation_proto_rawDescGZIP() []byte {
 	return file_aggregation_v1_aggregation_proto_rawDescData
 }
 
-var file_aggregation_v1_aggregation_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_aggregation_v1_aggregation_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_aggregation_v1_aggregation_proto_goTypes = []interface{}{
-	(NodeFieldType)(0),                               // 0: aggregation.NodeFieldType
-	(*KeyerConfiguration)(nil),                       // 1: aggregation.KeyerConfiguration
-	(*StringMatch)(nil),                              // 2: aggregation.StringMatch
-	(*LocalityMatch)(nil),                            // 3: aggregation.LocalityMatch
-	(*MatchPredicate)(nil),                           // 4: aggregation.MatchPredicate
-	(*ResultPredicate)(nil),                          // 5: aggregation.ResultPredicate
-	(*KeyerConfiguration_Fragment)(nil),              // 6: aggregation.KeyerConfiguration.Fragment
-	(*KeyerConfiguration_Fragment_Rule)(nil),         // 7: aggregation.KeyerConfiguration.Fragment.Rule
-	(*MatchPredicate_RequestTypeMatch)(nil),          // 8: aggregation.MatchPredicate.RequestTypeMatch
-	(*MatchPredicate_RequestNodeMatch)(nil),          // 9: aggregation.MatchPredicate.RequestNodeMatch
-	(*MatchPredicate_MatchSet)(nil),                  // 10: aggregation.MatchPredicate.MatchSet
-	(*ResultPredicate_ResultAction)(nil),             // 11: aggregation.ResultPredicate.ResultAction
-	(*ResultPredicate_LocalityResultAction)(nil),     // 12: aggregation.ResultPredicate.LocalityResultAction
-	(*ResultPredicate_AndResult)(nil),                // 13: aggregation.ResultPredicate.AndResult
-	(*ResultPredicate_RequestNodeFragment)(nil),      // 14: aggregation.ResultPredicate.RequestNodeFragment
-	(*ResultPredicate_ResourceNamesFragment)(nil),    // 15: aggregation.ResultPredicate.ResourceNamesFragment
-	(*ResultPredicate_ResultAction_RegexAction)(nil), // 16: aggregation.ResultPredicate.ResultAction.RegexAction
+	(*KeyerConfiguration)(nil),                       // 0: aggregation.KeyerConfiguration
+	(*StringMatch)(nil),                              // 1: aggregation.StringMatch
+	(*LocalityMatch)(nil),                            // 2: aggregation.LocalityMatch
+	(*MatchPredicate)(nil),                           // 3: aggregation.MatchPredicate
+	(*ResultPredicate)(nil),                          // 4: aggregation.ResultPredicate
+	(*KeyerConfiguration_Fragment)(nil),              // 5: aggregation.KeyerConfiguration.Fragment
+	(*KeyerConfiguration_Fragment_Rule)(nil),         // 6: aggregation.KeyerConfiguration.Fragment.Rule
+	(*MatchPredicate_RequestTypeMatch)(nil),          // 7: aggregation.MatchPredicate.RequestTypeMatch
+	(*MatchPredicate_RequestNodeMatch)(nil),          // 8: aggregation.MatchPredicate.RequestNodeMatch
+	(*MatchPredicate_MatchSet)(nil),                  // 9: aggregation.MatchPredicate.MatchSet
+	(*ResultPredicate_ResultAction)(nil),             // 10: aggregation.ResultPredicate.ResultAction
+	(*ResultPredicate_LocalityResultAction)(nil),     // 11: aggregation.ResultPredicate.LocalityResultAction
+	(*ResultPredicate_AndResult)(nil),                // 12: aggregation.ResultPredicate.AndResult
+	(*ResultPredicate_RequestNodeFragment)(nil),      // 13: aggregation.ResultPredicate.RequestNodeFragment
+	(*ResultPredicate_ResourceNamesFragment)(nil),    // 14: aggregation.ResultPredicate.ResourceNamesFragment
+	(*ResultPredicate_ResultAction_RegexAction)(nil), // 15: aggregation.ResultPredicate.ResultAction.RegexAction
 }
 var file_aggregation_v1_aggregation_proto_depIdxs = []int32{
-	6,  // 0: aggregation.KeyerConfiguration.fragments:type_name -> aggregation.KeyerConfiguration.Fragment
-	2,  // 1: aggregation.LocalityMatch.region:type_name -> aggregation.StringMatch
-	2,  // 2: aggregation.LocalityMatch.zone:type_name -> aggregation.StringMatch
-	2,  // 3: aggregation.LocalityMatch.sub_zone:type_name -> aggregation.StringMatch
-	10, // 4: aggregation.MatchPredicate.and_match:type_name -> aggregation.MatchPredicate.MatchSet
-	10, // 5: aggregation.MatchPredicate.or_match:type_name -> aggregation.MatchPredicate.MatchSet
-	4,  // 6: aggregation.MatchPredicate.not_match:type_name -> aggregation.MatchPredicate
-	8,  // 7: aggregation.MatchPredicate.request_type_match:type_name -> aggregation.MatchPredicate.RequestTypeMatch
-	9,  // 8: aggregation.MatchPredicate.request_node_match:type_name -> aggregation.MatchPredicate.RequestNodeMatch
-	13, // 9: aggregation.ResultPredicate.and_result:type_name -> aggregation.ResultPredicate.AndResult
-	14, // 10: aggregation.ResultPredicate.request_node_fragment:type_name -> aggregation.ResultPredicate.RequestNodeFragment
-	15, // 11: aggregation.ResultPredicate.resource_names_fragment:type_name -> aggregation.ResultPredicate.ResourceNamesFragment
-	7,  // 12: aggregation.KeyerConfiguration.Fragment.rules:type_name -> aggregation.KeyerConfiguration.Fragment.Rule
-	4,  // 13: aggregation.KeyerConfiguration.Fragment.Rule.match:type_name -> aggregation.MatchPredicate
-	5,  // 14: aggregation.KeyerConfiguration.Fragment.Rule.result:type_name -> aggregation.ResultPredicate
-	2,  // 15: aggregation.MatchPredicate.RequestNodeMatch.id_match:type_name -> aggregation.StringMatch
-	2,  // 16: aggregation.MatchPredicate.RequestNodeMatch.cluster_match:type_name -> aggregation.StringMatch
-	3,  // 17: aggregation.MatchPredicate.RequestNodeMatch.locality_match:type_name -> aggregation.LocalityMatch
-	4,  // 18: aggregation.MatchPredicate.MatchSet.rules:type_name -> aggregation.MatchPredicate
-	16, // 19: aggregation.ResultPredicate.ResultAction.regex_action:type_name -> aggregation.ResultPredicate.ResultAction.RegexAction
-	11, // 20: aggregation.ResultPredicate.LocalityResultAction.region_action:type_name -> aggregation.ResultPredicate.ResultAction
-	11, // 21: aggregation.ResultPredicate.LocalityResultAction.zone_action:type_name -> aggregation.ResultPredicate.ResultAction
-	11, // 22: aggregation.ResultPredicate.LocalityResultAction.subzone_action:type_name -> aggregation.ResultPredicate.ResultAction
-	5,  // 23: aggregation.ResultPredicate.AndResult.result_predicates:type_name -> aggregation.ResultPredicate
-	11, // 24: aggregation.ResultPredicate.RequestNodeFragment.id_action:type_name -> aggregation.ResultPredicate.ResultAction
-	11, // 25: aggregation.ResultPredicate.RequestNodeFragment.cluster_action:type_name -> aggregation.ResultPredicate.ResultAction
-	12, // 26: aggregation.ResultPredicate.RequestNodeFragment.locality_action:type_name -> aggregation.ResultPredicate.LocalityResultAction
-	11, // 27: aggregation.ResultPredicate.ResourceNamesFragment.action:type_name -> aggregation.ResultPredicate.ResultAction
+	5,  // 0: aggregation.KeyerConfiguration.fragments:type_name -> aggregation.KeyerConfiguration.Fragment
+	1,  // 1: aggregation.LocalityMatch.region:type_name -> aggregation.StringMatch
+	1,  // 2: aggregation.LocalityMatch.zone:type_name -> aggregation.StringMatch
+	1,  // 3: aggregation.LocalityMatch.sub_zone:type_name -> aggregation.StringMatch
+	9,  // 4: aggregation.MatchPredicate.and_match:type_name -> aggregation.MatchPredicate.MatchSet
+	9,  // 5: aggregation.MatchPredicate.or_match:type_name -> aggregation.MatchPredicate.MatchSet
+	3,  // 6: aggregation.MatchPredicate.not_match:type_name -> aggregation.MatchPredicate
+	7,  // 7: aggregation.MatchPredicate.request_type_match:type_name -> aggregation.MatchPredicate.RequestTypeMatch
+	8,  // 8: aggregation.MatchPredicate.request_node_match:type_name -> aggregation.MatchPredicate.RequestNodeMatch
+	12, // 9: aggregation.ResultPredicate.and_result:type_name -> aggregation.ResultPredicate.AndResult
+	13, // 10: aggregation.ResultPredicate.request_node_fragment:type_name -> aggregation.ResultPredicate.RequestNodeFragment
+	14, // 11: aggregation.ResultPredicate.resource_names_fragment:type_name -> aggregation.ResultPredicate.ResourceNamesFragment
+	6,  // 12: aggregation.KeyerConfiguration.Fragment.rules:type_name -> aggregation.KeyerConfiguration.Fragment.Rule
+	3,  // 13: aggregation.KeyerConfiguration.Fragment.Rule.match:type_name -> aggregation.MatchPredicate
+	4,  // 14: aggregation.KeyerConfiguration.Fragment.Rule.result:type_name -> aggregation.ResultPredicate
+	1,  // 15: aggregation.MatchPredicate.RequestNodeMatch.id_match:type_name -> aggregation.StringMatch
+	1,  // 16: aggregation.MatchPredicate.RequestNodeMatch.cluster_match:type_name -> aggregation.StringMatch
+	2,  // 17: aggregation.MatchPredicate.RequestNodeMatch.locality_match:type_name -> aggregation.LocalityMatch
+	3,  // 18: aggregation.MatchPredicate.MatchSet.rules:type_name -> aggregation.MatchPredicate
+	15, // 19: aggregation.ResultPredicate.ResultAction.regex_action:type_name -> aggregation.ResultPredicate.ResultAction.RegexAction
+	10, // 20: aggregation.ResultPredicate.LocalityResultAction.region_action:type_name -> aggregation.ResultPredicate.ResultAction
+	10, // 21: aggregation.ResultPredicate.LocalityResultAction.zone_action:type_name -> aggregation.ResultPredicate.ResultAction
+	10, // 22: aggregation.ResultPredicate.LocalityResultAction.subzone_action:type_name -> aggregation.ResultPredicate.ResultAction
+	4,  // 23: aggregation.ResultPredicate.AndResult.result_predicates:type_name -> aggregation.ResultPredicate
+	10, // 24: aggregation.ResultPredicate.RequestNodeFragment.id_action:type_name -> aggregation.ResultPredicate.ResultAction
+	10, // 25: aggregation.ResultPredicate.RequestNodeFragment.cluster_action:type_name -> aggregation.ResultPredicate.ResultAction
+	11, // 26: aggregation.ResultPredicate.RequestNodeFragment.locality_action:type_name -> aggregation.ResultPredicate.LocalityResultAction
+	10, // 27: aggregation.ResultPredicate.ResourceNamesFragment.action:type_name -> aggregation.ResultPredicate.ResultAction
 	28, // [28:28] is the sub-list for method output_type
 	28, // [28:28] is the sub-list for method input_type
 	28, // [28:28] is the sub-list for extension type_name
@@ -1757,14 +1692,13 @@ func file_aggregation_v1_aggregation_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_aggregation_v1_aggregation_proto_rawDesc,
-			NumEnums:      1,
+			NumEnums:      0,
 			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_aggregation_v1_aggregation_proto_goTypes,
 		DependencyIndexes: file_aggregation_v1_aggregation_proto_depIdxs,
-		EnumInfos:         file_aggregation_v1_aggregation_proto_enumTypes,
 		MessageInfos:      file_aggregation_v1_aggregation_proto_msgTypes,
 	}.Build()
 	File_aggregation_v1_aggregation_proto = out.File
