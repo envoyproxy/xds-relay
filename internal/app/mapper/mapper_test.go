@@ -24,11 +24,11 @@ type StringMatch = aggregationv1.StringMatch
 type NodeFieldType int32
 
 const (
-	NodeFieldType_NODE_ID               NodeFieldType = 0
-	NodeFieldType_NODE_CLUSTER          NodeFieldType = 1
-	NodeFieldType_NODE_LOCALITY_REGION  NodeFieldType = 2
-	NodeFieldType_NODE_LOCALITY_ZONE    NodeFieldType = 3
-	NodeFieldType_NODE_LOCALITY_SUBZONE NodeFieldType = 4
+	NodeID              NodeFieldType = 0
+	NodeCluster         NodeFieldType = 1
+	NodeLocalityRegion  NodeFieldType = 2
+	NodeLocalityZone    NodeFieldType = 3
+	NodeLocalitySubZone NodeFieldType = 4
 )
 
 const (
@@ -42,11 +42,11 @@ const (
 	resource1        = "resource1"
 	resource2        = "resource2"
 	stringFragment   = "stringFragment"
-	nodeIDField      = NodeFieldType_NODE_ID
-	nodeClusterField = NodeFieldType_NODE_CLUSTER
-	nodeRegionField  = NodeFieldType_NODE_LOCALITY_REGION
-	nodeZoneField    = NodeFieldType_NODE_LOCALITY_ZONE
-	nodeSubZoneField = NodeFieldType_NODE_LOCALITY_SUBZONE
+	nodeIDField      = NodeID
+	nodeClusterField = NodeCluster
+	nodeRegionField  = NodeLocalityRegion
+	nodeZoneField    = NodeLocalityZone
+	nodeSubZoneField = NodeLocalitySubZone
 )
 
 var positiveTests = []TableEntry{
@@ -410,12 +410,12 @@ var positiveTests = []TableEntry{
 			getAnyMatch(true),
 			getResultRequestNodeLocalityFragment(
 				&LocalityResultAction{
-					RegionAction:  getRegexAction("r....n", "r1"),
+					RegionAction:  getRegexAction("r(egion)", "p$1"),
 					SubzoneAction: getRegexAction("s..zon.", "subzero"),
 				},
 			),
 			clusterTypeURL,
-			"r1|subzero",
+			"pegion|subzero",
 		},
 	},
 	{
@@ -1349,15 +1349,13 @@ func getRequestNodeLocalityNotMatch() *MatchPredicate {
 	}
 }
 
-// TODO: this is the indication we don't need that enum in the protos, i.e. this should
-// be a test-only construct.
 func getRequestNodeRegexNotMatch(field NodeFieldType) *MatchPredicate {
 	var matchPredicate *aggregationv1.MatchPredicate
 	notMatchRegex := "notmatchregex"
 	switch field {
-	case NodeFieldType_NODE_ID:
+	case NodeID:
 		matchPredicate = getRequestNodeIDRegexMatch(notMatchRegex)
-	case NodeFieldType_NODE_CLUSTER:
+	case NodeCluster:
 		matchPredicate = getRequestNodeClusterRegexMatch(notMatchRegex)
 	}
 	return &MatchPredicate{
@@ -1367,13 +1365,12 @@ func getRequestNodeRegexNotMatch(field NodeFieldType) *MatchPredicate {
 	}
 }
 
-// TODO: ditto
 func getRequestNodeExactNotMatch(field NodeFieldType, exact string) *MatchPredicate {
 	var matchPredicate *aggregationv1.MatchPredicate
 	switch field {
-	case NodeFieldType_NODE_ID:
+	case NodeID:
 		matchPredicate = getRequestNodeIDExactMatch(exact)
-	case NodeFieldType_NODE_CLUSTER:
+	case NodeCluster:
 		matchPredicate = getRequestNodeClusterExactMatch(exact)
 	}
 	return &MatchPredicate{
