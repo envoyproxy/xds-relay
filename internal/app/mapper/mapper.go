@@ -395,16 +395,28 @@ func getResultFragmentFromAction(
 
 func getFragmentFromLocalityAction(
 	locality *corev2.Locality,
-	action *aggregationv1.NodeLocalityMatch) (string, error) {
+	action *aggregationv1.ResultPredicate_LocalityResultAction) (string, error) {
 	var matches []string
-	if locality.Region != "" && locality.Region == action.Region {
-		matches = append(matches, locality.Region)
+	if action.RegionAction != nil {
+		fragment, err := getResultFragmentFromAction(locality.Region, action.RegionAction)
+		if err != nil {
+			return "", err
+		}
+		matches = append(matches, fragment)
 	}
-	if locality.Zone != "" && locality.Zone == action.Zone {
-		matches = append(matches, locality.Zone)
+	if action.ZoneAction != nil {
+		fragment, err := getResultFragmentFromAction(locality.Zone, action.ZoneAction)
+		if err != nil {
+			return "", err
+		}
+		matches = append(matches, fragment)
 	}
-	if locality.SubZone != "" && locality.SubZone == action.SubZone {
-		matches = append(matches, locality.SubZone)
+	if action.SubzoneAction != nil {
+		fragment, err := getResultFragmentFromAction(locality.SubZone, action.SubzoneAction)
+		if err != nil {
+			return "", err
+		}
+		matches = append(matches, fragment)
 	}
 
 	if len(matches) == 0 {

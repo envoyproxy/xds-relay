@@ -1106,6 +1106,104 @@ var _ interface {
 	ErrorName() string
 } = ResultPredicate_ResultActionValidationError{}
 
+// Validate checks the field values on ResultPredicate_LocalityResultAction
+// with the rules defined in the proto definition for this message. If any
+// rules are violated, an error is returned.
+func (m *ResultPredicate_LocalityResultAction) Validate() error {
+	if m == nil {
+		return nil
+	}
+
+	if v, ok := interface{}(m.GetRegionAction()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return ResultPredicate_LocalityResultActionValidationError{
+				field:  "RegionAction",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	if v, ok := interface{}(m.GetZoneAction()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return ResultPredicate_LocalityResultActionValidationError{
+				field:  "ZoneAction",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	if v, ok := interface{}(m.GetSubzoneAction()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return ResultPredicate_LocalityResultActionValidationError{
+				field:  "SubzoneAction",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	return nil
+}
+
+// ResultPredicate_LocalityResultActionValidationError is the validation error
+// returned by ResultPredicate_LocalityResultAction.Validate if the designated
+// constraints aren't met.
+type ResultPredicate_LocalityResultActionValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e ResultPredicate_LocalityResultActionValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e ResultPredicate_LocalityResultActionValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e ResultPredicate_LocalityResultActionValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e ResultPredicate_LocalityResultActionValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e ResultPredicate_LocalityResultActionValidationError) ErrorName() string {
+	return "ResultPredicate_LocalityResultActionValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e ResultPredicate_LocalityResultActionValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sResultPredicate_LocalityResultAction.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = ResultPredicate_LocalityResultActionValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = ResultPredicate_LocalityResultActionValidationError{}
+
 // Validate checks the field values on ResultPredicate_AndResult with the rules
 // defined in the proto definition for this message. If any rules are
 // violated, an error is returned.

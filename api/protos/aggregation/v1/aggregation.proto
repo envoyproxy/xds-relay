@@ -150,6 +150,16 @@ message ResultPredicate {
     }
   }
 
+  // Rule for how to generate a fragment from a Locality object
+  // [#next-free-field: 4]
+  message LocalityResultAction {
+    ResultAction region_action = 1;
+
+    ResultAction zone_action = 2;
+
+    ResultAction subzone_action = 3;
+  }
+
   message AndResult {
     repeated ResultPredicate result_predicates = 1 [(validate.rules).repeated.min_items = 2];
   }
@@ -163,7 +173,7 @@ message ResultPredicate {
 
       ResultAction id_action = 1;
       ResultAction cluster_action = 2;
-      NodeLocalityMatch locality_action = 3;
+      LocalityResultAction locality_action = 3;
     }
   }
 
