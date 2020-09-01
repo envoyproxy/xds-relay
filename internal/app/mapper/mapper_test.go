@@ -21,32 +21,18 @@ type ResultPredicate = aggregationv1.ResultPredicate
 type LocalityResultAction = aggregationv1.ResultPredicate_LocalityResultAction
 type StringMatch = aggregationv1.StringMatch
 
-type NodeFieldType int32
-
 const (
-	NodeID              NodeFieldType = 0
-	NodeCluster         NodeFieldType = 1
-	NodeLocalityRegion  NodeFieldType = 2
-	NodeLocalityZone    NodeFieldType = 3
-	NodeLocalitySubZone NodeFieldType = 4
-)
-
-const (
-	clusterTypeURL   = "type.googleapis.com/envoy.api.v2.Cluster"
-	listenerTypeURL  = "type.googleapis.com/envoy.api.v2.Listener"
-	nodeid           = "nodeid"
-	nodecluster      = "cluster"
-	noderegion       = "region"
-	nodezone         = "zone"
-	nodesubzone      = "subzone"
-	resource1        = "resource1"
-	resource2        = "resource2"
-	stringFragment   = "stringFragment"
-	nodeIDField      = NodeID
-	nodeClusterField = NodeCluster
-	nodeRegionField  = NodeLocalityRegion
-	nodeZoneField    = NodeLocalityZone
-	nodeSubZoneField = NodeLocalitySubZone
+	clusterTypeURL  = "type.googleapis.com/envoy.api.v2.Cluster"
+	listenerTypeURL = "type.googleapis.com/envoy.api.v2.Listener"
+	nodeid          = "nodeid"
+	nodecluster     = "cluster"
+	noderegion      = "region"
+	nodezone        = "zone"
+	nodesubzone     = "subzone"
+	resource1       = "resource1"
+	resource2       = "resource2"
+	stringFragment  = "stringFragment"
+	notMatchRegex   = "notmatchregex"
 )
 
 var positiveTests = []TableEntry{
@@ -236,7 +222,7 @@ var positiveTests = []TableEntry{
 	{
 		Description: "Not Match RequestNodeMatch with node id regex",
 		Parameters: []interface{}{
-			getRequestNodeRegexNotMatch(nodeIDField),
+			getRequestNodeNotMatch(getRequestNodeIDRegexMatch(notMatchRegex)),
 			getResultStringFragment(),
 			clusterTypeURL,
 			stringFragment,
@@ -245,7 +231,7 @@ var positiveTests = []TableEntry{
 	{
 		Description: "Not Match RequestNodeMatch with node cluster regex",
 		Parameters: []interface{}{
-			getRequestNodeRegexNotMatch(nodeClusterField),
+			getRequestNodeNotMatch(getRequestNodeClusterRegexMatch(notMatchRegex)),
 			getResultStringFragment(),
 			clusterTypeURL,
 			stringFragment,
@@ -740,41 +726,41 @@ var negativeTests = []TableEntry{
 		},
 	},
 	{
-		Description: "Not Match RequestNodeMatch with node id regex",
+		Description: "Not Match RequestNodeMatch with node id",
 		Parameters: []interface{}{
-			getRequestNodeExactNotMatch(nodeIDField, nodeid),
+			getRequestNodeNotMatch(getRequestNodeIDExactMatch(nodeid)),
 			getResultStringFragment(),
 			getDiscoveryRequest(),
 		},
 	},
 	{
-		Description: "Not Match RequestNodeMatch with node cluster regex",
+		Description: "Not Match RequestNodeMatch with node cluster",
 		Parameters: []interface{}{
-			getRequestNodeExactNotMatch(nodeClusterField, nodecluster),
+			getRequestNodeNotMatch(getRequestNodeClusterExactMatch(nodecluster)),
 			getResultStringFragment(),
 			getDiscoveryRequest(),
 		},
 	},
 	{
-		Description: "Not Match RequestNodeMatch with node region regex",
+		Description: "Not Match RequestNodeMatch with node region",
 		Parameters: []interface{}{
-			getRequestNodeExactNotMatch(nodeRegionField, noderegion),
+			getRequestNodeNotMatch(getRequestNodeLocality(getExactMatch(noderegion), nil, nil)),
 			getResultStringFragment(),
 			getDiscoveryRequest(),
 		},
 	},
 	{
-		Description: "Not Match RequestNodeMatch with node zone regex",
+		Description: "Not Match RequestNodeMatch with node zone",
 		Parameters: []interface{}{
-			getRequestNodeExactNotMatch(nodeZoneField, nodezone),
+			getRequestNodeNotMatch(getRequestNodeLocality(nil, getExactMatch(nodezone), nil)),
 			getResultStringFragment(),
 			getDiscoveryRequest(),
 		},
 	},
 	{
-		Description: "Not Match RequestNodeMatch with node subzone regex",
+		Description: "Not Match RequestNodeMatch with node subzone",
 		Parameters: []interface{}{
-			getRequestNodeExactNotMatch(nodeSubZoneField, nodesubzone),
+			getRequestNodeNotMatch(getRequestNodeLocality(nil, nil, getExactMatch(nodesubzone))),
 			getResultStringFragment(),
 			getDiscoveryRequest(),
 		},
@@ -1349,30 +1335,7 @@ func getRequestNodeLocalityNotMatch() *MatchPredicate {
 	}
 }
 
-func getRequestNodeRegexNotMatch(field NodeFieldType) *MatchPredicate {
-	var matchPredicate *aggregationv1.MatchPredicate
-	notMatchRegex := "notmatchregex"
-	switch field {
-	case NodeID:
-		matchPredicate = getRequestNodeIDRegexMatch(notMatchRegex)
-	case NodeCluster:
-		matchPredicate = getRequestNodeClusterRegexMatch(notMatchRegex)
-	}
-	return &MatchPredicate{
-		Type: &aggregationv1.MatchPredicate_NotMatch{
-			NotMatch: matchPredicate,
-		},
-	}
-}
-
-func getRequestNodeExactNotMatch(field NodeFieldType, exact string) *MatchPredicate {
-	var matchPredicate *aggregationv1.MatchPredicate
-	switch field {
-	case NodeID:
-		matchPredicate = getRequestNodeIDExactMatch(exact)
-	case NodeCluster:
-		matchPredicate = getRequestNodeClusterExactMatch(exact)
-	}
+func getRequestNodeNotMatch(matchPredicate *aggregationv1.MatchPredicate) *MatchPredicate {
 	return &MatchPredicate{
 		Type: &aggregationv1.MatchPredicate_NotMatch{
 			NotMatch: matchPredicate,
