@@ -154,19 +154,19 @@ func (m *client) OpenStream(request transport.Request) (<-chan transport.Respons
 		scope = m.scope.SubScope(metrics.ScopeUpstreamEDS)
 	case resourcev3.ListenerType:
 		s, err = m.ldsClientV3.StreamListeners(ctx)
-		stream = transport.NewStreamV2(s, request)
+		stream = transport.NewStreamV3(s, request)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamLDS)
 	case resourcev3.ClusterType:
 		s, err = m.cdsClientV3.StreamClusters(ctx)
-		stream = transport.NewStreamV2(s, request)
+		stream = transport.NewStreamV3(s, request)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamCDS)
 	case resourcev3.RouteType:
 		s, err = m.rdsClientV3.StreamRoutes(ctx)
-		stream = transport.NewStreamV2(s, request)
+		stream = transport.NewStreamV3(s, request)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamRDS)
 	case resourcev3.EndpointType:
 		s, err = m.edsClientV3.StreamEndpoints(ctx)
-		stream = transport.NewStreamV2(s, request)
+		stream = transport.NewStreamV3(s, request)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamEDS)
 	default:
 		defer cancel()
