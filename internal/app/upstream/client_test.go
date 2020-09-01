@@ -244,7 +244,7 @@ func TestOpenStreamShouldSendTheResponseOnTheChannelV3(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, resp)
 	val := <-resp
-	assert.Equal(t, val.Get().V2, response)
+	assert.Equal(t, val.Get().V3, response)
 	done()
 }
 
