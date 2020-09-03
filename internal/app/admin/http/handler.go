@@ -173,7 +173,7 @@ type marshallableCache struct {
 // the map of requests is converted to a slice of just the keys,
 // since the bool value is meaningless.
 func resourceToPayload(key string, resource cache.Resource) []marshallableResource {
-	cache := &marshallableCache{}
+	var marshallableResources []marshallableResource
 	var requests []types.Resource
 	for request := range resource.Requests {
 		if request.GetRaw().V2 != nil {
@@ -183,14 +183,14 @@ func resourceToPayload(key string, resource cache.Resource) []marshallableResour
 		}
 	}
 
-	cache.Cache = append(cache.Cache, marshallableResource{
+	marshallableResources = append(marshallableResources, marshallableResource{
 		Key:            key,
 		Resp:           marshalDiscoveryResponse(resource.Resp),
 		Requests:       requests,
 		ExpirationTime: resource.ExpirationTime,
 	})
 
-	return cache.Cache
+	return marshallableResources
 }
 
 type marshalledDiscoveryResponse struct {
