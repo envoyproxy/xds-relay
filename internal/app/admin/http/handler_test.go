@@ -260,8 +260,10 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
 		assert.Equal(t, http.StatusOK, rr.Code)
 
 		body := dateRegex.ReplaceAllString(rr.Body.String(), "\"\"")
-		filecontents, _ := ioutil.ReadFile("testdata/entire_cachev2.json")
-		assert.Equal(t, body, string(filecontents))
+		filecontentsCds, _ := ioutil.ReadFile("testdata/entire_cachev2_cds.json")
+		filecontentsLds, _ := ioutil.ReadFile("testdata/entire_cachev2_lds.json")
+		assert.Contains(t, body, string(filecontentsCds))
+		assert.Contains(t, body, string(filecontentsLds))
 
 		cancelLDSWatch()
 		cancelCDSWatch()
@@ -345,8 +347,10 @@ func TestAdminServer_CacheDumpHandler_EntireCacheV3(t *testing.T) {
 		handler.ServeHTTP(rr, req)
 		assert.Equal(t, http.StatusOK, rr.Code)
 		body := dateRegex.ReplaceAllString(rr.Body.String(), "\"\"")
-		filecontents, _ := ioutil.ReadFile("testdata/entire_cachev3.json")
-		assert.Equal(t, body, string(filecontents))
+		filecontentsCds, _ := ioutil.ReadFile("testdata/entire_cachev3_cds.json")
+		filecontentsLds, _ := ioutil.ReadFile("testdata/entire_cachev3_lds.json")
+		assert.Contains(t, body, string(filecontentsCds))
+		assert.Contains(t, body, string(filecontentsLds))
 		cancelLDSWatch()
 		cancelCDSWatch()
 	}
