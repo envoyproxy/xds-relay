@@ -113,8 +113,8 @@ func configDumpHandler(bootstrapConfig *bootstrapv1.Bootstrap) http.HandlerFunc 
 func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		cacheKey := getParam(req.URL.Path)
-		cache := orchestrator.Orchestrator.GetReadOnlyCache(*o)
-
+		c := orchestrator.Orchestrator.GetReadOnlyCache(*o)
+		resp := marshallableCache{}
 		// If no key is provided, output the entire cache.
 		if cacheKey == "" {
 			keys, err := orchestrator.Orchestrator.GetDownstreamAggregatedKeys(*o)
@@ -123,25 +123,32 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 				fmt.Fprintf(w, "error in getting cache keys: %s", err.Error())
 				return
 			}
+
 			for key := range keys {
-				resource, err := cache.FetchReadOnly(key)
-				if err == nil {
-					resourceString, err := resourceToString(resource)
-					if err == nil {
-						fmt.Fprintf(w, "%s: %s\n", key, resourceString)
-					}
+				resource, err := c.FetchReadOnly(key)
+				if err != nil {
+					continue
 				}
+				resp.Cache = append(resp.Cache, resourceToPayload(key, resource)...)
 			}
+			resourceString, err := stringify.InterfaceToString(resp)
+			if err != nil {
+				return
+			}
+			fmt.Fprintf(w, "%s\n", resourceString)
 			return
 		}
 
 		// Otherwise return the cache entry corresponding to the given key.
-		resource, err := cache.FetchReadOnly(cacheKey)
+		resource, err := c.FetchReadOnly(cacheKey)
 		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
 			fmt.Fprintf(w, "no resource for key %s found in cache.\n", cacheKey)
 			return
 		}
-		resourceString, err := resourceToString(resource)
+
+		resp.Cache = append(resp.Cache, resourceToPayload(cacheKey, resource)...)
+		resourceString, err := stringify.InterfaceToString(resp)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, "unable to convert resource to string.\n")
@@ -152,15 +159,21 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 }
 
 type marshallableResource struct {
+	Key            string
 	Resp           *marshalledDiscoveryResponse
 	Requests       []types.Resource
 	ExpirationTime time.Time
 }
 
+type marshallableCache struct {
+	Cache []marshallableResource
+}
+
 // In order to marshal a Resource from the cache to JSON to be printed,
 // the map of requests is converted to a slice of just the keys,
 // since the bool value is meaningless.
-func resourceToString(resource cache.Resource) (string, error) {
+func resourceToPayload(key string, resource cache.Resource) []marshallableResource {
+	cache := &marshallableCache{}
 	var requests []types.Resource
 	for request := range resource.Requests {
 		if request.GetRaw().V2 != nil {
@@ -170,13 +183,14 @@ func resourceToString(resource cache.Resource) (string, error) {
 		}
 	}
 
-	resourceString := &marshallableResource{
+	cache.Cache = append(cache.Cache, marshallableResource{
+		Key:            key,
 		Resp:           marshalDiscoveryResponse(resource.Resp),
 		Requests:       requests,
 		ExpirationTime: resource.ExpirationTime,
-	}
+	})
 
-	return stringify.InterfaceToString(resourceString)
+	return cache.Cache
 }
 
 type marshalledDiscoveryResponse struct {

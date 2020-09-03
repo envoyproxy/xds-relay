@@ -29,13 +29,13 @@ fragments:
             types:
               - "type.googleapis.com/envoy.config.listener.v3.Listener"
         result:
-          string_fragment: "ldsv3"
+          string_fragment: "lds"
       - match:
           request_type_match:
             types:
               - "type.googleapis.com/envoy.config.cluster.v3.Cluster"
         result:
-          string_fragment: "cdsv3"
+          string_fragment: "cds"
       - match:
           request_type_match:
             types:

@@ -3,8 +3,10 @@ package handler
 import (
 	"bytes"
 	"context"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"testing"
 	"time"
 
@@ -28,6 +30,8 @@ import (
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/stretchr/testify/assert"
 )
+
+var dateRegex = regexp.MustCompile(`....-..-..T..:..:.*.-..:..`)
 
 func TestAdminServer_DefaultHandler(t *testing.T) {
 	req, err := http.NewRequest("GET", "/", nil)
@@ -142,34 +146,10 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), `{
-  "Resp": {
-    "VersionInfo": "1",
-    "Resources": {
-      "Endpoints": null,
-      "Clusters": null,
-      "Routes": null,
-      "Listeners": [
-        {
-          "name": "lds resource"
-        }
-      ],
-      "Secrets": null,
-      "Runtimes": null,
-      "Unmarshalled": null
-    },
-    "Canary": false,
-    "TypeURL": "type.googleapis.com/envoy.api.v2.Listener",
-    "Nonce": "",
-    "ControlPlane": null
-  },
-  "Requests": [
-    {
-      "version_info": "1",
-      "type_url": "type.googleapis.com/envoy.api.v2.Listener"
-    }
-  ],
-  "ExpirationTime": "`)
+
+	body := dateRegex.ReplaceAllString(rr.Body.String(), "")
+	filecontents, _ := ioutil.ReadFile("testdata/lds_response.json")
+	assert.Equal(t, body, string(filecontents))
 	cancelWatch()
 }
 
@@ -198,7 +178,7 @@ func TestAdminServer_CacheDumpHandler_NotFound(t *testing.T) {
 	handler := cacheDumpHandler(&orchestrator)
 
 	handler.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, http.StatusNotFound, rr.Code)
 	assert.Equal(t, "no resource for key cds found in cache.\n", rr.Body.String())
 }
 
@@ -278,64 +258,11 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
 
 		handler.ServeHTTP(rr, req)
 		assert.Equal(t, http.StatusOK, rr.Code)
-		assert.Contains(t, rr.Body.String(), `lds: {
-  "Resp": {
-    "VersionInfo": "1",
-    "Resources": {
-      "Endpoints": null,
-      "Clusters": null,
-      "Routes": null,
-      "Listeners": [
-        {
-          "name": "lds resource"
-        }
-      ],
-      "Secrets": null,
-      "Runtimes": null,
-      "Unmarshalled": null
-    },
-    "Canary": false,
-    "TypeURL": "type.googleapis.com/envoy.api.v2.Listener",
-    "Nonce": "",
-    "ControlPlane": null
-  },
-  "Requests": [
-    {
-      "version_info": "1",
-      "type_url": "type.googleapis.com/envoy.api.v2.Listener"
-    }
-  ],
-  "ExpirationTime": "`)
-		assert.Contains(t, rr.Body.String(), `cds: {
-  "Resp": {
-    "VersionInfo": "2",
-    "Resources": {
-      "Endpoints": null,
-      "Clusters": [
-        {
-          "name": "cds resource",
-          "ClusterDiscoveryType": null,
-          "LbConfig": null
-        }
-      ],
-      "Routes": null,
-      "Listeners": null,
-      "Secrets": null,
-      "Runtimes": null,
-      "Unmarshalled": null
-    },
-    "Canary": false,
-    "TypeURL": "type.googleapis.com/envoy.api.v2.Cluster",
-    "Nonce": "",
-    "ControlPlane": null
-  },
-  "Requests": [
-    {
-      "version_info": "2",
-      "type_url": "type.googleapis.com/envoy.api.v2.Cluster"
-    }
-  ],
-  "ExpirationTime": "`)
+
+		body := dateRegex.ReplaceAllString(rr.Body.String(), "")
+		filecontents, _ := ioutil.ReadFile("testdata/entire_cachev2.json")
+		assert.Equal(t, body, string(filecontents))
+
 		cancelLDSWatch()
 		cancelCDSWatch()
 	}
@@ -417,64 +344,9 @@ func TestAdminServer_CacheDumpHandler_EntireCacheV3(t *testing.T) {
 
 		handler.ServeHTTP(rr, req)
 		assert.Equal(t, http.StatusOK, rr.Code)
-		assert.Contains(t, rr.Body.String(), `ldsv3: {
-  "Resp": {
-    "VersionInfo": "1",
-    "Resources": {
-      "Endpoints": null,
-      "Clusters": null,
-      "Routes": null,
-      "Listeners": [
-        {
-          "name": "lds resource"
-        }
-      ],
-      "Secrets": null,
-      "Runtimes": null,
-      "Unmarshalled": null
-    },
-    "Canary": false,
-    "TypeURL": "type.googleapis.com/envoy.config.listener.v3.Listener",
-    "Nonce": "",
-    "ControlPlane": null
-  },
-  "Requests": [
-    {
-      "version_info": "1",
-      "type_url": "type.googleapis.com/envoy.config.listener.v3.Listener"
-    }
-  ],
-  "ExpirationTime": "`)
-		assert.Contains(t, rr.Body.String(), `cdsv3: {
-  "Resp": {
-    "VersionInfo": "2",
-    "Resources": {
-      "Endpoints": null,
-      "Clusters": [
-        {
-          "name": "cds resource",
-          "ClusterDiscoveryType": null,
-          "LbConfig": null
-        }
-      ],
-      "Routes": null,
-      "Listeners": null,
-      "Secrets": null,
-      "Runtimes": null,
-      "Unmarshalled": null
-    },
-    "Canary": false,
-    "TypeURL": "type.googleapis.com/envoy.config.cluster.v3.Cluster",
-    "Nonce": "",
-    "ControlPlane": null
-  },
-  "Requests": [
-    {
-      "version_info": "2",
-      "type_url": "type.googleapis.com/envoy.config.cluster.v3.Cluster"
-    }
-  ],
-  "ExpirationTime": "`)
+		body := dateRegex.ReplaceAllString(rr.Body.String(), "")
+		filecontents, _ := ioutil.ReadFile("testdata/entire_cachev3.json")
+		assert.Equal(t, body, string(filecontents))
 		cancelLDSWatch()
 		cancelCDSWatch()
 	}
