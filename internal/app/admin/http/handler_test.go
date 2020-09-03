@@ -31,7 +31,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var dateRegex = regexp.MustCompile(`....-..-..T..:..:.*.-..:..`)
+var dateRegex = regexp.MustCompile(`"....-..-..T..:..:.....*"`)
 
 func TestAdminServer_DefaultHandler(t *testing.T) {
 	req, err := http.NewRequest("GET", "/", nil)
@@ -147,7 +147,7 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
 
-	body := dateRegex.ReplaceAllString(rr.Body.String(), "")
+	body := dateRegex.ReplaceAllString(rr.Body.String(), `""`)
 	filecontents, _ := ioutil.ReadFile("testdata/lds_response.json")
 	assert.Equal(t, body, string(filecontents))
 	cancelWatch()
@@ -259,7 +259,7 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
 		handler.ServeHTTP(rr, req)
 		assert.Equal(t, http.StatusOK, rr.Code)
 
-		body := dateRegex.ReplaceAllString(rr.Body.String(), "")
+		body := dateRegex.ReplaceAllString(rr.Body.String(), `""`)
 		filecontents, _ := ioutil.ReadFile("testdata/entire_cachev2.json")
 		assert.Equal(t, body, string(filecontents))
 
