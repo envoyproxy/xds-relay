@@ -140,7 +140,7 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 			}
 
 			// Find keys that match regex
-			var matchedRegexKeys[]string
+			var matchedRegexKeys []string
 			for key := range allKeys {
 				if strings.HasPrefix(key, rootCacheKeyName) {
 					matchedRegexKeys = append(matchedRegexKeys, key)

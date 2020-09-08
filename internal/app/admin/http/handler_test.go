@@ -3,7 +3,6 @@ package handler
 import (
 	"bytes"
 	"context"
-	corev2 "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -20,6 +19,7 @@ import (
 	"github.com/uber-go/tally"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	corev2 "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
 	"github.com/golang/protobuf/ptypes/any"
@@ -108,12 +108,12 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 	assert.NotNil(t, orchestrator)
 
 	reqNode := corev2.Node{
-		Id:       "test-1",
-		Cluster:  "test-prod",
+		Id:      "test-1",
+		Cluster: "test-prod",
 	}
 	gcpReq := gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
-		Node: &reqNode,
+		Node:    &reqNode,
 	}
 	respChannel, cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq))
 	assert.NotNil(t, respChannel)
@@ -230,23 +230,23 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
 		assert.NotNil(t, orchestrator)
 
 		req1Node := corev2.Node{
-			Id:       "test-1",
-			Cluster:  "test-prod",
+			Id:      "test-1",
+			Cluster: "test-prod",
 		}
 		gcpReq1 := gcp.Request{
 			TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
-			Node: &req1Node,
+			Node:    &req1Node,
 		}
 		ldsRespChannel, cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq1))
 		assert.NotNil(t, ldsRespChannel)
 
 		req2Node := corev2.Node{
-			Id:       "test-2",
-			Cluster:  "test-prod",
+			Id:      "test-2",
+			Cluster: "test-prod",
 		}
 		gcpReq2 := gcp.Request{
 			TypeUrl: "type.googleapis.com/envoy.api.v2.Cluster",
-			Node: &req2Node,
+			Node:    &req2Node,
 		}
 		cdsRespChannel, cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq2))
 		assert.NotNil(t, cdsRespChannel)
@@ -389,23 +389,23 @@ func TestAdminServer_CacheDumpHandler_RegexSuffix(t *testing.T) {
 		assert.NotNil(t, orchestrator)
 
 		req1Node := corev2.Node{
-			Id:       "test-1",
-			Cluster:  "test-prod",
+			Id:      "test-1",
+			Cluster: "test-prod",
 		}
 		gcpReq1 := gcp.Request{
 			TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
-			Node: &req1Node,
+			Node:    &req1Node,
 		}
 		ldsRespChannel, cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq1))
 		assert.NotNil(t, ldsRespChannel)
 
 		req2Node := corev2.Node{
-			Id:       "test-2",
-			Cluster:  "test-prod",
+			Id:      "test-2",
+			Cluster: "test-prod",
 		}
 		gcpReq2 := gcp.Request{
 			TypeUrl: "type.googleapis.com/envoy.api.v2.Cluster",
-			Node: &req2Node,
+			Node:    &req2Node,
 		}
 		cdsRespChannel, cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq2))
 		assert.NotNil(t, cdsRespChannel)
@@ -550,23 +550,23 @@ func TestAdminServer_CacheDumpHandler_RegexSuffix_NotFound(t *testing.T) {
 		assert.NotNil(t, orchestrator)
 
 		req1Node := corev2.Node{
-			Id:       "test-1",
-			Cluster:  "test-prod",
+			Id:      "test-1",
+			Cluster: "test-prod",
 		}
 		gcpReq1 := gcp.Request{
 			TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
-			Node: &req1Node,
+			Node:    &req1Node,
 		}
 		ldsRespChannel, cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq1))
 		assert.NotNil(t, ldsRespChannel)
 
 		req2Node := corev2.Node{
-			Id:       "test-2",
-			Cluster:  "test-prod",
+			Id:      "test-2",
+			Cluster: "test-prod",
 		}
 		gcpReq2 := gcp.Request{
 			TypeUrl: "type.googleapis.com/envoy.api.v2.Cluster",
-			Node: &req2Node,
+			Node:    &req2Node,
 		}
 		cdsRespChannel, cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq2))
 		assert.NotNil(t, cdsRespChannel)
@@ -615,7 +615,7 @@ func TestAdminServer_CacheDumpHandler_RegexSuffix_NotFound(t *testing.T) {
 
 		handler.ServeHTTP(rr, req)
 		assert.Equal(t, http.StatusOK, rr.Code)
-		assert.Equal(t, "no resource for key " + key + " found in cache.\n", rr.Body.String())
+		assert.Equal(t, "no resource for key "+key+" found in cache.\n", rr.Body.String())
 
 		cancelLDSWatch()
 		cancelCDSWatch()
