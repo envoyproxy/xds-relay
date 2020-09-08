@@ -102,14 +102,13 @@ func configDumpHandler(bootstrapConfig *bootstrapv1.Bootstrap) http.HandlerFunc 
 	}
 }
 
-// TODO(lisalu): Support dump of matching resources when cache key regex is provided.
 func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		cacheKey := getParam(req.URL.Path)
 		cache := orchestrator.Orchestrator.GetReadOnlyCache(*o)
 
 		// If no key is provided, output the entire cache.
-		if cacheKey == "" {
+		if cacheKey == "" || cacheKey == "*" {
 			keys, err := orchestrator.Orchestrator.GetDownstreamAggregatedKeys(*o)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
@@ -117,6 +116,43 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 				return
 			}
 			for key := range keys {
+				resource, err := cache.FetchReadOnly(key)
+				if err == nil {
+					resourceString, err := resourceToString(resource)
+					if err == nil {
+						fmt.Fprintf(w, "%s: %s\n", key, resourceString)
+					}
+				}
+			}
+			return
+		}
+
+		// If regex key provided, output all cache entries that match given
+		if strings.HasSuffix(cacheKey, "*") {
+			rootCacheKeyName := strings.TrimSuffix(cacheKey, "*")
+
+			// Retrieve all keys
+			allKeys, err := orchestrator.Orchestrator.GetDownstreamAggregatedKeys(*o)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprintf(w, "error in getting cache keys: %s", err.Error())
+				return
+			}
+
+			// Find keys that match regex
+			var matchedRegexKeys[]string
+			for key := range allKeys {
+				if strings.HasPrefix(key, rootCacheKeyName) {
+					matchedRegexKeys = append(matchedRegexKeys, key)
+				}
+			}
+			if len(matchedRegexKeys) == 0 {
+				fmt.Fprintf(w, "no resource for key %s found in cache.\n", cacheKey)
+				return
+			}
+
+			// Output relevant keys
+			for _, key := range matchedRegexKeys {
 				resource, err := cache.FetchReadOnly(key)
 				if err == nil {
 					resourceString, err := resourceToString(resource)

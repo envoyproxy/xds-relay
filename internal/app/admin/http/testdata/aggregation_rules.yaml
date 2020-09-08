@@ -1,4 +1,17 @@
-fragments: 
+fragments:
+  - rules:
+      - match:
+          request_type_match:
+            types:
+              - "type.googleapis.com/envoy.api.v2.Listener"
+              - "type.googleapis.com/envoy.api.v2.Cluster"
+              - "type.googleapis.com/envoy.api.v2.Route"
+              - "type.googleapis.com/envoy.api.v2.Endpoint"
+        result:
+          request_node_fragment:
+            field: 1
+            action:
+              regex_action: { pattern: "^(.*)-.*$", replace: "$1" }
   - rules:
       - match:
           request_type_match:
