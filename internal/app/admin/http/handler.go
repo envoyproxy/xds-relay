@@ -127,7 +127,7 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 			return
 		}
 
-		// If regex key provided, output all cache entries matching given regex.
+		// If regex key provided, output all cache entries that match given regex.
 		if strings.HasSuffix(cacheKey, "*") {
 			rootCacheKeyName := strings.TrimSuffix(cacheKey, "*")
 
