@@ -54,6 +54,12 @@ As a final step, it's time to connect 2 envoy clients to `xds-relay`. You're goi
     envoy -c example/config-files/envoy-bootstrap-1.yaml # on the first window
     envoy -c example/config-files/envoy-bootstrap-2.yaml # on the second window
 
+Note: `envoy` here is a general reference to however you set up envoy binaries to run on your machine. If you are using 
+getenvoy to set up your envoy clients, be sure to first fetch the desired version. The commands to run would instead be:
+
+    getenvoy run <reference> -- -c example/config-files/envoy-bootstrap-1.yaml # on the first window
+    getenvoy run <reference> -- -c example/config-files/envoy-bootstrap-2.yaml # on the second window
+
 And voilà! You should be seeing logs flowing in both the terminal window where you're running `xds-relay` and on each of the envoy ones. 
 
 ### How to validate that `xds-relay` is working?
