@@ -1,0 +1,32 @@
+    {
+      "Key": "cds",
+      "Resp": {
+        "VersionInfo": "2",
+        "Resources": {
+          "Endpoints": null,
+          "Clusters": [
+            {
+              "name": "cds resource",
+              "ClusterDiscoveryType": null,
+              "LbConfig": null
+            }
+          ],
+          "Routes": null,
+          "Listeners": null,
+          "Secrets": null,
+          "Runtimes": null,
+          "Unmarshalled": null
+        },
+        "Canary": false,
+        "TypeURL": "type.googleapis.com/envoy.config.cluster.v3.Cluster",
+        "Nonce": "",
+        "ControlPlane": null
+      },
+      "Requests": [
+        {
+          "version_info": "2",
+          "type_url": "type.googleapis.com/envoy.config.cluster.v3.Cluster"
+        }
+      ],
+      "ExpirationTime": ""
+    }
