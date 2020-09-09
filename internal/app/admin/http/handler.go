@@ -102,6 +102,21 @@ func configDumpHandler(bootstrapConfig *bootstrapv1.Bootstrap) http.HandlerFunc 
 	}
 }
 
+func printCacheEntry(key string, cache cache.ReadOnlyCache, w http.ResponseWriter) {
+	resource, err := cache.FetchReadOnly(key)
+	if err != nil {
+		fmt.Fprintf(w, "no resource for key %s found in cache.\n", key)
+		return
+	}
+	resourceString, err := resourceToString(resource)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "unable to convert resource to string.\n")
+		return
+	}
+	fmt.Fprintf(w, "%s: %s\n", key, resourceString)
+}
+
 func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		cacheKey := getParam(req.URL.Path)
@@ -116,13 +131,7 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 				return
 			}
 			for key := range keys {
-				resource, err := cache.FetchReadOnly(key)
-				if err == nil {
-					resourceString, err := resourceToString(resource)
-					if err == nil {
-						fmt.Fprintf(w, "%s: %s\n", key, resourceString)
-					}
-				}
+				printCacheEntry(key, cache, w)
 			}
 			return
 		}
@@ -153,30 +162,13 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 
 			// Output relevant keys
 			for _, key := range matchedRegexKeys {
-				resource, err := cache.FetchReadOnly(key)
-				if err == nil {
-					resourceString, err := resourceToString(resource)
-					if err == nil {
-						fmt.Fprintf(w, "%s: %s\n", key, resourceString)
-					}
-				}
+				printCacheEntry(key, cache, w)
 			}
 			return
 		}
 
 		// Otherwise return the cache entry corresponding to the given key.
-		resource, err := cache.FetchReadOnly(cacheKey)
-		if err != nil {
-			fmt.Fprintf(w, "no resource for key %s found in cache.\n", cacheKey)
-			return
-		}
-		resourceString, err := resourceToString(resource)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "unable to convert resource to string.\n")
-			return
-		}
-		fmt.Fprint(w, resourceString)
+		printCacheEntry(cacheKey, cache, w)
 	}
 }
 
