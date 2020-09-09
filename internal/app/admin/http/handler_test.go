@@ -528,7 +528,7 @@ func TestAdminServer_CacheDumpHandler_RegexSuffix(t *testing.T) {
 }
 
 func TestAdminServer_CacheDumpHandler_RegexSuffix_NotFound(t *testing.T) {
-	regexKeys := []string{"b*", "tesa*"}
+	regexKeys := []string{"b*", "tesa*", "tes"}
 	for _, key := range regexKeys {
 		url := "/cache/" + key
 		ctx := context.Background()
