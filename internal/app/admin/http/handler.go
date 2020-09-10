@@ -136,7 +136,7 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 			return
 		}
 
-		// If regex key provided, output all cache entries that match given regex.
+		// If wildcard suffix provided, output all cache entries that match given prefix.
 		if strings.HasSuffix(cacheKey, "*") {
 			rootCacheKeyName := strings.TrimSuffix(cacheKey, "*")
 
@@ -148,20 +148,20 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 				return
 			}
 
-			// Find keys that match regex
-			var matchedRegexKeys []string
+			// Find keys that match prefix of wildcard
+			var matchedPrefixKeys []string
 			for key := range allKeys {
 				if strings.HasPrefix(key, rootCacheKeyName) {
-					matchedRegexKeys = append(matchedRegexKeys, key)
+					matchedPrefixKeys = append(matchedPrefixKeys, key)
 				}
 			}
-			if len(matchedRegexKeys) == 0 {
+			if len(matchedPrefixKeys) == 0 {
 				fmt.Fprintf(w, "no resource for key %s found in cache.\n", cacheKey)
 				return
 			}
 
 			// Output relevant keys
-			for _, key := range matchedRegexKeys {
+			for _, key := range matchedPrefixKeys {
 				printCacheEntry(key, cache, w)
 			}
 			return

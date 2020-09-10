@@ -368,7 +368,7 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
 	}
 }
 
-func TestAdminServer_CacheDumpHandler_RegexSuffix(t *testing.T) {
+func TestAdminServer_CacheDumpHandler_WildcardSuffix(t *testing.T) {
 	for _, url := range []string{"/cache/t*", "/cache/tes*", "/cache/test*"} {
 		ctx := context.Background()
 		mapper := mapper.NewMock(t)
@@ -527,9 +527,9 @@ func TestAdminServer_CacheDumpHandler_RegexSuffix(t *testing.T) {
 	}
 }
 
-func TestAdminServer_CacheDumpHandler_RegexSuffix_NotFound(t *testing.T) {
-	regexKeys := []string{"b*", "tesa*", "tes"}
-	for _, key := range regexKeys {
+func TestAdminServer_CacheDumpHandler_WildcardSuffix_NotFound(t *testing.T) {
+	wildcardKeys := []string{"b*", "tesa*", "tes"}
+	for _, key := range wildcardKeys {
 		url := "/cache/" + key
 		ctx := context.Background()
 		mapper := mapper.NewMock(t)
