@@ -528,7 +528,7 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffix(t *testing.T) {
 }
 
 func TestAdminServer_CacheDumpHandler_WildcardSuffix_NotFound(t *testing.T) {
-	wildcardKeys := []string{"b*", "tesa*", "tes"}
+	wildcardKeys := []string{"b*", "tesa*", "tes",  "/cache/t*est*"}
 	for _, key := range wildcardKeys {
 		url := "/cache/" + key
 		ctx := context.Background()

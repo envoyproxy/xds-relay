@@ -122,26 +122,14 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 		cacheKey := getParam(req.URL.Path)
 		cache := orchestrator.Orchestrator.GetReadOnlyCache(*o)
 
-		// If no key is provided, output the entire cache.
-		if cacheKey == "" || cacheKey == "*" {
-			keys, err := orchestrator.Orchestrator.GetDownstreamAggregatedKeys(*o)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				fmt.Fprintf(w, "error in getting cache keys: %s", err.Error())
-				return
-			}
-			for key := range keys {
-				printCacheEntry(key, cache, w)
-			}
-			return
-		}
-
-		// If wildcard suffix provided, output all cache entries that match given prefix.
-		if strings.HasSuffix(cacheKey, "*") {
+		// If wildcard suffix provided, output all cache entries that match given prefix. If no key is
+		// provided, output the entire cache.
+		containsWildcardSuffix := strings.HasSuffix(cacheKey, "*")
+		if cacheKey == "" || containsWildcardSuffix {
 			rootCacheKeyName := strings.TrimSuffix(cacheKey, "*")
 
 			// Retrieve all keys
-			allKeys, err := orchestrator.Orchestrator.GetDownstreamAggregatedKeys(*o)
+			keys, err := orchestrator.Orchestrator.GetDownstreamAggregatedKeys(*o)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				fmt.Fprintf(w, "error in getting cache keys: %s", err.Error())
@@ -149,19 +137,20 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 			}
 
 			// Find keys that match prefix of wildcard
-			var matchedPrefixKeys []string
-			for key := range allKeys {
-				if strings.HasPrefix(key, rootCacheKeyName) {
-					matchedPrefixKeys = append(matchedPrefixKeys, key)
+			if containsWildcardSuffix {
+				for potentialMatchKey := range keys {
+					if !strings.HasPrefix(potentialMatchKey, rootCacheKeyName) {
+						delete(keys, potentialMatchKey)
+					}
 				}
-			}
-			if len(matchedPrefixKeys) == 0 {
-				fmt.Fprintf(w, "no resource for key %s found in cache.\n", cacheKey)
-				return
+				if len(keys) == 0 {
+					fmt.Fprintf(w, "no resource for key %s found in cache.\n", cacheKey)
+					return
+				}
 			}
 
 			// Output relevant keys
-			for _, key := range matchedPrefixKeys {
+			for key := range keys {
 				printCacheEntry(key, cache, w)
 			}
 			return
