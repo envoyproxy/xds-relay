@@ -13,6 +13,13 @@ type RequestVersion struct {
 	V3 *discoveryv3.DiscoveryRequest
 }
 
+// Locality is an interface to abstract the differences between the v2 and v3 Locality type
+type Locality struct {
+	Region  string
+	Zone    string
+	SubZone string
+}
+
 // Request is the generic interface to abstract v2 and v3 DiscoveryRequest types
 type Request interface {
 	GetResourceNames() []string
@@ -22,9 +29,7 @@ type Request interface {
 	GetNodeMetadata() *structpb.Struct
 	GetCluster() string
 	GetError() *status.Status
-	GetRegion() string
-	GetZone() string
-	GetSubZone() string
+	GetLocality() *Locality
 	GetResponseNonce() string
 	GetRaw() *RequestVersion
 	CreateWatch() Watch
