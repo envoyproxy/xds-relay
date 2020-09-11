@@ -103,22 +103,10 @@ func TestGetError(t *testing.T) {
 	assert.Equal(t, requestv2.GetError(), requestv3.GetError())
 }
 
-func TestGetRegion(t *testing.T) {
+func TestGetLocality(t *testing.T) {
 	requestv2 := NewRequestV2(&requestV2)
 	requestv3 := NewRequestV3(&requestV3)
-	assert.Equal(t, requestv2.GetRegion(), requestv3.GetRegion())
-}
-
-func TestGetZone(t *testing.T) {
-	requestv2 := NewRequestV2(&requestV2)
-	requestv3 := NewRequestV3(&requestV3)
-	assert.Equal(t, requestv2.GetZone(), requestv3.GetZone())
-}
-
-func TestGetSubZone(t *testing.T) {
-	requestv2 := NewRequestV2(&requestV2)
-	requestv3 := NewRequestV3(&requestV3)
-	assert.Equal(t, requestv2.GetSubZone(), requestv3.GetSubZone())
+	assert.Equal(t, requestv2.GetLocality(), requestv3.GetLocality())
 }
 
 func TestGetResponseNonce(t *testing.T) {
