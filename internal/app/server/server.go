@@ -13,8 +13,13 @@ import (
 
 	api "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	gcpv2 "github.com/envoyproxy/go-control-plane/pkg/server/v2"
+	gcpv3 "github.com/envoyproxy/go-control-plane/pkg/server/v3"
 	"github.com/envoyproxy/xds-relay/internal/app/metrics"
 
+	clusterservice "github.com/envoyproxy/go-control-plane/envoy/service/cluster/v3"
+	endpointservice "github.com/envoyproxy/go-control-plane/envoy/service/endpoint/v3"
+	listenerservice "github.com/envoyproxy/go-control-plane/envoy/service/listener/v3"
+	routeservice "github.com/envoyproxy/go-control-plane/envoy/service/route/v3"
 	handler "github.com/envoyproxy/xds-relay/internal/app/admin/http"
 	"github.com/envoyproxy/xds-relay/internal/pkg/stats"
 
@@ -173,4 +178,10 @@ func registerEndpoints(ctx context.Context, g *grpc.Server, o orchestrator.Orche
 	api.RegisterClusterDiscoveryServiceServer(g, gcpv2)
 	api.RegisterEndpointDiscoveryServiceServer(g, gcpv2)
 	api.RegisterListenerDiscoveryServiceServer(g, gcpv2)
+
+	gcpv3 := gcpv3.NewServer(ctx, orchestrator.NewV3(o), nil)
+	routeservice.RegisterRouteDiscoveryServiceServer(g, gcpv3)
+	clusterservice.RegisterClusterDiscoveryServiceServer(g, gcpv3)
+	endpointservice.RegisterEndpointDiscoveryServiceServer(g, gcpv3)
+	listenerservice.RegisterListenerDiscoveryServiceServer(g, gcpv3)
 }
