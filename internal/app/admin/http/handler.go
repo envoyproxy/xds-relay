@@ -6,13 +6,20 @@ import (
 	"strings"
 	"time"
 
-	envoy_api_v2_core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	clusterv3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
+	endpointv3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
+	listenerv3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
+	routev3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	secretv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
+	runtimev3 "github.com/envoyproxy/go-control-plane/envoy/service/runtime/v3"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log/zap"
 
 	envoy_api_v2_auth "github.com/envoyproxy/go-control-plane/envoy/api/v2/auth"
 	envoy_service_discovery_v2 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v2"
+	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
 	resource2 "github.com/envoyproxy/go-control-plane/pkg/resource/v2"
+	resource3 "github.com/envoyproxy/go-control-plane/pkg/resource/v3"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 
@@ -103,26 +110,33 @@ func configDumpHandler(bootstrapConfig *bootstrapv1.Bootstrap) http.HandlerFunc 
 }
 
 func printCacheEntries(keys []string, cache cache.ReadOnlyCache, w http.ResponseWriter) {
+	resp := marshallableCache{}
 	for _, key := range keys {
 		resource, err := cache.FetchReadOnly(key)
 		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
 			fmt.Fprintf(w, "no resource for key %s found in cache.\n", key)
-			return
+			continue
 		}
-		resourceString, err := resourceToString(resource)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "unable to convert resource to string.\n")
-			return
-		}
-		fmt.Fprintf(w, "%s: %s\n", key, resourceString)
+		resp.Cache = append(resp.Cache, resourceToPayload(key, resource)...)
 	}
+	resourceString, err := stringify.InterfaceToString(resp)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "unable to convert resource to string.\n")
+		return
+	}
+
+	if len(resp.Cache) > 0 {
+		fmt.Fprintf(w, "%s\n", resourceString)
+	}
+
 }
 
 func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		cacheKey := getParam(req.URL.Path)
-		cache := orchestrator.Orchestrator.GetReadOnlyCache(*o)
+		c := orchestrator.Orchestrator.GetReadOnlyCache(*o)
 		var keysToPrint []string
 
 		// If wildcard suffix provided, output all cache entries that match given prefix. If no key is
@@ -147,6 +161,7 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 					}
 				}
 				if len(keys) == 0 {
+					w.WriteHeader(http.StatusNotFound)
 					fmt.Fprintf(w, "no resource for key %s found in cache.\n", cacheKey)
 					return
 				}
@@ -160,32 +175,43 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 			// Otherwise return the cache entry corresponding to the given key.
 			keysToPrint = []string{cacheKey}
 		}
-		printCacheEntries(keysToPrint, cache, w)
+		printCacheEntries(keysToPrint, c, w)
 	}
 }
 
 type marshallableResource struct {
+	Key            string
 	Resp           *marshalledDiscoveryResponse
-	Requests       []*v2.DiscoveryRequest
+	Requests       []types.Resource
 	ExpirationTime time.Time
+}
+
+type marshallableCache struct {
+	Cache []marshallableResource
 }
 
 // In order to marshal a Resource from the cache to JSON to be printed,
 // the map of requests is converted to a slice of just the keys,
 // since the bool value is meaningless.
-func resourceToString(resource cache.Resource) (string, error) {
-	var requests []*v2.DiscoveryRequest
+func resourceToPayload(key string, resource cache.Resource) []marshallableResource {
+	var marshallableResources []marshallableResource
+	var requests []types.Resource
 	for request := range resource.Requests {
-		requests = append(requests, request.GetRaw().V2)
+		if request.GetRaw().V2 != nil {
+			requests = append(requests, request.GetRaw().V2)
+		} else {
+			requests = append(requests, request.GetRaw().V3)
+		}
 	}
 
-	resourceString := &marshallableResource{
+	marshallableResources = append(marshallableResources, marshallableResource{
+		Key:            key,
 		Resp:           marshalDiscoveryResponse(resource.Resp),
 		Requests:       requests,
 		ExpirationTime: resource.ExpirationTime,
-	}
+	})
 
-	return stringify.InterfaceToString(resourceString)
+	return marshallableResources
 }
 
 type marshalledDiscoveryResponse struct {
@@ -194,22 +220,34 @@ type marshalledDiscoveryResponse struct {
 	Canary       bool
 	TypeURL      string
 	Nonce        string
-	ControlPlane *envoy_api_v2_core.ControlPlane
+	ControlPlane types.Resource
 }
 
 type xDSResources struct {
-	Endpoints    []*v2.ClusterLoadAssignment
-	Clusters     []*v2.Cluster
-	Routes       []*v2.RouteConfiguration
-	Listeners    []*v2.Listener
-	Secrets      []*envoy_api_v2_auth.Secret
-	Runtimes     []*envoy_service_discovery_v2.Runtime
+	Endpoints    []types.Resource
+	Clusters     []types.Resource
+	Routes       []types.Resource
+	Listeners    []types.Resource
+	Secrets      []types.Resource
+	Runtimes     []types.Resource
 	Unmarshalled []*any.Any
 }
 
 func marshalDiscoveryResponse(r transport.Response) *marshalledDiscoveryResponse {
 	if r != nil {
-		resp := r.Get().V2
+		if r.Get().V2 != nil {
+			resp := r.Get().V2
+			marshalledResp := marshalledDiscoveryResponse{
+				VersionInfo:  resp.VersionInfo,
+				Canary:       resp.Canary,
+				TypeURL:      resp.TypeUrl,
+				Resources:    marshalResources(resp.Resources),
+				Nonce:        resp.Nonce,
+				ControlPlane: resp.ControlPlane,
+			}
+			return &marshalledResp
+		}
+		resp := r.Get().V3
 		marshalledResp := marshalledDiscoveryResponse{
 			VersionInfo:  resp.VersionInfo,
 			Canary:       resp.Canary,
@@ -269,6 +307,54 @@ func marshalResources(Resources []*any.Any) *xDSResources {
 			}
 		case resource2.RuntimeType:
 			r := &envoy_service_discovery_v2.Runtime{}
+			err := ptypes.UnmarshalAny(resource, r)
+			if err == nil {
+				marshalledResources.Runtimes = append(marshalledResources.Runtimes, r)
+			} else {
+				marshalledResources.Unmarshalled = append(marshalledResources.Unmarshalled, resource)
+			}
+		case resource3.EndpointType:
+			e := &endpointv3.ClusterLoadAssignment{}
+			err := ptypes.UnmarshalAny(resource, e)
+			if err == nil {
+				marshalledResources.Endpoints = append(marshalledResources.Endpoints, e)
+			} else {
+				marshalledResources.Unmarshalled = append(marshalledResources.Unmarshalled, resource)
+			}
+		case resource3.ClusterType:
+			c := &clusterv3.Cluster{}
+			err := ptypes.UnmarshalAny(resource, c)
+			if err == nil {
+				marshalledResources.Clusters = append(marshalledResources.Clusters, c)
+			} else {
+				marshalledResources.Unmarshalled = append(marshalledResources.Unmarshalled, resource)
+			}
+		case resource3.RouteType:
+			r := &routev3.RouteConfiguration{}
+			err := ptypes.UnmarshalAny(resource, r)
+			if err == nil {
+				marshalledResources.Routes = append(marshalledResources.Routes, r)
+			} else {
+				marshalledResources.Unmarshalled = append(marshalledResources.Unmarshalled, resource)
+			}
+		case resource3.ListenerType:
+			l := &listenerv3.Listener{}
+			err := ptypes.UnmarshalAny(resource, l)
+			if err == nil {
+				marshalledResources.Listeners = append(marshalledResources.Listeners, l)
+			} else {
+				marshalledResources.Unmarshalled = append(marshalledResources.Unmarshalled, resource)
+			}
+		case resource3.SecretType:
+			s := &secretv3.Secret{}
+			err := ptypes.UnmarshalAny(resource, s)
+			if err == nil {
+				marshalledResources.Secrets = append(marshalledResources.Secrets, s)
+			} else {
+				marshalledResources.Unmarshalled = append(marshalledResources.Unmarshalled, resource)
+			}
+		case resource3.RuntimeType:
+			r := &runtimev3.Runtime{}
 			err := ptypes.UnmarshalAny(resource, r)
 			if err == nil {
 				marshalledResources.Runtimes = append(marshalledResources.Runtimes, r)
