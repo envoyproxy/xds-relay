@@ -449,7 +449,6 @@ func compareString(stringMatch *aggregationv1.StringMatch, nodeValue string) (bo
 
 func compareLocality(localityMatch *aggregationv1.LocalityMatch,
 	reqNodeLocality *transport.Locality) (bool, error) {
-	// TODO if we can reuse envoy's Locality object, make sure to use cmp.Equal
 	if reqNodeLocality == nil {
 		return false, fmt.Errorf("Locality Node field cannot be empty")
 	}
