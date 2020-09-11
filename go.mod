@@ -10,15 +10,17 @@ require (
 	github.com/envoyproxy/protoc-gen-validate v0.3.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e
-	github.com/golang/protobuf v1.4.0-rc.4
+	github.com/golang/protobuf v1.4.2
+	github.com/iancoleman/strcase v0.1.1 // indirect
+	github.com/lyft/protoc-gen-star v0.5.1 // indirect
 	github.com/onsi/ginkgo v1.12.0
 	github.com/onsi/gomega v1.9.0
 	github.com/spf13/cobra v1.0.0
-	github.com/stretchr/testify v1.5.1
+	github.com/stretchr/testify v1.6.1
 	github.com/uber-go/tally v3.3.15+incompatible
 	go.uber.org/zap v1.14.0
 	golang.org/x/tools v0.0.0-20200527150044-688b3c5d9fa5 // indirect
 	google.golang.org/genproto v0.0.0-20191108220845-16a3f7862a1a
 	google.golang.org/grpc v1.27.1
-	google.golang.org/protobuf v1.20.1
+	google.golang.org/protobuf v1.23.0
 )

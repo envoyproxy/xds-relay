@@ -58,19 +58,14 @@ func (r *RequestV3) GetTypeURL() string {
 	return r.r.GetTypeUrl()
 }
 
-// GetRegion gets the error details
-func (r *RequestV3) GetRegion() string {
-	return r.r.GetNode().GetLocality().GetRegion()
-}
-
-// GetZone gets the error details
-func (r *RequestV3) GetZone() string {
-	return r.r.GetNode().GetLocality().GetZone()
-}
-
-// GetSubZone gets the error details
-func (r *RequestV3) GetSubZone() string {
-	return r.r.GetNode().GetLocality().GetSubZone()
+// GetLocality gets the node locality
+func (r *RequestV3) GetLocality() *Locality {
+	locality := r.r.GetNode().GetLocality()
+	return &Locality{
+		Region:  locality.GetRegion(),
+		Zone:    locality.GetZone(),
+		SubZone: locality.GetSubZone(),
+	}
 }
 
 // GetRaw gets the error details
