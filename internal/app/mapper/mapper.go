@@ -5,7 +5,6 @@ import (
 	"regexp"
 	"strings"
 
-	corev2 "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"github.com/envoyproxy/xds-relay/internal/app/metrics"
 	"github.com/envoyproxy/xds-relay/internal/app/transport"
 
@@ -394,7 +393,7 @@ func getResultFragmentFromAction(
 }
 
 func getFragmentFromLocalityAction(
-	locality *corev2.Locality,
+	locality *transport.Locality,
 	action *aggregationv1.ResultPredicate_LocalityResultAction) (string, error) {
 	var matches []string
 	if action.RegionAction != nil {
@@ -449,7 +448,7 @@ func compareString(stringMatch *aggregationv1.StringMatch, nodeValue string) (bo
 }
 
 func compareLocality(localityMatch *aggregationv1.LocalityMatch,
-	reqNodeLocality *corev2.Locality) (bool, error) {
+	reqNodeLocality *transport.Locality) (bool, error) {
 	// TODO if we can reuse envoy's Locality object, make sure to use cmp.Equal
 	if reqNodeLocality == nil {
 		return false, fmt.Errorf("Locality Node field cannot be empty")

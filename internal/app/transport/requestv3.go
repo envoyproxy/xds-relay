@@ -73,6 +73,16 @@ func (r *RequestV3) GetSubZone() string {
 	return r.r.GetNode().GetLocality().GetSubZone()
 }
 
+// GetLocality gets the node locality
+func (r *RequestV3) GetLocality() *Locality {
+	locality := r.r.GetNode().GetLocality()
+	return &Locality{
+		Region:  locality.GetRegion(),
+		Zone:    locality.GetZone(),
+		SubZone: locality.GetSubZone(),
+	}
+}
+
 // GetRaw gets the error details
 func (r *RequestV3) GetRaw() *RequestVersion {
 	return &RequestVersion{V3: r.r}
