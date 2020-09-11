@@ -11,8 +11,7 @@ fragments:
               - "type.googleapis.com/envoy.config.cluster.v3.Cluster"
         result:
           request_node_fragment:
-            field: 1
-            action:
+            cluster_action:
               regex_action: { pattern: "^(.*)-.*$", replace: "$1" }
   - rules:
       - match:
