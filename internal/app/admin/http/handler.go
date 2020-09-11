@@ -102,25 +102,28 @@ func configDumpHandler(bootstrapConfig *bootstrapv1.Bootstrap) http.HandlerFunc 
 	}
 }
 
-func printCacheEntry(key string, cache cache.ReadOnlyCache, w http.ResponseWriter) {
-	resource, err := cache.FetchReadOnly(key)
-	if err != nil {
-		fmt.Fprintf(w, "no resource for key %s found in cache.\n", key)
-		return
+func printCacheEntries(keys []string, cache cache.ReadOnlyCache, w http.ResponseWriter) {
+	for _, key := range keys {
+		resource, err := cache.FetchReadOnly(key)
+		if err != nil {
+			fmt.Fprintf(w, "no resource for key %s found in cache.\n", key)
+			return
+		}
+		resourceString, err := resourceToString(resource)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "unable to convert resource to string.\n")
+			return
+		}
+		fmt.Fprintf(w, "%s: %s\n", key, resourceString)
 	}
-	resourceString, err := resourceToString(resource)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "unable to convert resource to string.\n")
-		return
-	}
-	fmt.Fprintf(w, "%s: %s\n", key, resourceString)
 }
 
 func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		cacheKey := getParam(req.URL.Path)
 		cache := orchestrator.Orchestrator.GetReadOnlyCache(*o)
+		var keysToPrint []string
 
 		// If wildcard suffix provided, output all cache entries that match given prefix. If no key is
 		// provided, output the entire cache.
@@ -149,15 +152,15 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 				}
 			}
 
-			// Output relevant keys
+			// Add matched keys to print slice
 			for key := range keys {
-				printCacheEntry(key, cache, w)
+				keysToPrint = append(keysToPrint, key)
 			}
-			return
+		} else {
+			// Otherwise return the cache entry corresponding to the given key.
+			keysToPrint = []string{cacheKey}
 		}
-
-		// Otherwise return the cache entry corresponding to the given key.
-		printCacheEntry(cacheKey, cache, w)
+		printCacheEntries(keysToPrint, cache, w)
 	}
 }
 
