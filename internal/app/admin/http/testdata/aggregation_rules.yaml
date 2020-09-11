@@ -24,3 +24,27 @@ fragments:
               - "type.googleapis.com/envoy.api.v2.Endpoint"
         result:
           string_fragment: "eds"
+      - match:
+          request_type_match:
+            types:
+              - "type.googleapis.com/envoy.config.listener.v3.Listener"
+        result:
+          string_fragment: "lds"
+      - match:
+          request_type_match:
+            types:
+              - "type.googleapis.com/envoy.config.cluster.v3.Cluster"
+        result:
+          string_fragment: "cds"
+      - match:
+          request_type_match:
+            types:
+              - "type.googleapis.com/envoy.config.route.v3.RouteConfiguration"
+        result:
+          string_fragment: "rdsv3"
+      - match:
+          request_type_match:
+            types:
+              - "type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment"
+        result:
+          string_fragment: "edsv3"

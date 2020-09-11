@@ -1,0 +1,30 @@
+    {
+      "Key": "lds",
+      "Resp": {
+        "VersionInfo": "1",
+        "Resources": {
+          "Endpoints": null,
+          "Clusters": null,
+          "Routes": null,
+          "Listeners": [
+            {
+              "name": "lds resource"
+            }
+          ],
+          "Secrets": null,
+          "Runtimes": null,
+          "Unmarshalled": null
+        },
+        "Canary": false,
+        "TypeURL": "type.googleapis.com/envoy.api.v2.Listener",
+        "Nonce": "",
+        "ControlPlane": null
+      },
+      "Requests": [
+        {
+          "version_info": "1",
+          "type_url": "type.googleapis.com/envoy.api.v2.Listener"
+        }
+      ],
+      "ExpirationTime": ""
+    }
