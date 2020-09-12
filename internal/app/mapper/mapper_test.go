@@ -581,6 +581,30 @@ var negativeTests = []TableEntry{
 		},
 	},
 	{
+		Description: "RequestNodeMatch with node region regex does not match",
+		Parameters: []interface{}{
+			getRequestNodeLocality(getRegexMatch(noderegion+"\\d"), getExactMatch(nodezone), getExactMatch(nodesubzone)),
+			getResultStringFragment(),
+			getDiscoveryRequest(),
+		},
+	},
+	{
+		Description: "RequestNodeMatch with node zone regex does not match",
+		Parameters: []interface{}{
+			getRequestNodeLocality(getExactMatch(noderegion), getRegexMatch("zon[A-Z]"), getExactMatch(nodesubzone)),
+			getResultStringFragment(),
+			getDiscoveryRequest(),
+		},
+	},
+	{
+		Description: "RequestNodeMatch with node subzone regex does not match",
+		Parameters: []interface{}{
+			getRequestNodeLocality(getExactMatch(noderegion), getExactMatch(nodezone), getRegexMatch(nodesubzone+"\\B")),
+			getResultStringFragment(),
+			getDiscoveryRequest(),
+		},
+	},
+	{
 		Description: "RequestNodeMatch with exact match request node id mismatch",
 		Parameters: []interface{}{
 			getRequestNodeIDExactMatch(nodeid),
@@ -636,6 +660,32 @@ var negativeTests = []TableEntry{
 			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, "mismatch")),
 		},
 	},
+
+	{
+		Description: "RequestNodeMatch with regex match request node region mismatch",
+		Parameters: []interface{}{
+			getRequestNodeLocality(getRegexMatch(noderegion), getExactMatch(nodezone), getExactMatch(nodesubzone)),
+			getResultStringFragment(),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "mismatch", nodezone, nodesubzone)),
+		},
+	},
+	{
+		Description: "RequestNodeMatch with regex match request node zone mismatch",
+		Parameters: []interface{}{
+			getRequestNodeLocality(getExactMatch(noderegion), getRegexMatch(nodezone), getExactMatch(nodesubzone)),
+			getResultStringFragment(),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, "mismatch", nodesubzone)),
+		},
+	},
+	{
+		Description: "RequestNodeMatch with regex match request node subzone mismatch",
+		Parameters: []interface{}{
+			getRequestNodeLocality(getExactMatch(noderegion), getExactMatch(nodezone), getRegexMatch(nodesubzone)),
+			getResultStringFragment(),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, "mismatch")),
+		},
+	},
+
 	{
 		Description: "AndMatch RequestNodeMatch does not match first predicate",
 		Parameters: []interface{}{
@@ -882,6 +932,39 @@ var emptyFragmentErrorCases = []TableEntry{
 			getResultRequestNodeIDFragment(getExactAction()),
 			getDiscoveryRequestWithNode(getNode(nodeid, "", noderegion, nodezone, nodesubzone)),
 			"MatchPredicate Node field cannot be empty",
+		},
+	},
+	{
+		Description: "empty node region in request predicate",
+		Parameters: []interface{}{
+			getRequestNodeClusterExactMatch(nodecluster),
+			getResultRequestNodeLocalityFragment(&aggregationv1.ResultPredicate_LocalityResultAction{
+				RegionAction: getExactAction(),
+			}),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "", nodezone, nodesubzone)),
+			"RequestNodeFragment exact match resulted in an empty fragment",
+		},
+	},
+	{
+		Description: "empty node zone in request predicate",
+		Parameters: []interface{}{
+			getRequestNodeClusterExactMatch(nodecluster),
+			getResultRequestNodeLocalityFragment(&aggregationv1.ResultPredicate_LocalityResultAction{
+				ZoneAction: getExactAction(),
+			}),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, "", nodesubzone)),
+			"RequestNodeFragment exact match resulted in an empty fragment",
+		},
+	},
+	{
+		Description: "empty node subzone in request predicate",
+		Parameters: []interface{}{
+			getRequestNodeClusterExactMatch(nodecluster),
+			getResultRequestNodeLocalityFragment(&aggregationv1.ResultPredicate_LocalityResultAction{
+				SubzoneAction: getExactAction(),
+			}),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, "")),
+			"RequestNodeFragment exact match resulted in an empty fragment",
 		},
 	},
 	{
