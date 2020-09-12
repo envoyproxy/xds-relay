@@ -143,10 +143,9 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 		// provided, output the entire cache.
 		containsWildcardSuffix := strings.HasSuffix(cacheKey, "*")
 		if cacheKey == "" || containsWildcardSuffix {
-			rootCacheKeyName := strings.TrimSuffix(cacheKey, "*")
 
 			// Retrieve all keys
-			keys, err := orchestrator.Orchestrator.GetDownstreamAggregatedKeys(*o)
+			allKeys, err := orchestrator.Orchestrator.GetDownstreamAggregatedKeys(*o)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				fmt.Fprintf(w, "error in getting cache keys: %s", err.Error())
@@ -155,21 +154,22 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 
 			// Find keys that match prefix of wildcard
 			if containsWildcardSuffix {
-				for potentialMatchKey := range keys {
-					if !strings.HasPrefix(potentialMatchKey, rootCacheKeyName) {
-						delete(keys, potentialMatchKey)
+				rootCacheKeyName := strings.TrimSuffix(cacheKey, "*")
+				for potentialMatchKey := range allKeys {
+					if strings.HasPrefix(potentialMatchKey, rootCacheKeyName) {
+						keysToPrint = append(keysToPrint, potentialMatchKey)
 					}
 				}
-				if len(keys) == 0 {
+				if len(keysToPrint) == 0 {
 					w.WriteHeader(http.StatusNotFound)
 					fmt.Fprintf(w, "no resource for key %s found in cache.\n", cacheKey)
 					return
 				}
-			}
-
-			// Add matched keys to print slice
-			for key := range keys {
-				keysToPrint = append(keysToPrint, key)
+			} else {
+				// Add matched keys to print slice
+				for key := range allKeys {
+					keysToPrint = append(keysToPrint, key)
+				}
 			}
 		} else {
 			// Otherwise return the cache entry corresponding to the given key.
