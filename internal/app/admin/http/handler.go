@@ -139,11 +139,10 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 		c := orchestrator.Orchestrator.GetReadOnlyCache(*o)
 		var keysToPrint []string
 
-		// If wildcard suffix provided, output all cache entries that match given prefix. If no key is
-		// provided, output the entire cache.
+		// If wildcard suffix provided, output all cache entries that match given prefix.
+		// If no key is provided, output the entire cache.
 		containsWildcardSuffix := strings.HasSuffix(cacheKey, "*")
 		if cacheKey == "" || containsWildcardSuffix {
-
 			// Retrieve all keys
 			allKeys, err := orchestrator.Orchestrator.GetDownstreamAggregatedKeys(*o)
 			if err != nil {
