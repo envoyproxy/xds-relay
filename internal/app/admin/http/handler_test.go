@@ -588,7 +588,7 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffixV3(t *testing.T) {
 }
 
 func TestAdminServer_CacheDumpHandler_WildcardSuffix_NotFound(t *testing.T) {
-	wildcardKeys := []string{"b*", "tesa*", "tes", "t*est*"}
+	wildcardKeys := []string{"b*", "tesa*", "t*est*"}
 	for _, key := range wildcardKeys {
 		url := "/cache/" + key
 		ctx := context.Background()
@@ -674,8 +674,8 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffix_NotFound(t *testing.T) {
 		handler := cacheDumpHandler(&orchestrator)
 
 		handler.ServeHTTP(rr, req)
-		assert.Equal(t, http.StatusNotFound, rr.Code)
-		assert.Equal(t, "no resource for key "+key+" found in cache.\n", rr.Body.String())
+		assert.Equal(t, http.StatusOK, rr.Code)
+		assert.Equal(t, "", rr.Body.String())
 
 		cancelLDSWatch()
 		cancelCDSWatch()

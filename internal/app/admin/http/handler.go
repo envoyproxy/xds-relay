@@ -159,11 +159,6 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 						keysToPrint = append(keysToPrint, potentialMatchKey)
 					}
 				}
-				if len(keysToPrint) == 0 {
-					w.WriteHeader(http.StatusNotFound)
-					fmt.Fprintf(w, "no resource for key %s found in cache.\n", cacheKey)
-					return
-				}
 			} else {
 				// Add matched keys to print slice
 				for key := range allKeys {
