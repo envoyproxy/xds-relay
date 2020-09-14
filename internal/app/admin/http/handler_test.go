@@ -3,8 +3,10 @@ package handler
 import (
 	"bytes"
 	"context"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"testing"
 	"time"
 
@@ -19,11 +21,17 @@ import (
 	"github.com/uber-go/tally"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	discoveryv3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
+	gcpv3 "github.com/envoyproxy/go-control-plane/pkg/cache/v3"
+	resourcev2 "github.com/envoyproxy/go-control-plane/pkg/resource/v2"
+	resourcev3 "github.com/envoyproxy/go-control-plane/pkg/resource/v3"
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/stretchr/testify/assert"
 )
+
+var dateRegex = regexp.MustCompile(`"....-..-..T..:..:.....*"`)
 
 func TestAdminServer_DefaultHandler(t *testing.T) {
 	req, err := http.NewRequest("GET", "/", nil)
@@ -138,34 +146,11 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), `{
-  "Resp": {
-    "VersionInfo": "1",
-    "Resources": {
-      "Endpoints": null,
-      "Clusters": null,
-      "Routes": null,
-      "Listeners": [
-        {
-          "name": "lds resource"
-        }
-      ],
-      "Secrets": null,
-      "Runtimes": null,
-      "Unmarshalled": null
-    },
-    "Canary": false,
-    "TypeURL": "type.googleapis.com/envoy.api.v2.Listener",
-    "Nonce": "",
-    "ControlPlane": null
-  },
-  "Requests": [
-    {
-      "version_info": "1",
-      "type_url": "type.googleapis.com/envoy.api.v2.Listener"
-    }
-  ],
-  "ExpirationTime": "`)
+
+	body := dateRegex.ReplaceAllString(rr.Body.String(), "\"\"")
+	filecontents, err := ioutil.ReadFile("testdata/lds_response.json")
+	assert.NoError(t, err)
+	assert.Equal(t, body, string(filecontents))
 	cancelWatch()
 }
 
@@ -194,7 +179,7 @@ func TestAdminServer_CacheDumpHandler_NotFound(t *testing.T) {
 	handler := cacheDumpHandler(&orchestrator)
 
 	handler.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, http.StatusNotFound, rr.Code)
 	assert.Equal(t, "no resource for key cds found in cache.\n", rr.Body.String())
 }
 
@@ -219,13 +204,13 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
 		assert.NotNil(t, orchestrator)
 
 		gcpReq1 := gcp.Request{
-			TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
+			TypeUrl: resourcev2.ListenerType,
 		}
 		ldsRespChannel, cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq1))
 		assert.NotNil(t, ldsRespChannel)
 
 		gcpReq2 := gcp.Request{
-			TypeUrl: "type.googleapis.com/envoy.api.v2.Cluster",
+			TypeUrl: resourcev2.ClusterType,
 		}
 		cdsRespChannel, cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq2))
 		assert.NotNil(t, cdsRespChannel)
@@ -237,7 +222,7 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
 		assert.NoError(t, err)
 		resp := v2.DiscoveryResponse{
 			VersionInfo: "1",
-			TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
+			TypeUrl:     resourcev2.ListenerType,
 			Resources: []*any.Any{
 				listenerAny,
 			},
@@ -255,7 +240,7 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
 		assert.NoError(t, err)
 		resp = v2.DiscoveryResponse{
 			VersionInfo: "2",
-			TypeUrl:     "type.googleapis.com/envoy.api.v2.Cluster",
+			TypeUrl:     resourcev2.ClusterType,
 			Resources: []*any.Any{
 				clusterAny,
 			},
@@ -274,64 +259,103 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
 
 		handler.ServeHTTP(rr, req)
 		assert.Equal(t, http.StatusOK, rr.Code)
-		assert.Contains(t, rr.Body.String(), `lds: {
-  "Resp": {
-    "VersionInfo": "1",
-    "Resources": {
-      "Endpoints": null,
-      "Clusters": null,
-      "Routes": null,
-      "Listeners": [
-        {
-          "name": "lds resource"
-        }
-      ],
-      "Secrets": null,
-      "Runtimes": null,
-      "Unmarshalled": null
-    },
-    "Canary": false,
-    "TypeURL": "type.googleapis.com/envoy.api.v2.Listener",
-    "Nonce": "",
-    "ControlPlane": null
-  },
-  "Requests": [
-    {
-      "version_info": "1",
-      "type_url": "type.googleapis.com/envoy.api.v2.Listener"
-    }
-  ],
-  "ExpirationTime": "`)
-		assert.Contains(t, rr.Body.String(), `cds: {
-  "Resp": {
-    "VersionInfo": "2",
-    "Resources": {
-      "Endpoints": null,
-      "Clusters": [
-        {
-          "name": "cds resource",
-          "ClusterDiscoveryType": null,
-          "LbConfig": null
-        }
-      ],
-      "Routes": null,
-      "Listeners": null,
-      "Secrets": null,
-      "Runtimes": null,
-      "Unmarshalled": null
-    },
-    "Canary": false,
-    "TypeURL": "type.googleapis.com/envoy.api.v2.Cluster",
-    "Nonce": "",
-    "ControlPlane": null
-  },
-  "Requests": [
-    {
-      "version_info": "2",
-      "type_url": "type.googleapis.com/envoy.api.v2.Cluster"
-    }
-  ],
-  "ExpirationTime": "`)
+
+		body := dateRegex.ReplaceAllString(rr.Body.String(), "\"\"")
+		filecontentsCds, err := ioutil.ReadFile("testdata/entire_cachev2_cds.json")
+		assert.NoError(t, err)
+		filecontentsLds, err := ioutil.ReadFile("testdata/entire_cachev2_lds.json")
+		assert.NoError(t, err)
+		assert.Contains(t, body, string(filecontentsCds))
+		assert.Contains(t, body, string(filecontentsLds))
+
+		cancelLDSWatch()
+		cancelCDSWatch()
+	}
+}
+
+func TestAdminServer_CacheDumpHandler_EntireCacheV3(t *testing.T) {
+	for _, url := range []string{"/cache", "/cache/"} {
+		ctx := context.Background()
+		mapper := mapper.NewMock(t)
+		upstreamResponseChannelLDS := make(chan *discoveryv3.DiscoveryResponse)
+		upstreamResponseChannelCDS := make(chan *discoveryv3.DiscoveryResponse)
+		mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
+		client := upstream.NewMockV3(
+			ctx,
+			upstream.CallOptions{Timeout: time.Second},
+			nil,
+			upstreamResponseChannelLDS,
+			nil,
+			nil,
+			upstreamResponseChannelCDS,
+			func(m interface{}) error { return nil },
+		)
+		orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
+		assert.NotNil(t, orchestrator)
+
+		gcpReq1 := gcpv3.Request{
+			TypeUrl: resourcev3.ListenerType,
+		}
+		ldsRespChannel, cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV3(&gcpReq1))
+		assert.NotNil(t, ldsRespChannel)
+
+		gcpReq2 := gcpv3.Request{
+			TypeUrl: resourcev3.ClusterType,
+		}
+		cdsRespChannel, cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV3(&gcpReq2))
+		assert.NotNil(t, cdsRespChannel)
+
+		listener := &v2.Listener{
+			Name: "lds resource",
+		}
+		listenerAny, err := ptypes.MarshalAny(listener)
+		assert.NoError(t, err)
+		resp := discoveryv3.DiscoveryResponse{
+			VersionInfo: "1",
+			TypeUrl:     resourcev3.ListenerType,
+			Resources: []*any.Any{
+				listenerAny,
+			},
+		}
+		upstreamResponseChannelLDS <- &resp
+		gotResponse := <-ldsRespChannel.GetChannel().V3
+		gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
+		assert.NoError(t, err)
+		assert.Equal(t, resp, *gotDiscoveryResponse)
+
+		cluster := &v2.Cluster{
+			Name: "cds resource",
+		}
+		clusterAny, err := ptypes.MarshalAny(cluster)
+		assert.NoError(t, err)
+		resp = discoveryv3.DiscoveryResponse{
+			VersionInfo: "2",
+			TypeUrl:     resourcev3.ClusterType,
+			Resources: []*any.Any{
+				clusterAny,
+			},
+		}
+		upstreamResponseChannelCDS <- &resp
+		gotResponse = <-cdsRespChannel.GetChannel().V3
+		gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
+		assert.NoError(t, err)
+		assert.Equal(t, resp, *gotDiscoveryResponse)
+
+		req, err := http.NewRequest("GET", url, nil)
+		assert.NoError(t, err)
+
+		rr := httptest.NewRecorder()
+		handler := cacheDumpHandler(&orchestrator)
+
+		handler.ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusOK, rr.Code)
+		body := dateRegex.ReplaceAllString(rr.Body.String(), "\"\"")
+		filecontentsCds, err := ioutil.ReadFile("testdata/entire_cachev3_cds.json")
+		assert.NoError(t, err)
+		filecontentsLds, err := ioutil.ReadFile("testdata/entire_cachev3_lds.json")
+		assert.NoError(t, err)
+		assert.Contains(t, body, string(filecontentsCds))
+		assert.Contains(t, body, string(filecontentsLds))
 		cancelLDSWatch()
 		cancelCDSWatch()
 	}
@@ -435,7 +459,7 @@ func TestMarshalResources(t *testing.T) {
 	})
 	assert.NotNil(t, marshalled)
 	assert.Equal(t, 1, len(marshalled.Listeners))
-	assert.Equal(t, "lds resource", marshalled.Listeners[0].Name)
+	assert.Equal(t, "lds resource", marshalled.Listeners[0].(*v2.Listener).Name)
 }
 
 func TestMarshalDiscoveryResponse(t *testing.T) {
@@ -455,5 +479,5 @@ func TestMarshalDiscoveryResponse(t *testing.T) {
 	assert.NotNil(t, marshalled)
 	assert.Equal(t, resp.VersionInfo, marshalled.VersionInfo)
 	assert.Equal(t, resp.TypeUrl, marshalled.TypeURL)
-	assert.Equal(t, listener.Name, marshalled.Resources.Listeners[0].Name)
+	assert.Equal(t, listener.Name, marshalled.Resources.Listeners[0].(*v2.Listener).Name)
 }

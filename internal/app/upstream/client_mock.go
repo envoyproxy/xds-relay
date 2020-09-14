@@ -2,15 +2,15 @@ package upstream
 
 import (
 	"context"
-	"fmt"
-	"io"
 
 	"github.com/envoyproxy/xds-relay/internal/pkg/stats"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
-
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	clusterservice "github.com/envoyproxy/go-control-plane/envoy/service/cluster/v3"
+	discoveryv3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
+	endpointservice "github.com/envoyproxy/go-control-plane/envoy/service/endpoint/v3"
+	listenerservice "github.com/envoyproxy/go-control-plane/envoy/service/listener/v3"
+	routeservice "github.com/envoyproxy/go-control-plane/envoy/service/route/v3"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 )
 
@@ -27,6 +27,25 @@ func NewMockClient(
 		rdsClient:   rdsClient,
 		edsClient:   edsClient,
 		cdsClient:   cdsClient,
+		callOptions: callOptions,
+		logger:      log.MockLogger,
+		scope:       stats.NewMockScope("mock"),
+	}
+}
+
+// NewMockClientV3 creates a mock implementation for testing
+func NewMockClientV3(
+	ctx context.Context,
+	ldsClient listenerservice.ListenerDiscoveryServiceClient,
+	rdsClient routeservice.RouteDiscoveryServiceClient,
+	edsClient endpointservice.EndpointDiscoveryServiceClient,
+	cdsClient clusterservice.ClusterDiscoveryServiceClient,
+	callOptions CallOptions) Client {
+	return &client{
+		ldsClientV3: ldsClient,
+		rdsClientV3: rdsClient,
+		edsClientV3: edsClient,
+		cdsClientV3: cdsClient,
 		callOptions: callOptions,
 		logger:      log.MockLogger,
 		scope:       stats.NewMockScope("mock"),
@@ -53,11 +72,38 @@ func NewMock(
 	)
 }
 
+// NewMockV3 creates a mock client implementation for testing
+func NewMockV3(
+	ctx context.Context,
+	callOptions CallOptions,
+	errorOnCreate error,
+	ldsReceiveChan chan *discoveryv3.DiscoveryResponse,
+	rdsReceiveChan chan *discoveryv3.DiscoveryResponse,
+	edsReceiveChan chan *discoveryv3.DiscoveryResponse,
+	cdsReceiveChan chan *discoveryv3.DiscoveryResponse,
+	sendCb func(m interface{}) error) Client {
+	return NewMockClientV3(
+		ctx,
+		createMockLdsClientV3(errorOnCreate, ldsReceiveChan, sendCb),
+		createMockRdsClientV3(errorOnCreate, rdsReceiveChan, sendCb),
+		createMockEdsClientV3(errorOnCreate, edsReceiveChan, sendCb),
+		createMockCdsClientV3(errorOnCreate, cdsReceiveChan, sendCb),
+		callOptions,
+	)
+}
+
 func createMockLdsClient(
 	errorOnCreate error,
 	receiveChan chan *v2.DiscoveryResponse,
 	sendCb func(m interface{}) error) v2.ListenerDiscoveryServiceClient {
 	return &mockClient{errorOnStreamCreate: errorOnCreate, receiveChan: receiveChan, sendCb: sendCb}
+}
+
+func createMockLdsClientV3(
+	errorOnCreate error,
+	receiveChan chan *discoveryv3.DiscoveryResponse,
+	sendCb func(m interface{}) error) listenerservice.ListenerDiscoveryServiceClient {
+	return &mockClientV3{errorOnStreamCreate: errorOnCreate, receiveChan: receiveChan, sendCb: sendCb}
 }
 
 func createMockCdsClient(
@@ -67,11 +113,25 @@ func createMockCdsClient(
 	return &mockClient{errorOnStreamCreate: errorOnCreate, receiveChan: receiveChan, sendCb: sendCb}
 }
 
+func createMockCdsClientV3(
+	errorOnCreate error,
+	receiveChan chan *discoveryv3.DiscoveryResponse,
+	sendCb func(m interface{}) error) clusterservice.ClusterDiscoveryServiceClient {
+	return &mockClientV3{errorOnStreamCreate: errorOnCreate, receiveChan: receiveChan, sendCb: sendCb}
+}
+
 func createMockRdsClient(
 	errorOnCreate error,
 	receiveChan chan *v2.DiscoveryResponse,
 	sendCb func(m interface{}) error) v2.RouteDiscoveryServiceClient {
 	return &mockClient{errorOnStreamCreate: errorOnCreate, receiveChan: receiveChan, sendCb: sendCb}
+}
+
+func createMockRdsClientV3(
+	errorOnCreate error,
+	receiveChan chan *discoveryv3.DiscoveryResponse,
+	sendCb func(m interface{}) error) routeservice.RouteDiscoveryServiceClient {
+	return &mockClientV3{errorOnStreamCreate: errorOnCreate, receiveChan: receiveChan, sendCb: sendCb}
 }
 
 func createMockEdsClient(
@@ -81,147 +141,9 @@ func createMockEdsClient(
 	return &mockClient{errorOnStreamCreate: errorOnCreate, receiveChan: receiveChan, sendCb: sendCb}
 }
 
-type mockClient struct {
-	errorOnStreamCreate error
-	receiveChan         chan *v2.DiscoveryResponse
-	sendCb              func(m interface{}) error
-}
-
-type mockGrpcStream struct {
-	ctx         context.Context
-	receiveChan chan *v2.DiscoveryResponse
-	sendCb      func(m interface{}) error
-}
-
-func (stream *mockGrpcStream) SendMsg(m interface{}) error {
-	return stream.sendCb(m)
-}
-
-func (stream *mockGrpcStream) RecvMsg(m interface{}) error {
-	for {
-		select {
-		// https://github.com/grpc/grpc-go/issues/1894#issuecomment-370487012
-		case <-stream.ctx.Done():
-			return io.EOF
-		case resp := <-stream.receiveChan:
-			message := m.(*v2.DiscoveryResponse)
-			message.VersionInfo = resp.GetVersionInfo()
-			message.Nonce = resp.GetNonce()
-			message.TypeUrl = resp.GetTypeUrl()
-			message.Resources = resp.GetResources()
-			return nil
-		}
-	}
-}
-
-func (stream *mockGrpcStream) Send(*v2.DiscoveryRequest) error {
-	return fmt.Errorf("Not implemented")
-}
-
-func (stream *mockGrpcStream) Recv() (*v2.DiscoveryResponse, error) {
-	return nil, fmt.Errorf("Not implemented")
-}
-
-func (stream *mockGrpcStream) Header() (metadata.MD, error) {
-	return nil, fmt.Errorf("Not implemented")
-}
-
-func (stream *mockGrpcStream) Trailer() metadata.MD {
-	return nil
-}
-
-func (stream *mockGrpcStream) CloseSend() error {
-	return nil
-}
-
-func (stream *mockGrpcStream) Context() context.Context {
-	return stream.ctx
-}
-
-func (c *mockClient) StreamListeners(
-	ctx context.Context,
-	opts ...grpc.CallOption) (v2.ListenerDiscoveryService_StreamListenersClient, error) {
-	if c.errorOnStreamCreate != nil {
-		return nil, c.errorOnStreamCreate
-	}
-	return &mockGrpcStream{ctx: ctx, receiveChan: c.receiveChan, sendCb: c.sendCb}, nil
-}
-
-func (c *mockClient) StreamClusters(
-	ctx context.Context,
-	opts ...grpc.CallOption) (v2.ClusterDiscoveryService_StreamClustersClient, error) {
-	if c.errorOnStreamCreate != nil {
-		return nil, c.errorOnStreamCreate
-	}
-	return &mockGrpcStream{ctx: ctx, receiveChan: c.receiveChan, sendCb: c.sendCb}, nil
-}
-
-func (c *mockClient) StreamRoutes(
-	ctx context.Context,
-	opts ...grpc.CallOption) (v2.RouteDiscoveryService_StreamRoutesClient, error) {
-	if c.errorOnStreamCreate != nil {
-		return nil, c.errorOnStreamCreate
-	}
-	return &mockGrpcStream{ctx: ctx, receiveChan: c.receiveChan, sendCb: c.sendCb}, nil
-}
-
-func (c *mockClient) StreamEndpoints(
-	ctx context.Context,
-	opts ...grpc.CallOption) (v2.EndpointDiscoveryService_StreamEndpointsClient, error) {
-	if c.errorOnStreamCreate != nil {
-		return nil, c.errorOnStreamCreate
-	}
-	return &mockGrpcStream{ctx: ctx, receiveChan: c.receiveChan, sendCb: c.sendCb}, nil
-}
-
-func (c *mockClient) DeltaListeners(
-	ctx context.Context,
-	opts ...grpc.CallOption) (v2.ListenerDiscoveryService_DeltaListenersClient, error) {
-	return nil, fmt.Errorf("Not implemented")
-}
-
-func (c *mockClient) DeltaClusters(
-	ctx context.Context,
-	opts ...grpc.CallOption) (v2.ClusterDiscoveryService_DeltaClustersClient, error) {
-	return nil, fmt.Errorf("Not implemented")
-}
-
-func (c *mockClient) DeltaRoutes(
-	ctx context.Context,
-	opts ...grpc.CallOption) (v2.RouteDiscoveryService_DeltaRoutesClient, error) {
-	return nil, fmt.Errorf("Not implemented")
-}
-
-func (c *mockClient) DeltaEndpoints(
-	ctx context.Context,
-	opts ...grpc.CallOption) (v2.EndpointDiscoveryService_DeltaEndpointsClient, error) {
-	return nil, fmt.Errorf("Not implemented")
-}
-
-func (c *mockClient) FetchListeners(
-	ctx context.Context,
-	in *v2.DiscoveryRequest,
-	opts ...grpc.CallOption) (*v2.DiscoveryResponse, error) {
-	return nil, fmt.Errorf("Not implemented")
-}
-
-func (c *mockClient) FetchClusters(
-	ctx context.Context,
-	in *v2.DiscoveryRequest,
-	opts ...grpc.CallOption) (*v2.DiscoveryResponse, error) {
-	return nil, fmt.Errorf("Not implemented")
-}
-
-func (c *mockClient) FetchRoutes(
-	ctx context.Context,
-	in *v2.DiscoveryRequest,
-	opts ...grpc.CallOption) (*v2.DiscoveryResponse, error) {
-	return nil, fmt.Errorf("Not implemented")
-}
-
-func (c *mockClient) FetchEndpoints(
-	ctx context.Context,
-	in *v2.DiscoveryRequest,
-	opts ...grpc.CallOption) (*v2.DiscoveryResponse, error) {
-	return nil, fmt.Errorf("Not implemented")
+func createMockEdsClientV3(
+	errorOnCreate error,
+	receiveChan chan *discoveryv3.DiscoveryResponse,
+	sendCb func(m interface{}) error) endpointservice.EndpointDiscoveryServiceClient {
+	return &mockClientV3{errorOnStreamCreate: errorOnCreate, receiveChan: receiveChan, sendCb: sendCb}
 }

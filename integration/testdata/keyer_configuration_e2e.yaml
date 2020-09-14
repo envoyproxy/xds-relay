@@ -9,8 +9,7 @@ fragments:
               - "type.googleapis.com/envoy.api.v2.RouteConfiguration"
         result:
           request_node_fragment:
-            field: 0
-            action:
+            id_action:
               regex_action: { pattern: "^(.*)-*$", replace: "$1" }
   - rules:
       - match:
@@ -22,8 +21,7 @@ fragments:
               - "type.googleapis.com/envoy.api.v2.RouteConfiguration"
         result:
           request_node_fragment:
-            field: 1
-            action:
+            cluster_action:
               regex_action: { pattern: "^*-(.*)-*$", replace: "$1" }
   - rules:
       - match:
