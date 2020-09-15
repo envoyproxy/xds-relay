@@ -10,10 +10,11 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"runtime"
-	"syscall"
+	"strconv"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 
@@ -57,10 +58,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("Golang does not offer a cross-platform safe way of killing child processes, so we skip these tests if not on linux.")
-	}
-
 	g := gomega.NewWithT(t)
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
@@ -70,7 +67,7 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 	go gcptest.RunHTTP(ctx, httpServicePort)
 
 	// Mimic a management server using go-control-plane's snapshot cache.
-	configv2, configv3, signal := startSnapshotCache(ctx, managementServerPort)
+	configv2, configv3, signalv2, signalv3 := startSnapshotCache(ctx, managementServerPort)
 
 	// Start xds-relay server.
 	startXdsRelayServer(ctx, cancelFunc, xdsRelayBootstrap, keyerConfiguration)
@@ -78,7 +75,13 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 	for _, version := range []core.ApiVersion{core.ApiVersion_V2, core.ApiVersion_V3} {
 		t.Run(version.String(), func(t *testing.T) {
 			// Start envoy and return a bytes buffer containing the envoy logs.
-			envoyLogsBuffer := startEnvoy(ctx, getEnvoyBootstrap(version), signal)
+			var signal chan struct{}
+			if version == core.ApiVersion_V2 {
+				signal = signalv2
+			} else {
+				signal = signalv3
+			}
+			envoyLogsBuffer, pid := startEnvoy(ctx, getEnvoyBootstrap(version), signal)
 
 			for i := 0; i < nUpdates; i++ {
 				setSnapshot(ctx, i, version, configv2, configv3)
@@ -90,9 +93,14 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 				}, 1*time.Second, 100*time.Millisecond).Should(gomega.Equal(nListeners))
 			}
 
+			// If envoy never starts, the buffer is empty
+			assert.NotEmpty(t, envoyLogsBuffer.String())
 			// TODO(https://github.com/envoyproxy/xds-relay/issues/66): figure out a way to only only copy
 			// envoy logs in case of failures.
 			testLogger.With("envoy_logs", envoyLogsBuffer.String()).Debug(ctx, "captured envoy logs")
+
+			err := stopEnvoy(ctx, pid)
+			assert.NoError(t, err)
 		})
 	}
 }
@@ -160,11 +168,12 @@ func getEnvoyBootstrap(version core.ApiVersion) string {
 
 func startSnapshotCache(
 	ctx context.Context,
-	port uint) (gcpcachev2.SnapshotCache, gcpcachev3.SnapshotCache, chan struct{}) {
+	port uint) (gcpcachev2.SnapshotCache, gcpcachev3.SnapshotCache, chan struct{}, chan struct{}) {
 	// Create a cache
-	signal := make(chan struct{})
-	cbv2 := &gcptestv2.Callbacks{Signal: signal}
-	cbv3 := &gcptestv3.Callbacks{Signal: signal}
+	signalv2 := make(chan struct{})
+	signalv3 := make(chan struct{})
+	cbv2 := &gcptestv2.Callbacks{Signal: signalv2}
+	cbv3 := &gcptestv3.Callbacks{Signal: signalv3}
 	configv2 := gcpcachev2.NewSnapshotCache(false, gcpcachev2.IDHash{}, gcpLogger{logger: testLogger.Named("snapshotv2")})
 	configv3 := gcpcachev3.NewSnapshotCache(false, gcpcachev3.IDHash{}, gcpLogger{logger: testLogger.Named("snapshotv3")})
 	srv2 := gcpserverv2.NewServer(ctx, configv2, cbv2)
@@ -173,7 +182,7 @@ func startSnapshotCache(
 	// Start up a gRPC-based management server.
 	go gcptest.RunManagementServer(ctx, srv2, srv3, port)
 
-	return configv2, configv3, signal
+	return configv2, configv3, signalv2, signalv3
 }
 
 func startXdsRelayServer(ctx context.Context, cancel context.CancelFunc, bootstrapConfigFilePath string,
@@ -200,15 +209,11 @@ func startXdsRelayServer(ctx context.Context, cancel context.CancelFunc, bootstr
 	go server.RunWithContext(ctx, cancel, &bootstrapConfig, &aggregationRulesConfig, "debug", "serve")
 }
 
-func startEnvoy(ctx context.Context, bootstrapFilePath string, signal chan struct{}) bytes.Buffer {
+func startEnvoy(ctx context.Context, bootstrapFilePath string, signal chan struct{}) (bytes.Buffer, int) {
 	envoyCmd := exec.CommandContext(ctx, "envoy", "-c", bootstrapFilePath, "--log-level", "debug")
 	var b bytes.Buffer
 	envoyCmd.Stdout = &b
 	envoyCmd.Stderr = &b
-	// Golang does not offer a portable solution to kill all child processes upon parent exit, so we rely on
-	// this linuxism to send a SIGKILL to the envoy process (and its child sub-processes) when the parent (the
-	// test) exits. More information in http://man7.org/linux/man-pages/man2/prctl.2.html
-	envoyCmd.SysProcAttr = &syscall.SysProcAttr{Pdeathsig: syscall.SIGKILL}
 	envoyCmd.Start()
 
 	testLogger.Info(ctx, "waiting for upstream cluster to send the first response ...")
@@ -220,7 +225,16 @@ func startEnvoy(ctx context.Context, bootstrapFilePath string, signal chan struc
 		testLogger.Fatal(ctx, "timeout waiting for upstream cluster to send the first response")
 	}
 
-	return b
+	return b, envoyCmd.Process.Pid
+}
+
+func stopEnvoy(ctx context.Context, pid int) error {
+	killCmd := exec.CommandContext(ctx, "kill", "-9", strconv.Itoa(pid))
+	err := killCmd.Start()
+	if err != nil {
+		return err
+	}
+	return killCmd.Wait()
 }
 
 func callLocalService(port uint, nListeners int) (int, int) {

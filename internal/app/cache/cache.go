@@ -233,7 +233,7 @@ func (c *cache) DeleteRequest(key string, req transport.Request) error {
 	c.cache.Add(key, resource)
 	c.logger.With(
 		"aggregated_key", key,
-		"node_id", req.GetNodeID,
+		"node_id", req.GetNodeID(),
 		"request_type", req.GetTypeURL(),
 	).Debug(context.Background(), "request deleted")
 	metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheDeleteSuccess).Inc(1)
