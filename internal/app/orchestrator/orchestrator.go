@@ -285,8 +285,11 @@ func (o *orchestrator) watchUpstream(
 				o.logger.With("aggregated_key", aggregatedKey).Error(ctx, "upstream error")
 				metrics.OrchestratorWatchErrorsSubscope(o.scope, aggregatedKey).Counter(metrics.ErrorUpstreamFailure).Inc(1)
 
-				f, _ := o.cache.Fetch(aggregatedKey)
-				o.onCacheEvicted(aggregatedKey, *f)
+				f, err := o.cache.Fetch(aggregatedKey)
+				if err == nil {
+					o.onCacheEvicted(aggregatedKey, *f)
+				}
+
 				return
 			}
 			// Cache the response.
