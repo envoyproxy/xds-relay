@@ -284,6 +284,9 @@ func (o *orchestrator) watchUpstream(
 				// https://github.com/envoyproxy/xds-relay/issues/68
 				o.logger.With("aggregated_key", aggregatedKey).Error(ctx, "upstream error")
 				metrics.OrchestratorWatchErrorsSubscope(o.scope, aggregatedKey).Counter(metrics.ErrorUpstreamFailure).Inc(1)
+
+				f, _ := o.cache.Fetch(aggregatedKey)
+				o.onCacheEvicted(aggregatedKey, *f)
 				return
 			}
 			// Cache the response.
