@@ -44,6 +44,7 @@ func (s *streamv2) RecvMsg() (Response, error) {
 	s.logger.With(
 		"request_type", resp.GetTypeUrl(),
 		"request_version", resp.GetVersionInfo(),
+		"response_type", resp.GetTypeUrl(),
 		"resource_length", len(resp.GetResources()),
 	).Debug(context.Background(), "received message")
 	return NewResponseV2(s.initialRequest.GetRaw().V2, resp), nil
