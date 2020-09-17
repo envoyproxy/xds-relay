@@ -204,6 +204,8 @@ func TestUnaggregatedKey(t *testing.T) {
 		fmt.Sprintf("mock_orchestrator.watch.errors.unaggregated_key"), 1)
 	assert.NotNil(t, respChannel)
 	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.responseChannels))
+	_, more := <-respChannel.GetChannel().V2
+	assert.False(t, more)
 }
 
 func TestCachedResponse(t *testing.T) {
