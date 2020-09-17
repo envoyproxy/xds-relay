@@ -42,6 +42,11 @@ func (s *streamv3) RecvMsg() (Response, error) {
 	if err := s.grpcClientStream.RecvMsg(resp); err != nil {
 		return nil, err
 	}
+	s.logger.With(
+		"request_type", resp.GetTypeUrl(),
+		"request_version", resp.GetVersionInfo(),
+		"resource_length", len(resp.GetResources()),
+	).Debug(context.Background(), "received message")
 	return NewResponseV3(s.initialRequest.GetRaw().V3, resp), nil
 }
 
