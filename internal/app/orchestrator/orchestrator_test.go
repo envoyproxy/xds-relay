@@ -387,7 +387,6 @@ func TestUpstreamFailure(t *testing.T) {
 	assert.NoError(t, err)
 
 	respChannel, cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&req))
-	countersSnapshot := mockScope.Snapshot().Counters()
 
 	// close upstream channel. This happens when upstream client receives an error
 	close(upstreamResponseChannel)
@@ -402,7 +401,7 @@ func TestUpstreamFailure(t *testing.T) {
 
 	cancelWatch()
 
-	countersSnapshot = mockScope.Snapshot().Counters()
+	countersSnapshot := mockScope.Snapshot().Counters()
 	assert.EqualValues(
 		t, 1, countersSnapshot[fmt.Sprintf("mock_orchestrator.watch.errors.upstream+key=%v", aggregatedKey)].Value())
 	assert.EqualValues(
