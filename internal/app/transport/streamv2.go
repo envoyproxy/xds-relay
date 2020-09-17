@@ -21,6 +21,7 @@ func NewStreamV2(clientStream grpc.ClientStream, req Request, l log.Logger) Stre
 	return &streamv2{
 		grpcClientStream: clientStream,
 		initialRequest:   req,
+		logger:           l,
 	}
 }
 
