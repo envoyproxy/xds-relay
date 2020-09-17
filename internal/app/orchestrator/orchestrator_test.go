@@ -177,6 +177,37 @@ func TestGoldenPath(t *testing.T) {
 	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.responseChannels))
 }
 
+func TestUnaggregatedKey(t *testing.T) {
+	upstreamResponseChannel := make(chan transport.Response)
+	mapper := mapper.NewMock(t)
+	mockScope := stats.NewMockScope("mock_orchestrator")
+	orchestrator := newMockOrchestrator(
+		t,
+		mockScope,
+		mapper,
+		mockSimpleUpstreamClient{
+			responseChan: upstreamResponseChannel,
+		},
+	)
+	assert.NotNil(t, orchestrator)
+	req := transport.NewRequestV2(
+		&gcp.Request{
+			TypeUrl: "type.googleapis.com/envoy.api.v2.UnsupportedType",
+		},
+	)
+	// assert this request will not map to an aggregated key.
+	_, err := mapper.GetKey(req)
+	assert.Error(t, err)
+
+	respChannel, _ := orchestrator.CreateWatch(req)
+	testutils.AssertCounterValue(t, mockScope.Snapshot().Counters(),
+		fmt.Sprintf("mock_orchestrator.watch.errors.unaggregated_key"), 1)
+	assert.NotNil(t, respChannel)
+	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.responseChannels))
+	_, more := <-respChannel.GetChannel().V2
+	assert.False(t, more)
+}
+
 func TestCachedResponse(t *testing.T) {
 	upstreamResponseChannel := make(chan transport.Response)
 	mapper := mapper.NewMock(t)
