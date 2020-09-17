@@ -8,7 +8,6 @@ package orchestrator
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
@@ -25,10 +24,6 @@ import (
 
 const (
 	component = "orchestrator"
-
-	// unaggregatedPrefix is the prefix used to label discovery requests that
-	// could not be successfully mapped to an aggregation rule.
-	unaggregatedPrefix = "unaggregated_"
 )
 
 // Orchestrator has the following responsibilities:
@@ -137,22 +132,17 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 
 	aggregatedKey, err := o.mapper.GetKey(req)
 	if err != nil {
-		// Can't map the request to an aggregated key. Log and continue to
-		// propagate the response upstream without aggregation.
+		// Can't map the request to an aggregated key. Log error and return.
 		o.logger.With(
 			"error", err,
 			"request_type", req.GetTypeURL(),
-			"request", req,
-		).Warn(ctx, "failed to map to aggregated key")
-		// Mimic the aggregated key.
-		// TODO (https://github.com/envoyproxy/xds-relay/issues/56). Can we
-		// condense this key but still make it granular enough to uniquely
-		// identify a request?
-		if req.GetRaw().V2 != nil {
-			aggregatedKey = fmt.Sprintf("%s%s", unaggregatedPrefix, req.GetRaw().V2)
-		} else {
-			aggregatedKey = fmt.Sprintf("%s%s", unaggregatedPrefix, req.GetRaw().V3)
-		}
+			"node_id", req.GetNodeID(),
+		).Error(ctx, "failed to map to aggregated key")
+		metrics.OrchestratorUnaggregatedWatchErrorsSubscope(o.scope).Counter(metrics.ErrorUnaggregatedKey).Inc(1)
+
+		// TODO (https://github.com/envoyproxy/xds-relay/issues/56)
+		// Support unnaggregated keys.
+		return o.downstreamResponseMap.delete(req), nil
 	}
 
 	o.logger.With(
@@ -172,8 +162,7 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 		o.logger.With("error", err).With("aggregated_key", aggregatedKey).With(
 			"request", req.GetRaw().V2).Error(ctx, "failed to add watch")
 		metrics.OrchestratorWatchErrorsSubscope(o.scope, aggregatedKey).Counter(metrics.ErrorRegisterWatch).Inc(1)
-		w := o.downstreamResponseMap.delete(req)
-		return w, nil
+		return o.downstreamResponseMap.delete(req), nil
 	}
 	metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchCreated).Inc(1)
 
