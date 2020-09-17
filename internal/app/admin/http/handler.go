@@ -114,8 +114,6 @@ func printCacheEntries(keys []string, cache cache.ReadOnlyCache, w http.Response
 	for _, key := range keys {
 		resource, err := cache.FetchReadOnly(key)
 		if err != nil {
-			w.WriteHeader(http.StatusNotFound)
-			fmt.Fprintf(w, "no resource for key %s found in cache.\n", key)
 			continue
 		}
 		resp.Cache = append(resp.Cache, resourceToPayload(key, resource)...)
@@ -130,7 +128,12 @@ func printCacheEntries(keys []string, cache cache.ReadOnlyCache, w http.Response
 	if len(resp.Cache) > 0 {
 		fmt.Fprintf(w, "%s\n", resourceString)
 	}
+}
 
+// hasWildcardSuffix returns whether the supplied key contains an empty string or a * suffix.
+// Return true in these scenarios and the prefix.
+func hasWildcardSuffix(key string) bool {
+	return key == "" || strings.HasSuffix(key, "*")
 }
 
 func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
@@ -141,8 +144,7 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 
 		// If wildcard suffix provided, output all cache entries that match given prefix.
 		// If no key is provided, output the entire cache.
-		containsWildcardSuffix := strings.HasSuffix(cacheKey, "*")
-		if cacheKey == "" || containsWildcardSuffix {
+		if hasWildcardSuffix(cacheKey) {
 			// Retrieve all keys
 			allKeys, err := orchestrator.Orchestrator.GetDownstreamAggregatedKeys(*o)
 			if err != nil {
@@ -152,17 +154,10 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 			}
 
 			// Find keys that match prefix of wildcard
-			if containsWildcardSuffix {
-				rootCacheKeyName := strings.TrimSuffix(cacheKey, "*")
-				for potentialMatchKey := range allKeys {
-					if strings.HasPrefix(potentialMatchKey, rootCacheKeyName) {
-						keysToPrint = append(keysToPrint, potentialMatchKey)
-					}
-				}
-			} else {
-				// Add matched keys to print slice
-				for key := range allKeys {
-					keysToPrint = append(keysToPrint, key)
+			rootCacheKeyName := strings.TrimSuffix(cacheKey, "*")
+			for potentialMatchKey := range allKeys {
+				if strings.HasPrefix(potentialMatchKey, rootCacheKeyName) {
+					keysToPrint = append(keysToPrint, potentialMatchKey)
 				}
 			}
 		} else {

@@ -185,8 +185,8 @@ func TestAdminServer_CacheDumpHandler_NotFound(t *testing.T) {
 	handler := cacheDumpHandler(&orchestrator)
 
 	handler.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusNotFound, rr.Code)
-	assert.Equal(t, "no resource for key cds found in cache.\n", rr.Body.String())
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, "", rr.Body.String())
 }
 
 func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
