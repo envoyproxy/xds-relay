@@ -1,7 +1,7 @@
 {
   "Cache": [
     {
-      "Key": "lds",
+      "Key": "test_lds",
       "Resp": {
         "VersionInfo": "1",
         "Resources": {
@@ -25,6 +25,11 @@
       "Requests": [
         {
           "version_info": "1",
+          "node": {
+            "id": "test-1",
+            "cluster": "test-prod",
+            "UserAgentVersionType": null
+          },
           "type_url": "type.googleapis.com/envoy.api.v2.Listener"
         }
       ],

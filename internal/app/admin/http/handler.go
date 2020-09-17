@@ -109,52 +109,61 @@ func configDumpHandler(bootstrapConfig *bootstrapv1.Bootstrap) http.HandlerFunc 
 	}
 }
 
-// TODO(lisalu): Support dump of matching resources when cache key regex is provided.
+func printCacheEntries(keys []string, cache cache.ReadOnlyCache, w http.ResponseWriter) {
+	resp := marshallableCache{}
+	for _, key := range keys {
+		resource, err := cache.FetchReadOnly(key)
+		if err == nil {
+			resp.Cache = append(resp.Cache, resourceToPayload(key, resource)...)
+		}
+	}
+	resourceString, err := stringify.InterfaceToString(resp)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "unable to convert resource to string.\n")
+		return
+	}
+
+	if len(resp.Cache) > 0 {
+		fmt.Fprintf(w, "%s\n", resourceString)
+	}
+}
+
+// hasWildcardSuffix returns whether the supplied key contains an empty string or a * suffix.
+// Return true in these scenarios.
+func hasWildcardSuffix(key string) bool {
+	return key == "" || strings.HasSuffix(key, "*")
+}
+
 func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		cacheKey := getParam(req.URL.Path)
 		c := orchestrator.Orchestrator.GetReadOnlyCache(*o)
-		resp := marshallableCache{}
+		var keysToPrint []string
+
+		// If wildcard suffix provided, output all cache entries that match given prefix.
 		// If no key is provided, output the entire cache.
-		if cacheKey == "" {
-			keys, err := orchestrator.Orchestrator.GetDownstreamAggregatedKeys(*o)
+		if hasWildcardSuffix(cacheKey) {
+			// Retrieve all keys
+			allKeys, err := orchestrator.Orchestrator.GetDownstreamAggregatedKeys(*o)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				fmt.Fprintf(w, "error in getting cache keys: %s", err.Error())
 				return
 			}
 
-			for key := range keys {
-				resource, err := c.FetchReadOnly(key)
-				if err != nil {
-					continue
+			// Find keys that match prefix of wildcard
+			rootCacheKeyName := strings.TrimSuffix(cacheKey, "*")
+			for potentialMatchKey := range allKeys {
+				if strings.HasPrefix(potentialMatchKey, rootCacheKeyName) {
+					keysToPrint = append(keysToPrint, potentialMatchKey)
 				}
-				resp.Cache = append(resp.Cache, resourceToPayload(key, resource)...)
 			}
-			resourceString, err := stringify.InterfaceToString(resp)
-			if err != nil {
-				return
-			}
-			fmt.Fprintf(w, "%s\n", resourceString)
-			return
+		} else {
+			// Otherwise return the cache entry corresponding to the given key.
+			keysToPrint = []string{cacheKey}
 		}
-
-		// Otherwise return the cache entry corresponding to the given key.
-		resource, err := c.FetchReadOnly(cacheKey)
-		if err != nil {
-			w.WriteHeader(http.StatusNotFound)
-			fmt.Fprintf(w, "no resource for key %s found in cache.\n", cacheKey)
-			return
-		}
-
-		resp.Cache = append(resp.Cache, resourceToPayload(cacheKey, resource)...)
-		resourceString, err := stringify.InterfaceToString(resp)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "unable to convert resource to string.\n")
-			return
-		}
-		fmt.Fprint(w, resourceString)
+		printCacheEntries(keysToPrint, c, w)
 	}
 }
 

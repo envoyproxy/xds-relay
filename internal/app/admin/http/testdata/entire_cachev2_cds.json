@@ -1,5 +1,5 @@
     {
-      "Key": "cds",
+      "Key": "test_cds",
       "Resp": {
         "VersionInfo": "2",
         "Resources": {
@@ -25,6 +25,11 @@
       "Requests": [
         {
           "version_info": "2",
+          "node": {
+            "id": "test-2",
+            "cluster": "test-prod",
+            "UserAgentVersionType": null
+          },
           "type_url": "type.googleapis.com/envoy.api.v2.Cluster"
         }
       ],
