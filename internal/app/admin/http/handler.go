@@ -113,10 +113,9 @@ func printCacheEntries(keys []string, cache cache.ReadOnlyCache, w http.Response
 	resp := marshallableCache{}
 	for _, key := range keys {
 		resource, err := cache.FetchReadOnly(key)
-		if err != nil {
-			continue
+		if err == nil {
+			resp.Cache = append(resp.Cache, resourceToPayload(key, resource)...)
 		}
-		resp.Cache = append(resp.Cache, resourceToPayload(key, resource)...)
 	}
 	resourceString, err := stringify.InterfaceToString(resp)
 	if err != nil {
