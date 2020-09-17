@@ -280,11 +280,11 @@ func (o *orchestrator) watchUpstream(
 		case x, more := <-responseChannel:
 			if !more {
 				// A problem occurred fetching the response upstream, log retry.
-				// TODO implement retry/back-off logic on error scenario.
-				// https://github.com/envoyproxy/xds-relay/issues/68
 				o.logger.With("aggregated_key", aggregatedKey).Error(ctx, "upstream error")
 				metrics.OrchestratorWatchErrorsSubscope(o.scope, aggregatedKey).Counter(metrics.ErrorUpstreamFailure).Inc(1)
 
+				// TODO implement retry/back-off logic on error scenario.
+				// https://github.com/envoyproxy/xds-relay/issues/68
 				f, err := o.cache.Fetch(aggregatedKey)
 				if err == nil {
 					o.onCacheEvicted(aggregatedKey, *f)

@@ -138,35 +138,35 @@ func (m *client) OpenStream(request transport.Request) (<-chan transport.Respons
 	switch request.GetTypeURL() {
 	case resource.ListenerType:
 		s, err = m.ldsClient.StreamListeners(ctx)
-		stream = transport.NewStreamV2(s, request, m.logger.Named("stream"))
+		stream = transport.NewStreamV2(s, request, m.logger)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamLDS)
 	case resource.ClusterType:
 		s, err = m.cdsClient.StreamClusters(ctx)
-		stream = transport.NewStreamV2(s, request, m.logger.Named("stream"))
+		stream = transport.NewStreamV2(s, request, m.logger)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamCDS)
 	case resource.RouteType:
 		s, err = m.rdsClient.StreamRoutes(ctx)
-		stream = transport.NewStreamV2(s, request, m.logger.Named("stream"))
+		stream = transport.NewStreamV2(s, request, m.logger)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamRDS)
 	case resource.EndpointType:
 		s, err = m.edsClient.StreamEndpoints(ctx)
-		stream = transport.NewStreamV2(s, request, m.logger.Named("stream"))
+		stream = transport.NewStreamV2(s, request, m.logger)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamEDS)
 	case resourcev3.ListenerType:
 		s, err = m.ldsClientV3.StreamListeners(ctx)
-		stream = transport.NewStreamV3(s, request, m.logger.Named("stream"))
+		stream = transport.NewStreamV3(s, request, m.logger)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamLDS)
 	case resourcev3.ClusterType:
 		s, err = m.cdsClientV3.StreamClusters(ctx)
-		stream = transport.NewStreamV3(s, request, m.logger.Named("stream"))
+		stream = transport.NewStreamV3(s, request, m.logger)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamCDS)
 	case resourcev3.RouteType:
 		s, err = m.rdsClientV3.StreamRoutes(ctx)
-		stream = transport.NewStreamV3(s, request, m.logger.Named("stream"))
+		stream = transport.NewStreamV3(s, request, m.logger)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamRDS)
 	case resourcev3.EndpointType:
 		s, err = m.edsClientV3.StreamEndpoints(ctx)
-		stream = transport.NewStreamV3(s, request, m.logger.Named("stream"))
+		stream = transport.NewStreamV3(s, request, m.logger)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamEDS)
 	default:
 		defer cancel()

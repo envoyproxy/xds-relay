@@ -21,7 +21,7 @@ func NewStreamV2(clientStream grpc.ClientStream, req Request, l log.Logger) Stre
 	return &streamv2{
 		grpcClientStream: clientStream,
 		initialRequest:   req,
-		logger:           l,
+		logger:           l.Named("stream"),
 	}
 }
 
@@ -42,9 +42,8 @@ func (s *streamv2) RecvMsg() (Response, error) {
 		return nil, err
 	}
 	s.logger.With(
-		"request_type", resp.GetTypeUrl(),
-		"request_version", resp.GetVersionInfo(),
 		"response_type", resp.GetTypeUrl(),
+		"request_version", resp.GetVersionInfo(),
 		"resource_length", len(resp.GetResources()),
 	).Debug(context.Background(), "received message")
 	return NewResponseV2(s.initialRequest.GetRaw().V2, resp), nil

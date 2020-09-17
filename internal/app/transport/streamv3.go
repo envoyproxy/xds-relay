@@ -3,11 +3,8 @@ package transport
 import (
 	"context"
 
-	endpointv3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
-	resource3 "github.com/envoyproxy/go-control-plane/pkg/resource/v3"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
-	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/grpc"
 )
 
@@ -24,7 +21,7 @@ func NewStreamV3(clientStream grpc.ClientStream, req Request, l log.Logger) Stre
 	return &streamv3{
 		grpcClientStream: clientStream,
 		initialRequest:   req,
-		logger:           l,
+		logger:           l.Named("stream"),
 	}
 }
 
@@ -46,26 +43,12 @@ func (s *streamv3) RecvMsg() (Response, error) {
 	if err := s.grpcClientStream.RecvMsg(resp); err != nil {
 		return nil, err
 	}
-	for _, r := range resp.GetResources() {
-		switch resp.TypeUrl {
-		case resource3.EndpointType:
-			e := &endpointv3.ClusterLoadAssignment{}
-			err := ptypes.UnmarshalAny(r, e)
-			if err == nil {
-				s.logger.With(
-					"request_type", resp.GetTypeUrl(),
-					"request_version", resp.GetVersionInfo(),
-					"msg", e,
-					"resource_length", len(resp.GetResources()),
-				).Debug(context.Background(), "received message")
-			}
-		}
-	}
-	/*s.logger.With(
-		"request_type", resp.GetTypeUrl(),
+
+	s.logger.With(
+		"response_type", resp.GetTypeUrl(),
 		"request_version", resp.GetVersionInfo(),
 		"resource_length", len(resp.GetResources()),
-	).Debug(context.Background(), "received message")*/
+	).Debug(context.Background(), "received message")
 	return NewResponseV3(s.initialRequest.GetRaw().V3, resp), nil
 }
 
