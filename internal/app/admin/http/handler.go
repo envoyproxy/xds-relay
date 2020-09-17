@@ -131,7 +131,7 @@ func printCacheEntries(keys []string, cache cache.ReadOnlyCache, w http.Response
 }
 
 // hasWildcardSuffix returns whether the supplied key contains an empty string or a * suffix.
-// Return true in these scenarios and the prefix.
+// Return true in these scenarios.
 func hasWildcardSuffix(key string) bool {
 	return key == "" || strings.HasSuffix(key, "*")
 }
