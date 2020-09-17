@@ -365,3 +365,48 @@ func TestMultipleWatchersAndUpstreams(t *testing.T) {
 	cancelWatch3()
 	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.responseChannels))
 }
+
+func TestUpstreamFailure(t *testing.T) {
+	upstreamResponseChannel := make(chan transport.Response)
+	mapper := mapper.NewMock(t)
+	mockScope := stats.NewMockScope("mock_orchestrator")
+	orchestrator := newMockOrchestrator(
+		t,
+		mockScope,
+		mapper,
+		mockSimpleUpstreamClient{
+			responseChan: upstreamResponseChannel,
+		},
+	)
+	assert.NotNil(t, orchestrator)
+
+	req := gcp.Request{
+		TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
+	}
+	aggregatedKey, err := mapper.GetKey(transport.NewRequestV2(&req))
+	assert.NoError(t, err)
+
+	respChannel, cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&req))
+	countersSnapshot := mockScope.Snapshot().Counters()
+
+	// close upstream channel. This happens when upstream client receives an error
+	close(upstreamResponseChannel)
+
+	_, more := <-respChannel.GetChannel().V2
+	assert.False(t, more)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	orchestrator.shutdown(ctx)
+	testutils.AssertSyncMapLen(t, 0, orchestrator.upstreamResponseMap.internal)
+
+	cancelWatch()
+
+	countersSnapshot = mockScope.Snapshot().Counters()
+	assert.EqualValues(
+		t, 1, countersSnapshot[fmt.Sprintf("mock_orchestrator.watch.errors.upstream+key=%v", aggregatedKey)].Value())
+	assert.EqualValues(
+		t, 1, countersSnapshot[fmt.Sprintf("mock_orchestrator.cache_evict.calls+key=%v", aggregatedKey)].Value())
+	assert.EqualValues(
+		t, 1, countersSnapshot[fmt.Sprintf("mock_orchestrator.cache_evict.requests_evicted+key=%v", aggregatedKey)].Value())
+}

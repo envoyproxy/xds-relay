@@ -248,6 +248,7 @@ func recv(
 			handleError(ctx, logger, "Error in RecvMsg", cancelFunc, err)
 			break
 		}
+
 		select {
 		case <-ctx.Done():
 			break
