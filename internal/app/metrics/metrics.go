@@ -39,7 +39,7 @@ const (
 	ErrorCacheMiss               = "cache_miss"   // counter, # of errors due to a fanout attempt with no cached response
 
 	// scope: .orchestrator.watch.errors.*
-	ErrorUnaggregatedKey = "unaggregated_key" // counter, # of errors due to an request that wasn't able to be mapped to an aggregated key
+	ErrorUnaggregatedKey = "unaggregated_key" // counter, # of request that would not map to an aggregated key
 )
 
 // .upstream
