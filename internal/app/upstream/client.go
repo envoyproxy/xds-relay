@@ -19,6 +19,7 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/pkg/util"
 	"github.com/uber-go/tally"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 )
 
 // UnsupportedResourceError is a custom error for unsupported typeURL
@@ -99,6 +100,19 @@ func New(
 	if err != nil {
 		return nil, err
 	}
+
+	go func() {
+		connectedStat := "connected"
+		for {
+			isChanged := conn.WaitForStateChange(ctx, conn.GetState())
+			if !isChanged {
+				subScope.Gauge(connectedStat).Update(0)
+				return
+			}
+
+			subScope.Gauge(connectedStat).Update(getState(conn.GetState()))
+		}
+	}()
 
 	ldsClient := v2.NewListenerDiscoveryServiceClient(conn)
 	rdsClient := v2.NewRouteDiscoveryServiceClient(conn)
@@ -288,4 +302,19 @@ func shutDown(ctx context.Context, conn *grpc.ClientConn) {
 
 func (e *UnsupportedResourceError) Error() string {
 	return fmt.Sprintf("Unsupported resource typeUrl: %s", e.TypeURL)
+}
+
+func getState(c connectivity.State) float64 {
+	switch c {
+	case connectivity.Connecting:
+		return 1
+	case connectivity.Ready:
+		return 2
+	case connectivity.Idle:
+		return 3
+	case connectivity.TransientFailure:
+		return 4
+	case connectivity.Shutdown:
+		return 5
+	}
 }
