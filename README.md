@@ -49,10 +49,10 @@ You're now ready to run `xds-relay` locally. Open another window in your termina
     ./bin/xds-relay -a example/config-files/aggregation-rules.yaml -c example/config-files/xds-relay-bootstrap.yaml -m serve
 
 #### Two envoy instances
-As a final step, it's time to connect 2 envoy clients to `xds-relay`. You're going to find 2 files named `envoy-bootstrap-1.yaml` and `envoy-bootstrap-2.yaml` that we're going to use to connect the envoy instances to `xds-relay`. Open 2 terminal windows and run:
+As a final step, it's time to connect 2 envoy clients to `xds-relay`. We will use [getenvoy](https://www.getenvoy.io/reference/getenvoy_run/) to set up your envoy clients (be sure to first fetch the desired binary version to run). You're going to find 2 files named `envoy-bootstrap-1.yaml` and `envoy-bootstrap-2.yaml` that we're going to use to connect the envoy instances to `xds-relay`. Open 2 terminal windows and run:
 
-    envoy -c example/config-files/envoy-bootstrap-1.yaml # on the first window
-    envoy -c example/config-files/envoy-bootstrap-2.yaml # on the second window
+    getenvoy run <envoy binary reference/filepath> -- -c example/config-files/envoy-bootstrap-1.yaml # on the first window
+    getenvoy run <envoy binary reference/filepath> -- -c example/config-files/envoy-bootstrap-2.yaml # on the second window
 
 And voilà! You should be seeing logs flowing in both the terminal window where you're running `xds-relay` and on each of the envoy ones. 
 
