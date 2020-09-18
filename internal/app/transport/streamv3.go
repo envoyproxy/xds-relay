@@ -32,7 +32,7 @@ func (s *streamv3) SendMsg(version string, nonce string) error {
 	s.logger.With(
 		"request_type", msg.GetTypeUrl(),
 		"request_version", msg.GetVersionInfo(),
-		"request_msg", msg.ResourceNames,
+		"request_resource_names", msg.ResourceNames,
 	).Debug(context.Background(), "sent message")
 
 	return s.grpcClientStream.SendMsg(msg)
