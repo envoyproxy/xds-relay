@@ -101,18 +101,7 @@ func New(
 		return nil, err
 	}
 
-	go func() {
-		connectedStat := "connected"
-		for {
-			isChanged := conn.WaitForStateChange(ctx, conn.GetState())
-			if !isChanged {
-				subScope.Gauge(connectedStat).Update(0)
-				return
-			}
-
-			subScope.Gauge(connectedStat).Update(getState(conn.GetState()))
-		}
-	}()
+	go updateConnectivityMetric(ctx, conn, subScope)
 
 	ldsClient := v2.NewListenerDiscoveryServiceClient(conn)
 	rdsClient := v2.NewRouteDiscoveryServiceClient(conn)
@@ -304,6 +293,19 @@ func (e *UnsupportedResourceError) Error() string {
 	return fmt.Sprintf("Unsupported resource typeUrl: %s", e.TypeURL)
 }
 
+func updateConnectivityMetric(ctx context.Context, conn *grpc.ClientConn, scope tally.Scope) {
+	connectedStat := "connected"
+	for {
+		isChanged := conn.WaitForStateChange(ctx, conn.GetState())
+		if !isChanged {
+			scope.Gauge(connectedStat).Update(0)
+			return
+		}
+
+		scope.Gauge(connectedStat).Update(getState(conn.GetState()))
+	}
+}
+
 func getState(c connectivity.State) float64 {
 	switch c {
 	case connectivity.Connecting:
@@ -316,5 +318,7 @@ func getState(c connectivity.State) float64 {
 		return 4
 	case connectivity.Shutdown:
 		return 5
+	default:
+		return 100
 	}
 }
