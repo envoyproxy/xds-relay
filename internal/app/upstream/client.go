@@ -138,35 +138,35 @@ func (m *client) OpenStream(request transport.Request) (<-chan transport.Respons
 	switch request.GetTypeURL() {
 	case resource.ListenerType:
 		s, err = m.ldsClient.StreamListeners(ctx)
-		stream = transport.NewStreamV2(s, request)
+		stream = transport.NewStreamV2(s, request, m.logger)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamLDS)
 	case resource.ClusterType:
 		s, err = m.cdsClient.StreamClusters(ctx)
-		stream = transport.NewStreamV2(s, request)
+		stream = transport.NewStreamV2(s, request, m.logger)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamCDS)
 	case resource.RouteType:
 		s, err = m.rdsClient.StreamRoutes(ctx)
-		stream = transport.NewStreamV2(s, request)
+		stream = transport.NewStreamV2(s, request, m.logger)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamRDS)
 	case resource.EndpointType:
 		s, err = m.edsClient.StreamEndpoints(ctx)
-		stream = transport.NewStreamV2(s, request)
+		stream = transport.NewStreamV2(s, request, m.logger)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamEDS)
 	case resourcev3.ListenerType:
 		s, err = m.ldsClientV3.StreamListeners(ctx)
-		stream = transport.NewStreamV3(s, request)
+		stream = transport.NewStreamV3(s, request, m.logger)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamLDS)
 	case resourcev3.ClusterType:
 		s, err = m.cdsClientV3.StreamClusters(ctx)
-		stream = transport.NewStreamV3(s, request)
+		stream = transport.NewStreamV3(s, request, m.logger)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamCDS)
 	case resourcev3.RouteType:
 		s, err = m.rdsClientV3.StreamRoutes(ctx)
-		stream = transport.NewStreamV3(s, request)
+		stream = transport.NewStreamV3(s, request, m.logger)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamRDS)
 	case resourcev3.EndpointType:
 		s, err = m.edsClientV3.StreamEndpoints(ctx)
-		stream = transport.NewStreamV3(s, request)
+		stream = transport.NewStreamV3(s, request, m.logger)
 		scope = m.scope.SubScope(metrics.ScopeUpstreamEDS)
 	default:
 		defer cancel()
@@ -188,7 +188,7 @@ func (m *client) OpenStream(request transport.Request) (<-chan transport.Respons
 
 	response := make(chan transport.Response)
 
-	go send(ctx, m.logger, cancel, request, stream, signal, m.callOptions)
+	go send(ctx, m.logger, cancel, stream, signal, m.callOptions)
 	go recv(ctx, cancel, m.logger, response, stream, signal)
 
 	m.logger.With("request_type", request.GetTypeURL()).Info(ctx, "stream opened")
@@ -208,7 +208,6 @@ func send(
 	ctx context.Context,
 	logger log.Logger,
 	cancelFunc context.CancelFunc,
-	request transport.Request,
 	stream transport.Stream,
 	signal chan *version,
 	callOptions CallOptions) {
@@ -227,10 +226,6 @@ func send(
 				handleError(ctx, logger, "Error in SendMsg", cancelFunc, err)
 				return
 			}
-			logger.With(
-				"request_type", request.GetTypeURL(),
-				"request_version", request.GetVersionInfo(),
-			).Debug(ctx, "sent message")
 		case <-ctx.Done():
 			_ = stream.CloseSend()
 			return
@@ -253,11 +248,7 @@ func recv(
 			handleError(ctx, logger, "Error in RecvMsg", cancelFunc, err)
 			break
 		}
-		logger.With(
-			"response_version", resp.GetPayloadVersion(),
-			"response_type", resp.GetTypeURL(),
-			"resource_length", len(resp.GetResources()),
-		).Debug(context.Background(), "received message")
+
 		select {
 		case <-ctx.Done():
 			break
