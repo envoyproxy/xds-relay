@@ -22,6 +22,14 @@ import (
 	"google.golang.org/grpc/connectivity"
 )
 
+var connectivityEnum = map[connectivity.State]float64{
+	connectivity.Connecting:       1,
+	connectivity.Ready:            2,
+	connectivity.Idle:             3,
+	connectivity.TransientFailure: 4,
+	connectivity.Shutdown:         5,
+}
+
 // UnsupportedResourceError is a custom error for unsupported typeURL
 type UnsupportedResourceError struct {
 	TypeURL string
@@ -307,18 +315,9 @@ func updateConnectivityMetric(ctx context.Context, conn *grpc.ClientConn, scope 
 }
 
 func getState(c connectivity.State) float64 {
-	switch c {
-	case connectivity.Connecting:
-		return 1
-	case connectivity.Ready:
-		return 2
-	case connectivity.Idle:
-		return 3
-	case connectivity.TransientFailure:
-		return 4
-	case connectivity.Shutdown:
-		return 5
-	default:
-		return 100
+	if gauge, ok := connectivityEnum[c]; ok {
+		return gauge
 	}
+
+	return 100
 }
