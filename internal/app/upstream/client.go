@@ -319,5 +319,5 @@ func getState(c connectivity.State) float64 {
 		return gauge
 	}
 
-	return 100
+	return 0
 }
