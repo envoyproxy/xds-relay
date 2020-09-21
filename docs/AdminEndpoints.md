@@ -15,7 +15,7 @@ Behavior: searches through xDS Aggregator cache and outputs contents for argumen
 ## `POST /log_level/<level>`
 Behavior: Changes xDS Aggregator's log level to desired `<level>`
 
-* `<level>` argument is mandatory and supports DEBUG, WARN, or ERROR
+* `<level>` argument is mandatory and supports `DEBUG`, `WARN`, or `ERROR`
 * if no `<level>` provided, the aggregator outputs the current log level
 
 
