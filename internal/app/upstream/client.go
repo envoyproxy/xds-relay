@@ -19,7 +19,16 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/pkg/util"
 	"github.com/uber-go/tally"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 )
+
+var connectivityEnum = map[connectivity.State]float64{
+	connectivity.Connecting:       1,
+	connectivity.Ready:            2,
+	connectivity.Idle:             3,
+	connectivity.TransientFailure: 4,
+	connectivity.Shutdown:         5,
+}
 
 // UnsupportedResourceError is a custom error for unsupported typeURL
 type UnsupportedResourceError struct {
