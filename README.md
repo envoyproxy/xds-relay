@@ -125,3 +125,6 @@ Sample result:
 This is a gif of a tmux session demonstrating this example:
 
 ![demo](example/xds-relay-demo.gif)
+
+## Docs
+For more details on how to use the xDS Aggregator, see documentation [here](docs)
