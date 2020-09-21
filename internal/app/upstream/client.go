@@ -19,7 +19,6 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/pkg/util"
 	"github.com/uber-go/tally"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
 )
 
 // UnsupportedResourceError is a custom error for unsupported typeURL
@@ -297,28 +296,14 @@ func updateConnectivityMetric(ctx context.Context, conn *grpc.ClientConn, scope 
 	connectedStat := "connected"
 	for {
 		isChanged := conn.WaitForStateChange(ctx, conn.GetState())
+		// Based on the grpc implementation, isChanged is false only when ctx expires
+		// https://github.com/grpc/grpc-go/blob/0f7e218c2cf49c7b0ca8247711b0daed2a07e79a/clientconn.go#L509-L510
+		// We set an unusually high value in case of ctx expires to show the connection is dead.
 		if !isChanged {
-			scope.Gauge(connectedStat).Update(0)
+			scope.Gauge(connectedStat).Update(100)
 			return
 		}
 
-		scope.Gauge(connectedStat).Update(getState(conn.GetState()))
-	}
-}
-
-func getState(c connectivity.State) float64 {
-	switch c {
-	case connectivity.Connecting:
-		return 1
-	case connectivity.Ready:
-		return 2
-	case connectivity.Idle:
-		return 3
-	case connectivity.TransientFailure:
-		return 4
-	case connectivity.Shutdown:
-		return 5
-	default:
-		return 100
+		scope.Gauge(connectedStat).Update(float64(conn.GetState()))
 	}
 }

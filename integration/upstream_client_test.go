@@ -1,5 +1,3 @@
-// +build integration
-
 package integration
 
 import (
@@ -13,6 +11,8 @@ import (
 	"time"
 
 	"github.com/envoyproxy/xds-relay/internal/pkg/stats"
+	"github.com/uber-go/tally"
+	"google.golang.org/grpc/connectivity"
 
 	gcpcachev2 "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	"github.com/envoyproxy/go-control-plane/pkg/resource/v2"
@@ -43,7 +43,8 @@ func TestXdsClientGetsIncrementalResponsesFromUpstreamServer(t *testing.T) {
 
 	snapshotsv2, configv2 := createSnapshotCache(updates, log.MockLogger)
 	cb := gcptestv2.Callbacks{Signal: make(chan struct{})}
-	respCh, _, err := setup(ctx, log.MockLogger, snapshotsv2, configv2, &cb)
+	scope := stats.NewMockScope("mock")
+	respCh, _, err := setup(ctx, log.MockLogger, scope, snapshotsv2, configv2, &cb)
 	if err != nil {
 		assert.Fail(t, "Setup failed: %s", err.Error())
 		return
@@ -79,6 +80,10 @@ func TestXdsClientGetsIncrementalResponsesFromUpstreamServer(t *testing.T) {
 		assert.Equal(t, updates+1, cb.Requests)
 		break
 	}
+
+	currentConnectivityLevel := make(chan float64, 1)
+	go getConnectivityGauge(scope, currentConnectivityLevel)
+	verifyConnectivityLevel(t, currentConnectivityLevel, connectivity.Ready)
 }
 
 func TestXdsClientShutdownShouldCloseTheResponseChannel(t *testing.T) {
@@ -87,7 +92,7 @@ func TestXdsClientShutdownShouldCloseTheResponseChannel(t *testing.T) {
 
 	snapshotsv2, configv2 := createSnapshotCache(updates, log.MockLogger)
 	cb := gcptestv2.Callbacks{Signal: make(chan struct{})}
-	respCh, shutdown, err := setup(ctx, log.MockLogger, snapshotsv2, configv2, &cb)
+	respCh, shutdown, err := setup(ctx, log.MockLogger, stats.NewMockScope("mock"), snapshotsv2, configv2, &cb)
 	if err != nil {
 		assert.Fail(t, "Setup failed: %s", err.Error())
 		return
@@ -114,7 +119,8 @@ func TestServerShutdownShouldCloseResponseChannel(t *testing.T) {
 
 	snapshotsv2, configv2 := createSnapshotCache(updates, log.MockLogger)
 	cb := gcptestv2.Callbacks{Signal: make(chan struct{})}
-	respCh, _, err := setup(serverCtx, log.MockLogger, snapshotsv2, configv2, &cb)
+	scope := stats.NewMockScope("mock")
+	respCh, _, err := setup(serverCtx, log.MockLogger, scope, snapshotsv2, configv2, &cb)
 	if err != nil {
 		assert.Fail(t, "Setup failed: %s", err.Error())
 		cancel()
@@ -138,6 +144,9 @@ func TestServerShutdownShouldCloseResponseChannel(t *testing.T) {
 	sendResponses(serverCtx, log.MockLogger, updates, snapshotsv2, configv2)
 	cancel()
 	wg.Wait()
+	currentConnectivityLevel := make(chan float64, 1)
+	go getConnectivityGauge(scope, currentConnectivityLevel)
+	verifyConnectivityLevel(t, currentConnectivityLevel, connectivity.TransientFailure)
 }
 
 func TestClientContextCancellationShouldCloseAllResponseChannels(t *testing.T) {
@@ -146,7 +155,8 @@ func TestClientContextCancellationShouldCloseAllResponseChannels(t *testing.T) {
 
 	snapshotsv2, configv2 := createSnapshotCache(updates, log.MockLogger)
 	cb := gcptestv2.Callbacks{Signal: make(chan struct{})}
-	_, _, err := setup(serverCtx, log.MockLogger, snapshotsv2, configv2, &cb)
+	scope := stats.NewMockScope("mock")
+	_, _, err := setup(serverCtx, log.MockLogger, scope, snapshotsv2, configv2, &cb)
 	if err != nil {
 		assert.Fail(t, "Setup failed: %s", err.Error())
 		return
@@ -196,11 +206,16 @@ func TestClientContextCancellationShouldCloseAllResponseChannels(t *testing.T) {
 	sendResponses(serverCtx, log.MockLogger, updates, snapshotsv2, configv2)
 	clientCancel()
 	wg.Wait()
+
+	currentConnectivityLevel := make(chan float64, 1)
+	go getConnectivityGauge(scope, currentConnectivityLevel)
+	verifyConnectivityLevel(t, currentConnectivityLevel, connectivity.Idle)
 }
 
 func setup(
 	ctx context.Context,
 	logger log.Logger,
+	scope tally.Scope,
 	snapshotv2 resourcev2.TestSnapshot,
 	configv2 gcpcachev2.SnapshotCache,
 	cb *gcptestv2.Callbacks) (<-chan transport.Response, func(), error) {
@@ -215,7 +230,7 @@ func setup(
 		strings.Join([]string{"127.0.0.1", strconv.Itoa(originServerPort)}, ":"),
 		upstream.CallOptions{Timeout: time.Minute},
 		logger,
-		stats.NewMockScope("mock"),
+		scope,
 	)
 	if err != nil {
 		logger.Error(ctx, "NewClient failed %s", err.Error())
@@ -273,4 +288,26 @@ func createSnapshotCache(updates int, logger log.Logger) (resourcev2.TestSnapsho
 		BasePort:     9000,
 		NumClusters:  updates,
 	}, gcpcachev2.NewSnapshotCache(false, gcpcachev2.IDHash{}, gcpLogger{logger: logger})
+}
+
+func getConnectivityGauge(scope tally.TestScope, gauge chan float64) {
+	gaugeName := "mock.upstream.connected+"
+	for {
+		gauges := scope.Snapshot().Gauges()
+		if len(gauges) == 1 && gauges[gaugeName] != nil {
+			gauge <- gauges[gaugeName].Value()
+		}
+	}
+}
+
+func verifyConnectivityLevel(t *testing.T, levelChannel chan float64, expected connectivity.State) {
+	select {
+	case <-time.After(500 * time.Millisecond):
+		assert.Fail(t, "Timeout waiting for gauge to report ready connectivity")
+		return
+	case c := <-levelChannel:
+		if c == float64(expected) {
+			return
+		}
+	}
 }
