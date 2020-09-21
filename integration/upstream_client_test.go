@@ -1,3 +1,4 @@
+// +build integration
 package integration
 
 import (
@@ -81,9 +82,7 @@ func TestXdsClientGetsIncrementalResponsesFromUpstreamServer(t *testing.T) {
 		break
 	}
 
-	currentConnectivityLevel := make(chan float64, 1)
-	go getConnectivityGauge(scope, currentConnectivityLevel)
-	verifyConnectivityLevel(t, currentConnectivityLevel, connectivity.Ready)
+	verifyConnectivityLevel(t, scope, connectivity.Ready)
 }
 
 func TestXdsClientShutdownShouldCloseTheResponseChannel(t *testing.T) {
@@ -144,9 +143,7 @@ func TestServerShutdownShouldCloseResponseChannel(t *testing.T) {
 	sendResponses(serverCtx, log.MockLogger, updates, snapshotsv2, configv2)
 	cancel()
 	wg.Wait()
-	currentConnectivityLevel := make(chan float64, 1)
-	go getConnectivityGauge(scope, currentConnectivityLevel)
-	verifyConnectivityLevel(t, currentConnectivityLevel, connectivity.TransientFailure)
+	verifyConnectivityLevel(t, scope, connectivity.TransientFailure)
 }
 
 func TestClientContextCancellationShouldCloseAllResponseChannels(t *testing.T) {
@@ -207,9 +204,7 @@ func TestClientContextCancellationShouldCloseAllResponseChannels(t *testing.T) {
 	clientCancel()
 	wg.Wait()
 
-	currentConnectivityLevel := make(chan float64, 1)
-	go getConnectivityGauge(scope, currentConnectivityLevel)
-	verifyConnectivityLevel(t, currentConnectivityLevel, connectivity.Idle)
+	verifyConnectivityLevel(t, scope, connectivity.Idle)
 }
 
 func setup(
@@ -300,12 +295,14 @@ func getConnectivityGauge(scope tally.TestScope, gauge chan float64) {
 	}
 }
 
-func verifyConnectivityLevel(t *testing.T, levelChannel chan float64, expected connectivity.State) {
+func verifyConnectivityLevel(t *testing.T, scope tally.TestScope, expected connectivity.State) {
+	currentConnectivityLevel := make(chan float64, 1)
+	go getConnectivityGauge(scope, currentConnectivityLevel)
 	select {
 	case <-time.After(500 * time.Millisecond):
 		assert.Fail(t, "Timeout waiting for gauge to report ready connectivity")
 		return
-	case c := <-levelChannel:
+	case c := <-currentConnectivityLevel:
 		if c == float64(expected) {
 			return
 		}
