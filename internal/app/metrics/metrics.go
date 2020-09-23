@@ -57,6 +57,8 @@ const (
 	ScopeUpstreamEDS = "eds"
 
 	UpstreamStreamOpened = "stream_opened" // counter, # of times a gRPC stream was opened to the origin server.
+
+	UpstreamConnected = "connected"
 )
 
 // .cache

@@ -100,6 +100,8 @@ func New(
 		return nil, err
 	}
 
+	go updateConnectivityMetric(ctx, conn, subScope)
+
 	ldsClient := v2.NewListenerDiscoveryServiceClient(conn)
 	rdsClient := v2.NewRouteDiscoveryServiceClient(conn)
 	edsClient := v2.NewEndpointDiscoveryServiceClient(conn)
@@ -288,4 +290,23 @@ func shutDown(ctx context.Context, conn *grpc.ClientConn) {
 
 func (e *UnsupportedResourceError) Error() string {
 	return fmt.Sprintf("Unsupported resource typeUrl: %s", e.TypeURL)
+}
+
+func updateConnectivityMetric(ctx context.Context, conn *grpc.ClientConn, scope tally.Scope) {
+	for {
+		isChanged := conn.WaitForStateChange(ctx, conn.GetState())
+		// Based on the grpc implementation, isChanged is false only when ctx expires
+		// https://github.com/grpc/grpc-go/blob/0f7e218c2cf49c7b0ca8247711b0daed2a07e79a/clientconn.go#L509-L510
+		// We set an unusually high value in case of ctx expires to show the connection is dead.
+		if !isChanged {
+			// The possible states are https://godoc.org/google.golang.org/grpc/connectivity
+			// ctx expired is not part of state enum and we've chosen 100 as a sufficiently high
+			// number to avoid collision. Using -1 is possible too, but we're not sure about using
+			// negative numbers in gauges.
+			scope.Gauge(metrics.UpstreamConnected).Update(100)
+			return
+		}
+
+		scope.Gauge(metrics.UpstreamConnected).Update(float64(conn.GetState()))
+	}
 }
