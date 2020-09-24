@@ -5,9 +5,6 @@ import (
 	"fmt"
 	"syscall"
 	"testing"
-	"time"
-
-	"github.com/stretchr/testify/assert"
 
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 )
@@ -23,21 +20,10 @@ func TestShutdown(t *testing.T) {
 			blockedCh <- true
 			return nil
 		},
-		l, time.Second*5)
+		l)
 	_ = syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 	<-blockedCh
 	<-blockedCh
-}
-
-func TestShutdownTimeout(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	l := &logger{blockedCh: make(chan bool, 1)}
-	registerShutdownHandler(ctx, cancel, func() {
-		<-time.After(time.Minute)
-	}, func(context.Context) error { return nil }, l, time.Millisecond)
-	_ = syscall.Kill(syscall.Getpid(), syscall.SIGINT)
-	<-l.blockedCh
-	assert.Equal(t, "shutdown error: context deadline exceeded", l.lastErr)
 }
 
 type logger struct {
