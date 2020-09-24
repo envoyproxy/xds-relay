@@ -27,8 +27,6 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/app/orchestrator"
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
-	"github.com/envoyproxy/xds-relay/internal/pkg/util"
-
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
 
@@ -134,7 +132,7 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 
 	go RunAdminServer(ctx, adminServer, logger)
 
-	registerShutdownHandler(ctx, cancel, server.GracefulStop, adminServer.Shutdown, logger, time.Second*30)
+	registerShutdownHandler(ctx, cancel, server.GracefulStop, adminServer.Shutdown, logger)
 	logger.With("address", listener.Addr()).Info(ctx, "Initializing server")
 	scope.SubScope(metrics.ScopeServer).Counter(metrics.ServerAlive).Inc(1)
 
@@ -148,27 +146,20 @@ func registerShutdownHandler(
 	cancel context.CancelFunc,
 	gracefulStop func(),
 	adminShutdown func(context.Context) error,
-	logger log.Logger,
-	waitTime time.Duration) {
+	logger log.Logger) {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		sig := <-sigs
 		logger.Info(ctx, "received interrupt signal:", sig.String())
-		err := util.DoWithTimeout(ctx, func() error {
-			logger.Info(ctx, "initiating admin server shutdown")
-			if shutdownErr := adminShutdown(ctx); shutdownErr != nil {
-				logger.With("error", shutdownErr).Error(ctx, "admin shutdown error: ", shutdownErr.Error())
-			}
-			logger.Info(ctx, "initiating grpc graceful stop")
-			gracefulStop()
-			_ = logger.Sync()
-			cancel()
-			return nil
-		}, waitTime)
-		if err != nil {
-			logger.Error(ctx, "shutdown error: ", err.Error())
+		logger.Info(ctx, "initiating admin server shutdown")
+		if shutdownErr := adminShutdown(ctx); shutdownErr != nil {
+			logger.With("error", shutdownErr).Error(ctx, "admin shutdown error: ", shutdownErr.Error())
 		}
+		logger.Info(ctx, "initiating grpc graceful stop")
+		cancel()
+		gracefulStop()
+		_ = logger.Sync()
 	}()
 }
 
