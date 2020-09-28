@@ -281,6 +281,7 @@ func getResultFromRequestNodePredicate(predicate *resultPredicate, req transport
 	} else if requestNodeFragment.GetLocalityAction() != nil {
 		resultFragment, err = getFragmentFromLocalityAction(req.GetLocality(), requestNodeFragment.GetLocalityAction())
 	}
+	// TODO: implement getFragmentFromNodeMetadataAction
 
 	if err != nil {
 		return false, "", err
