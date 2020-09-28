@@ -54,6 +54,26 @@ message LocalityMatch {
   StringMatch sub_zone = 3;
 }
 
+message PathSegment {
+  string key = 1 [(validate.rules).string.min_len = 1];
+}
+
+message StructValueMatch {
+  // TODO: we have to match every single type described in
+  // https://developers.google.com/protocol-buffers/docs/reference/google.protobuf#google.protobuf.Value.
+  oneof match {
+    option (validate.required) = true;
+
+    StringMatch string_match = 1;
+  }
+}
+
+message NodeMetadataMatch {
+  repeated PathSegment path = 1 [(validate.rules).repeated.min_items = 1];
+
+  StructValueMatch match = 2 [(validate.rules).message.required = true];
+}
+
 // This is a recursive structure which allows complex nested match
 // configurations to be built using various logical operators.
 // [#next-free-field: 7]
@@ -78,6 +98,8 @@ message MatchPredicate {
       StringMatch cluster_match = 2;
 
       LocalityMatch locality_match = 3;
+
+      NodeMetadataMatch node_metadata_match = 4;
     }
   }
 
@@ -152,6 +174,16 @@ message ResultPredicate {
     ResultAction subzone_action = 3;
   }
 
+  message NodeMetadataAction {
+    repeated PathSegment path = 1 [(validate.rules).repeated.min_items = 1];
+
+    oneof action {
+      option (validate.required) = true;
+
+      ResultAction string_action = 2;
+    }
+  }
+
   message AndResult {
     repeated ResultPredicate result_predicates = 1 [(validate.rules).repeated.min_items = 2];
   }
@@ -166,6 +198,7 @@ message ResultPredicate {
       ResultAction id_action = 1;
       ResultAction cluster_action = 2;
       LocalityResultAction locality_action = 3;
+      NodeMetadataAction node_metadata_action = 4;
     }
   }
 

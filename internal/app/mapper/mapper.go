@@ -7,6 +7,7 @@ import (
 
 	"github.com/envoyproxy/xds-relay/internal/app/metrics"
 	"github.com/envoyproxy/xds-relay/internal/app/transport"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/uber-go/tally"
 
@@ -140,6 +141,11 @@ func isNodeMatch(matchPredicate *matchPredicate, req transport.Request) (bool, e
 	localityMatch := predicate.GetLocalityMatch()
 	if localityMatch != nil {
 		return compareLocality(localityMatch, req.GetLocality())
+	}
+
+	nodeMetadataMatch := predicate.GetNodeMetadataMatch()
+	if nodeMetadataMatch != nil {
+		return compareNodeMetadata(nodeMetadataMatch, req.GetNodeMetadata())
 	}
 
 	return false, fmt.Errorf("RequestNodeMatch is invalid")
@@ -479,4 +485,32 @@ func compareLocality(localityMatch *aggregationv1.LocalityMatch,
 	}
 
 	return regionMatch && zoneMatch && subZoneMatch, nil
+}
+
+func compareNodeMetadata(nodeMetadataMatch *aggregationv1.NodeMetadataMatch,
+	nodeMetadata *structpb.Struct) (bool, error) {
+	if nodeMetadata == nil {
+		return false, fmt.Errorf("Metadata Node field cannot be empty")
+	}
+
+	var value *structpb.Value = nil
+	ok := true
+	for _, segment := range nodeMetadataMatch.GetPath() {
+		// If this is the second iteration, make sure we're dealing with structs
+		if value != nil && value.GetStructValue() == nil {
+			return false, nil
+		}
+		// Maybe I don't need this?
+		if segment == nil {
+			return false, nil
+		}
+		fields := nodeMetadata.GetFields()
+		value, ok = fields[segment.Key]
+		if !ok {
+			return false, nil
+		}
+	}
+
+	// TODO: implement the other structpb.Value types.
+	return compareString(nodeMetadataMatch.Match.GetStringMatch(), value.GetStringValue())
 }
