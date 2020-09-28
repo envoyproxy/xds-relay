@@ -11,6 +11,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type KeyerConfiguration = aggregationv1.KeyerConfiguration
@@ -20,6 +21,9 @@ type MatchPredicate = aggregationv1.MatchPredicate
 type ResultPredicate = aggregationv1.ResultPredicate
 type LocalityResultAction = aggregationv1.ResultPredicate_LocalityResultAction
 type StringMatch = aggregationv1.StringMatch
+type Struct = structpb.Struct
+type Value = structpb.Value
+type StringValue = structpb.Value_StringValue
 
 const (
 	clusterTypeURL  = "type.googleapis.com/envoy.api.v2.Cluster"
@@ -94,6 +98,15 @@ var positiveTests = []TableEntry{
 		Description: "RequestNodeMatch with node locality match",
 		Parameters: []interface{}{
 			getRequestNodeLocality(getExactMatch(noderegion), getExactMatch(nodezone), getExactMatch(nodesubzone)),
+			getResultStringFragment(),
+			clusterTypeURL,
+			stringFragment,
+		},
+	},
+	{
+		Description: "RequestNodeMatch with node metadata match",
+		Parameters: []interface{}{
+			getRequestNodeMetadata([]string{"f1"}, getExactMatch("v1")),
 			getResultStringFragment(),
 			clusterTypeURL,
 			stringFragment,
@@ -1382,6 +1395,31 @@ func getRequestNodeLocality(region *StringMatch, zone *StringMatch, subZone *Str
 	}
 }
 
+func getRequestNodeMetadata(segments []string, match *StringMatch) *MatchPredicate {
+	pathSegments := make([]*aggregationv1.PathSegment, len(segments))
+	for i, s := range segments {
+		pathSegments[i] = &aggregationv1.PathSegment{
+			Key: s,
+		}
+	}
+	return &MatchPredicate{
+		Type: &aggregationv1.MatchPredicate_RequestNodeMatch_{
+			RequestNodeMatch: &aggregationv1.MatchPredicate_RequestNodeMatch{
+				Type: &aggregationv1.MatchPredicate_RequestNodeMatch_NodeMetadataMatch{
+					NodeMetadataMatch: &aggregationv1.NodeMetadataMatch{
+						Path: pathSegments,
+						Match: &aggregationv1.StructValueMatch{
+							Match: &aggregationv1.StructValueMatch_StringMatch{
+								StringMatch: match,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func getRequestNodeAndMatch(predicates []*MatchPredicate) *MatchPredicate {
 	return &MatchPredicate{
 		Type: &aggregationv1.MatchPredicate_AndMatch{
@@ -1579,6 +1617,15 @@ func getNode(id string, cluster string, region string, zone string, subzone stri
 			Region:  region,
 			Zone:    zone,
 			SubZone: subzone,
+		},
+		Metadata: getNodeMetatada(),
+	}
+}
+
+func getNodeMetatada() *structpb.Struct {
+	return &Struct{
+		Fields: map[string]*Value{
+			"f1": {Kind: &StringValue{StringValue: "v1"}},
 		},
 	}
 }
