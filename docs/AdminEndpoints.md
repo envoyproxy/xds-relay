@@ -1,38 +1,39 @@
 # Admin Endpoints
 
 ## `GET /cache/<key>`
-###Behavior: 
+### Behavior: 
 Searches through xds-relay cache and outputs contents of the cached xDS response for the given aggregated key.
-###Parameters:
+### Parameters:
 *`<key>`*: The aggregated key or prefix to search
   * Argument supports wildcard (*) glob suffix patterns
   * Only supports single wildcard at the end of input key (e.g. `/cache/a*c*` is not supported)
   * `/cache`, `/cache/`, and `/cache/*` returns the entire cache
-###Example: 
+### Example: 
     * Keys in cache: abc_1, abc_2, abz_1, abz_2
     * Request: /cache/abc*
     * Output: Entries for abc_1 and abc_2
 
 ## `POST /log_level/<level>`
-###Behavior:
+### Behavior:
 Updates xds-relay log level
-###Parameters:
+### Parameters:
 *`<level>`*: Desired log level (supports `info`, `debug`, `warn`, or `error` levels)
 * if no `<level>` provided, the aggregator outputs the current log level
-###Example: 
+### Example: 
     * Log level before update: debug
     * Request: /log_level/info
     * Output: "Current log level: info"
 
 ## `GET /server_info`
-###Behavior:
+### Behavior:
 Outputs server configuration (i.e. bootstrap configuration)
-###Parameters:
+### Parameters:
 n/a
-###Example: 
+### Example: 
     * xds-relay server's bootstrap file: ../example/config-files/xds-relay-bootstrap.yaml
     * Request: `/server_info`
     * Output (shortened to keep example brief, but outputs all bootstrap configurations): 
+    ```json
     {
       "server": {
         "address": {
@@ -46,5 +47,6 @@ n/a
       "metrics_sink": {...},
       "admin": {...}
     }
+    ```
 
     
