@@ -33,7 +33,7 @@ n/a
     * xds-relay server's bootstrap file: ../example/config-files/xds-relay-bootstrap.yaml
     * Request: `/server_info`
     * Output (shortened to keep example brief, but outputs all bootstrap configurations): 
-    ```json
+
     {
       "server": {
         "address": {
@@ -47,6 +47,5 @@ n/a
       "metrics_sink": {...},
       "admin": {...}
     }
-    ```
 
     
