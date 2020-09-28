@@ -104,9 +104,18 @@ var positiveTests = []TableEntry{
 		},
 	},
 	{
-		Description: "RequestNodeMatch with node metadata match",
+		Description: "RequestNodeMatch with single level node metadata exact match",
 		Parameters: []interface{}{
 			getRequestNodeMetadata([]string{"f1"}, getExactMatch("v1")),
+			getResultStringFragment(),
+			clusterTypeURL,
+			stringFragment,
+		},
+	},
+	{
+		Description: "RequestNodeMatch with nested level node metadata exact match",
+		Parameters: []interface{}{
+			getRequestNodeMetadata([]string{"nested-field", "f2"}, getExactMatch("v2")),
 			getResultStringFragment(),
 			clusterTypeURL,
 			stringFragment,
@@ -1626,6 +1635,13 @@ func getNodeMetatada() *structpb.Struct {
 	return &Struct{
 		Fields: map[string]*Value{
 			"f1": {Kind: &StringValue{StringValue: "v1"}},
+			"nested-field": {Kind: &structpb.Value_StructValue{
+				StructValue: &Struct{
+					Fields: map[string]*Value{
+						"f2": {Kind: &StringValue{StringValue: "v2"}},
+					},
+				},
+			}},
 		},
 	}
 }

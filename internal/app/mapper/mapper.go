@@ -494,15 +494,16 @@ func compareNodeMetadata(nodeMetadataMatch *aggregationv1.NodeMetadataMatch,
 	}
 
 	var value *structpb.Value = nil
-	ok := true
+	var ok bool
 	for _, segment := range nodeMetadataMatch.GetPath() {
-		// If this is the second iteration, make sure we're dealing with structs
-		if value != nil && value.GetStructValue() == nil {
-			return false, nil
-		}
-		// Maybe I don't need this?
-		if segment == nil {
-			return false, nil
+		// Starting from the second iteration, make sure that we're dealing with structs
+		if value != nil {
+			if value.GetStructValue() != nil {
+				nodeMetadata = value.GetStructValue()
+			} else {
+				// TODO: signal that the field is not a struct
+				return false, nil
+			}
 		}
 		fields := nodeMetadata.GetFields()
 		value, ok = fields[segment.Key]
