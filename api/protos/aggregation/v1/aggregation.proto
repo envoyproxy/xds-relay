@@ -32,6 +32,7 @@ message KeyerConfiguration {
   repeated Fragment fragments = 1 [(validate.rules).repeated.min_items = 1];
 }
 
+// [#next-free-field: 4]
 message StringMatch {
   oneof type {
     option (validate.required) = true;
@@ -46,6 +47,11 @@ message StringMatch {
   }
 }
 
+message BoolMatch {
+  bool value_match = 1;
+}
+
+// [#next-free-field: 4]
 message LocalityMatch {
   StringMatch region = 1;
 
@@ -54,10 +60,12 @@ message LocalityMatch {
   StringMatch sub_zone = 3;
 }
 
+// [#next-free-field: 2]
 message PathSegment {
   string key = 1 [(validate.rules).string.min_len = 1];
 }
 
+// [#next-free-field: 3]
 message StructValueMatch {
   // TODO: we have to match every single type described in
   // https://developers.google.com/protocol-buffers/docs/reference/google.protobuf#google.protobuf.Value.
@@ -65,6 +73,8 @@ message StructValueMatch {
     option (validate.required) = true;
 
     StringMatch string_match = 1;
+
+    BoolMatch bool_match = 2;
   }
 }
 
@@ -143,7 +153,6 @@ message MatchPredicate {
 message ResultPredicate {
 
   message ResultAction {
-
     // TODO potentially use "safe regex"
     // https://github.com/envoyproxy/envoy/blob/10f756efa17e56c8d4d1033be7b4286410db4e01/api/envoy/type/matcher/v3/regex.proto
     // [#next-free-field: 3]
@@ -164,6 +173,10 @@ message ResultPredicate {
     }
   }
 
+  message BoolAction {
+    bool bool_action = 1;
+  }
+
   // Rule for how to generate a fragment from a Locality object
   // [#next-free-field: 4]
   message LocalityResultAction {
@@ -174,6 +187,7 @@ message ResultPredicate {
     ResultAction subzone_action = 3;
   }
 
+  // [#next-free-field: 4]
   message NodeMetadataAction {
     repeated PathSegment path = 1 [(validate.rules).repeated.min_items = 1];
 
@@ -181,6 +195,8 @@ message ResultPredicate {
       option (validate.required) = true;
 
       ResultAction string_action = 2;
+
+      BoolAction bool_action = 3;
     }
   }
 

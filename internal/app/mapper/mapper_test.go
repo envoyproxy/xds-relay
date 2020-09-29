@@ -22,6 +22,7 @@ type ResultPredicate = aggregationv1.ResultPredicate
 type LocalityResultAction = aggregationv1.ResultPredicate_LocalityResultAction
 type StringAction = aggregationv1.ResultPredicate_NodeMetadataAction_StringAction
 type StringMatch = aggregationv1.StringMatch
+type BoolMatch = aggregationv1.BoolMatch
 type Struct = structpb.Struct
 type Value = structpb.Value
 type StringValue = structpb.Value_StringValue
@@ -105,9 +106,9 @@ var positiveTests = []TableEntry{
 		},
 	},
 	{
-		Description: "RequestNodeMatch with single level node metadata exact match",
+		Description: "RequestNodeMatch with single level node metadata bool exact match",
 		Parameters: []interface{}{
-			getRequestNodeMetadata([]string{"f1"}, getExactMatch("v1")),
+			getRequestNodeMetadataBoolMatch([]string{"bool-field"}, getBoolMatch(true)),
 			getResultStringFragment(),
 			clusterTypeURL,
 			stringFragment,
@@ -116,7 +117,7 @@ var positiveTests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with nested level node metadata exact match",
 		Parameters: []interface{}{
-			getRequestNodeMetadata([]string{"nested-field", "f2"}, getExactMatch("v2")),
+			getRequestNodeMetadataStringMatch([]string{"nested-field", "f2"}, getExactMatch("v2")),
 			getResultStringFragment(),
 			clusterTypeURL,
 			stringFragment,
@@ -143,7 +144,7 @@ var positiveTests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with single level node metadata regex match",
 		Parameters: []interface{}{
-			getRequestNodeMetadata([]string{"f1"}, getRegexMatch("v.")),
+			getRequestNodeMetadataStringMatch([]string{"f1"}, getRegexMatch("v.")),
 			getResultStringFragment(),
 			clusterTypeURL,
 			stringFragment,
@@ -152,7 +153,7 @@ var positiveTests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with nested level node metadata regex match",
 		Parameters: []interface{}{
-			getRequestNodeMetadata([]string{"nested-field", "f2"}, getRegexMatch(".2")),
+			getRequestNodeMetadataStringMatch([]string{"nested-field", "f2"}, getRegexMatch(".2")),
 			getResultStringFragment(),
 			clusterTypeURL,
 			stringFragment,
@@ -664,7 +665,7 @@ var negativeTests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with node metadata single level does not match",
 		Parameters: []interface{}{
-			getRequestNodeMetadata([]string{"f1"}, getExactMatch("v1-notmatch")),
+			getRequestNodeMetadataStringMatch([]string{"f1"}, getExactMatch("v1-notmatch")),
 			getResultStringFragment(),
 			getDiscoveryRequest(),
 		},
@@ -672,7 +673,7 @@ var negativeTests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with node metadata two levels does not match",
 		Parameters: []interface{}{
-			getRequestNodeMetadata([]string{"nested-field", "f2"}, getExactMatch("v2-notmatch")),
+			getRequestNodeMetadataStringMatch([]string{"nested-field", "f2"}, getExactMatch("v2-notmatch")),
 			getResultStringFragment(),
 			getDiscoveryRequest(),
 		},
@@ -680,7 +681,7 @@ var negativeTests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with node metadata two levels and inexistent key does not match",
 		Parameters: []interface{}{
-			getRequestNodeMetadata([]string{"inexistent-key-1", "inexistent-key-2"}, getExactMatch("v2-notmatch")),
+			getRequestNodeMetadataStringMatch([]string{"inexistent-key-1", "inexistent-key-2"}, getExactMatch("v2-notmatch")),
 			getResultStringFragment(),
 			getDiscoveryRequest(),
 		},
@@ -728,7 +729,7 @@ var negativeTests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with node metadata single level regex does not match",
 		Parameters: []interface{}{
-			getRequestNodeMetadata([]string{"f1"}, getRegexMatch("mismatch")),
+			getRequestNodeMetadataStringMatch([]string{"f1"}, getRegexMatch("mismatch")),
 			getResultStringFragment(),
 			getDiscoveryRequest(),
 		},
@@ -736,7 +737,7 @@ var negativeTests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with node metadata two levels regex does not match",
 		Parameters: []interface{}{
-			getRequestNodeMetadata([]string{"nested-field", "f2"}, getRegexMatch("mismatch")),
+			getRequestNodeMetadataStringMatch([]string{"nested-field", "f2"}, getRegexMatch("mismatch")),
 			getResultStringFragment(),
 			getDiscoveryRequest(),
 		},
@@ -800,7 +801,7 @@ var negativeTests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with exact match request node metadata mismatch - single level",
 		Parameters: []interface{}{
-			getRequestNodeMetadata([]string{"f1"}, getExactMatch("v1")),
+			getRequestNodeMetadataStringMatch([]string{"f1"}, getExactMatch("v1")),
 			getResultStringFragment(),
 			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, nodesubzone, &Struct{
 				Fields: map[string]*Value{
@@ -813,7 +814,7 @@ var negativeTests = []TableEntry{
 	{
 		Description: "RequestNodeMatch with exact match request node metadata mismatch - nested level",
 		Parameters: []interface{}{
-			getRequestNodeMetadata([]string{"nested-field", "f2"}, getExactMatch("v2")),
+			getRequestNodeMetadataStringMatch([]string{"nested-field", "f2"}, getExactMatch("v2")),
 			getResultStringFragment(),
 			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, nodesubzone, &Struct{
 				Fields: map[string]*Value{
@@ -1517,6 +1518,12 @@ func getRequestNodeClusterRegexMatch(regex string) *MatchPredicate {
 	}
 }
 
+func getBoolMatch(value bool) *BoolMatch {
+	return &aggregationv1.BoolMatch{
+		ValueMatch: value,
+	}
+}
+
 func getExactMatch(exact string) *StringMatch {
 	return &aggregationv1.StringMatch{
 		Type: &aggregationv1.StringMatch_ExactMatch{
@@ -1549,7 +1556,7 @@ func getRequestNodeLocality(region *StringMatch, zone *StringMatch, subZone *Str
 	}
 }
 
-func getRequestNodeMetadata(segments []string, match *StringMatch) *MatchPredicate {
+func getRequestNodeMetadataStringMatch(segments []string, stringMatch *StringMatch) *MatchPredicate {
 	pathSegments := buildPath(segments)
 	return &MatchPredicate{
 		Type: &aggregationv1.MatchPredicate_RequestNodeMatch_{
@@ -1559,7 +1566,27 @@ func getRequestNodeMetadata(segments []string, match *StringMatch) *MatchPredica
 						Path: pathSegments,
 						Match: &aggregationv1.StructValueMatch{
 							Match: &aggregationv1.StructValueMatch_StringMatch{
-								StringMatch: match,
+								StringMatch: stringMatch,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func getRequestNodeMetadataBoolMatch(segments []string, boolMatch *BoolMatch) *MatchPredicate {
+	pathSegments := buildPath(segments)
+	return &MatchPredicate{
+		Type: &aggregationv1.MatchPredicate_RequestNodeMatch_{
+			RequestNodeMatch: &aggregationv1.MatchPredicate_RequestNodeMatch{
+				Type: &aggregationv1.MatchPredicate_RequestNodeMatch_NodeMetadataMatch{
+					NodeMetadataMatch: &aggregationv1.NodeMetadataMatch{
+						Path: pathSegments,
+						Match: &aggregationv1.StructValueMatch{
+							Match: &aggregationv1.StructValueMatch_BoolMatch{
+								BoolMatch: boolMatch,
 							},
 						},
 					},
@@ -1779,6 +1806,12 @@ func getNodeMetadataRegexAction(pattern string, replace string) *StringAction {
 	}
 }
 
+func getBoolAction(value bool) *aggregationv1.ResultPredicate_BoolAction {
+	return &aggregationv1.ResultPredicate_BoolAction{
+		BoolAction: value,
+	}
+}
+
 func getDiscoveryRequest() v2.DiscoveryRequest {
 	return getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, nodesubzone, getNodeMetatada()))
 }
@@ -1809,7 +1842,8 @@ func getNode(id string, cluster string, region string, zone string, subzone stri
 func getNodeMetatada() *structpb.Struct {
 	return &Struct{
 		Fields: map[string]*Value{
-			"f1": {Kind: &StringValue{StringValue: "v1"}},
+			"bool-field": {Kind: &structpb.Value_BoolValue{BoolValue: true}},
+			"f1":         {Kind: &StringValue{StringValue: "v1"}},
 			"nested-field": {Kind: &structpb.Value_StructValue{
 				StructValue: &Struct{
 					Fields: map[string]*Value{

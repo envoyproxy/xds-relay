@@ -477,6 +477,10 @@ func compareString(stringMatch *aggregationv1.StringMatch, nodeValue string) (bo
 	return false, nil
 }
 
+func compareBool(boolMatch *aggregationv1.BoolMatch, boolValue bool) bool {
+	return boolMatch.ValueMatch == boolValue
+}
+
 func compareLocality(localityMatch *aggregationv1.LocalityMatch,
 	reqNodeLocality *transport.Locality) (bool, error) {
 	if reqNodeLocality == nil {
@@ -537,5 +541,11 @@ func compareNodeMetadata(nodeMetadataMatch *aggregationv1.NodeMetadataMatch,
 	}
 
 	// TODO: implement the other structpb.Value types.
-	return compareString(nodeMetadataMatch.Match.GetStringMatch(), value.GetStringValue())
+	if nodeMetadataMatch.Match.GetStringMatch() != nil {
+		return compareString(nodeMetadataMatch.Match.GetStringMatch(), value.GetStringValue())
+	} else if nodeMetadataMatch.Match.GetBoolMatch() != nil {
+		return compareBool(nodeMetadataMatch.Match.GetBoolMatch(), value.GetBoolValue()), nil
+	} else {
+		return false, fmt.Errorf("Invalid NodeMetadata Match")
+	}
 }
