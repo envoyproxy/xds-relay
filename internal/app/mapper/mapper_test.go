@@ -797,7 +797,38 @@ var negativeTests = []TableEntry{
 			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, "mismatch", nil)),
 		},
 	},
-
+	{
+		Description: "RequestNodeMatch with exact match request node metadata mismatch - single level",
+		Parameters: []interface{}{
+			getRequestNodeMetadata([]string{"f1"}, getExactMatch("v1")),
+			getResultStringFragment(),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, nodesubzone, &Struct{
+				Fields: map[string]*Value{
+					"f1": {Kind: &StringValue{StringValue: "mismatch"}},
+				},
+			},
+			)),
+		},
+	},
+	{
+		Description: "RequestNodeMatch with exact match request node metadata mismatch - nested level",
+		Parameters: []interface{}{
+			getRequestNodeMetadata([]string{"nested-field", "f2"}, getExactMatch("v2")),
+			getResultStringFragment(),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, nodesubzone, &Struct{
+				Fields: map[string]*Value{
+					"nested-field": {Kind: &structpb.Value_StructValue{
+						StructValue: &Struct{
+							Fields: map[string]*Value{
+								"f2": {Kind: &StringValue{StringValue: "mismatch"}},
+							},
+						},
+					}},
+				},
+			},
+			)),
+		},
+	},
 	{
 		Description: "RequestNodeMatch with regex match request node region mismatch",
 		Parameters: []interface{}{
