@@ -751,7 +751,7 @@ var negativeTests = []TableEntry{
 		},
 	},
 	{
-		Description: "AndMatch OrMatch recursive combined",
+		Description: "AndMatch - OrMatch recursive combined",
 		Parameters: []interface{}{
 			getRequestNodeAndMatch(
 				[]*aggregationv1.MatchPredicate{
