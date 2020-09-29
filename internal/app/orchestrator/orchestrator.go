@@ -166,6 +166,20 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 	}
 	metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchCreated).Inc(1)
 
+	// Log + stat to investigate NACK behavior
+	isNackRequest := req.GetError() != nil
+	if isNackRequest {
+		o.logger.With(
+			"request_version", req.GetVersionInfo(),
+			"resource_names", req.GetResourceNames(),
+			"nonce", req.GetResponseNonce(),
+			"request_type", req.GetTypeURL(),
+			"error", req.GetError(),
+			"aggregated_key", aggregatedKey,
+		).Debug(ctx, "NACK request")
+		metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorNackWatchCreated).Inc(1)
+	}
+
 	// Check if we have a cached response first.
 	cached, err := o.cache.Fetch(aggregatedKey)
 	if err != nil {
@@ -187,6 +201,13 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 				metrics.OrchestratorWatchErrorsSubscope(o.scope, aggregatedKey).Counter(metrics.ErrorChannelFull).Inc(1)
 			} else {
 				metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchFanouts).Inc(1)
+				if isNackRequest {
+					o.logger.With(
+						"aggregated_key", aggregatedKey,
+						"request_version", req.GetVersionInfo(),
+						"response_version", cached.Resp.GetPayloadVersion(),
+					).Debug(context.Background(),"NACK request receives cached response with different version")
+				}
 			}
 		}()
 	}
