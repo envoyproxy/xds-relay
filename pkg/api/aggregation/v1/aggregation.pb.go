@@ -160,6 +160,7 @@ func (*StringMatch_ExactMatch) isStringMatch_Type() {}
 
 func (*StringMatch_RegexMatch) isStringMatch_Type() {}
 
+// [#next-free-field: 2]
 type BoolMatch struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -403,6 +404,7 @@ func (*StructValueMatch_StringMatch) isStructValueMatch_Match() {}
 
 func (*StructValueMatch_BoolMatch) isStructValueMatch_Match() {}
 
+// [#next-free-field: 3]
 type NodeMetadataMatch struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -884,7 +886,7 @@ func (x *MatchPredicate_RequestTypeMatch) GetTypes() []string {
 }
 
 // Match on a field in Envoy's request node.
-// [#next-free-field: 4]
+// [#next-free-field: 5]
 type MatchPredicate_RequestNodeMatch struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -1043,6 +1045,7 @@ func (x *MatchPredicate_MatchSet) GetRules() []*MatchPredicate {
 	return nil
 }
 
+// [#next-free-field: 3]
 type ResultPredicate_ResultAction struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -1125,6 +1128,7 @@ func (*ResultPredicate_ResultAction_Exact) isResultPredicate_ResultAction_Action
 
 func (*ResultPredicate_ResultAction_RegexAction_) isResultPredicate_ResultAction_Action() {}
 
+// [#next-free-field: 2]
 type ResultPredicate_BoolAction struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -1327,6 +1331,7 @@ func (*ResultPredicate_NodeMetadataAction_StringAction) isResultPredicate_NodeMe
 
 func (*ResultPredicate_NodeMetadataAction_BoolAction) isResultPredicate_NodeMetadataAction_Action() {}
 
+// [#next-free-field: 2]
 type ResultPredicate_AndResult struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -1375,7 +1380,7 @@ func (x *ResultPredicate_AndResult) GetResultPredicates() []*ResultPredicate {
 }
 
 // Rules for generating the resulting fragment from a Envoy request node.
-// [#next-free-field: 4]
+// [#next-free-field: 5]
 type ResultPredicate_RequestNodeFragment struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
