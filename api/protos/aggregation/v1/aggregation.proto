@@ -47,6 +47,7 @@ message StringMatch {
   }
 }
 
+// [#next-free-field: 2]
 message BoolMatch {
   bool value_match = 1;
 }
@@ -78,6 +79,7 @@ message StructValueMatch {
   }
 }
 
+// [#next-free-field: 3]
 message NodeMetadataMatch {
   repeated PathSegment path = 1 [(validate.rules).repeated.min_items = 1];
 
@@ -98,7 +100,7 @@ message MatchPredicate {
   }
 
   // Match on a field in Envoy's request node.
-  // [#next-free-field: 4]
+  // [#next-free-field: 5]
   message RequestNodeMatch {
     oneof type {
       option (validate.required) = true;
@@ -152,6 +154,7 @@ message MatchPredicate {
 // [#next-free-field: 5]
 message ResultPredicate {
 
+  // [#next-free-field: 3]
   message ResultAction {
     // TODO potentially use "safe regex"
     // https://github.com/envoyproxy/envoy/blob/10f756efa17e56c8d4d1033be7b4286410db4e01/api/envoy/type/matcher/v3/regex.proto
@@ -173,6 +176,7 @@ message ResultPredicate {
     }
   }
 
+  // [#next-free-field: 2]
   message BoolAction {
     bool bool_action = 1;
   }
@@ -200,12 +204,13 @@ message ResultPredicate {
     }
   }
 
+  // [#next-free-field: 2]
   message AndResult {
     repeated ResultPredicate result_predicates = 1 [(validate.rules).repeated.min_items = 2];
   }
 
   // Rules for generating the resulting fragment from a Envoy request node.
-  // [#next-free-field: 4]
+  // [#next-free-field: 5]
   message RequestNodeFragment {
 
     oneof action {
