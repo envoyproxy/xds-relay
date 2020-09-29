@@ -211,7 +211,7 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 						"aggregated_key", aggregatedKey,
 						"request_version", req.GetVersionInfo(),
 						"response_version", cached.Resp.GetPayloadVersion(),
-					).Debug(context.Background(),"NACK request receives cached response with different version")
+					).Debug(context.Background(), "NACK request receives cached response with different version")
 				}
 			}
 		}()
@@ -220,6 +220,11 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 	// Check if we have a upstream stream open for this aggregated key. If not,
 	// open a stream with the representative request.
 	if !o.upstreamResponseMap.exists(aggregatedKey) {
+		if isNackRequest {
+			o.logger.With(
+				"aggregated_key", aggregatedKey,
+			).Debug(context.Background(), "NACK request attempting to open new stream")
+		}
 		upstreamResponseChan, shutdown, err := o.upstreamClient.OpenStream(req)
 		if err != nil {
 			// TODO implement retry/back-off logic on error scenario.
