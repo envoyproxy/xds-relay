@@ -8,6 +8,7 @@ package orchestrator
 
 import (
 	"context"
+	"strings"
 	"sync"
 
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
@@ -169,9 +170,13 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 	// Log + stat to investigate NACK behavior
 	isNackRequest := req.GetError() != nil
 	if isNackRequest {
+		resourceString := ""
+		if req.GetResourceNames() != nil {
+			resourceString = strings.Join(req.GetResourceNames()[:], ",")
+		}
 		o.logger.With(
 			"request_version", req.GetVersionInfo(),
-			"resource_names", req.GetResourceNames(),
+			"resource_names", resourceString,
 			"nonce", req.GetResponseNonce(),
 			"request_type", req.GetTypeURL(),
 			"error", req.GetError(),
