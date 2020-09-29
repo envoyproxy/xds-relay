@@ -280,8 +280,9 @@ func getResultFromRequestNodePredicate(predicate *resultPredicate, req transport
 		resultFragment, err = getResultFragmentFromAction(req.GetCluster(), requestNodeFragment.GetClusterAction())
 	} else if requestNodeFragment.GetLocalityAction() != nil {
 		resultFragment, err = getFragmentFromLocalityAction(req.GetLocality(), requestNodeFragment.GetLocalityAction())
+	} else if requestNodeFragment.GetNodeMetadataAction() != nil {
+		resultFragment, err = getFragmentFromNodeMetadataAction(req.GetNodeMetadata(), requestNodeFragment.GetNodeMetadataAction())
 	}
-	// TODO: implement getFragmentFromNodeMetadataAction
 
 	if err != nil {
 		return false, "", err
@@ -431,6 +432,27 @@ func getFragmentFromLocalityAction(
 
 	// N.B.: join matches using "|" to indicate they all came from the locality object.
 	return strings.Join(matches, "|"), nil
+}
+
+func getFragmentFromNodeMetadataAction(
+	nodeMetadata *structpb.Struct,
+	action *aggregationv1.ResultPredicate_NodeMetadataAction) (string, error) {
+	// Traverse to the right node
+	var value *structpb.Value = nil
+	var ok bool
+	for _, segment := range action.GetPath() {
+		fields := nodeMetadata.GetFields()
+		value, ok = fields[segment.Key]
+		if !ok {
+			// TODO what to do if the key doesn't map to a valid struct field?
+			return "", fmt.Errorf("Path to key is inexistent")
+		}
+		nodeMetadata = value.GetStructValue()
+	}
+
+	// Compare value with the one in the action
+	// TODO: implement fragment extraction for other StrucValue types.
+	return getResultFragmentFromAction(value.GetStringValue(), action.GetStringAction())
 }
 
 func compareString(stringMatch *aggregationv1.StringMatch, nodeValue string) (bool, error) {

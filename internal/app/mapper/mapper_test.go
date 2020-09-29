@@ -384,6 +384,34 @@ var positiveTests = []TableEntry{
 		},
 	},
 	{
+		Description: "AnyMatch With Exact Metadata - single level",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResultRequestNodeMetadataFragment(
+				&aggregationv1.ResultPredicate_NodeMetadataAction{
+					Path:   buildPath([]string{"f1"}),
+					Action: getNodeMetadataExactAction(),
+				},
+			),
+			clusterTypeURL,
+			"v1",
+		},
+	},
+	{
+		Description: "AnyMatch With Exact Metadata - nested one level",
+		Parameters: []interface{}{
+			getAnyMatch(true),
+			getResultRequestNodeMetadataFragment(
+				&aggregationv1.ResultPredicate_NodeMetadataAction{
+					Path:   buildPath([]string{"nested-field", "f2"}),
+					Action: getNodeMetadataExactAction(),
+				},
+			),
+			clusterTypeURL,
+			"v2",
+		},
+	},
+	{
 		Description: "AnyMatch With Regex Locality region, zone, and subzone match",
 		Parameters: []interface{}{
 			getAnyMatch(true),
@@ -1405,12 +1433,7 @@ func getRequestNodeLocality(region *StringMatch, zone *StringMatch, subZone *Str
 }
 
 func getRequestNodeMetadata(segments []string, match *StringMatch) *MatchPredicate {
-	pathSegments := make([]*aggregationv1.PathSegment, len(segments))
-	for i, s := range segments {
-		pathSegments[i] = &aggregationv1.PathSegment{
-			Key: s,
-		}
-	}
+	pathSegments := buildPath(segments)
 	return &MatchPredicate{
 		Type: &aggregationv1.MatchPredicate_RequestNodeMatch_{
 			RequestNodeMatch: &aggregationv1.MatchPredicate_RequestNodeMatch{
@@ -1427,6 +1450,16 @@ func getRequestNodeMetadata(segments []string, match *StringMatch) *MatchPredica
 			},
 		},
 	}
+}
+
+func buildPath(segments []string) []*aggregationv1.PathSegment {
+	pathSegments := make([]*aggregationv1.PathSegment, len(segments))
+	for i, s := range segments {
+		pathSegments[i] = &aggregationv1.PathSegment{
+			Key: s,
+		}
+	}
+	return pathSegments
 }
 
 func getRequestNodeAndMatch(predicates []*MatchPredicate) *MatchPredicate {
@@ -1586,6 +1619,18 @@ func getResultRequestNodeLocalityFragment(action *aggregationv1.ResultPredicate_
 	}
 }
 
+func getResultRequestNodeMetadataFragment(action *aggregationv1.ResultPredicate_NodeMetadataAction) *resultPredicate {
+	return &ResultPredicate{
+		Type: &aggregationv1.ResultPredicate_RequestNodeFragment_{
+			RequestNodeFragment: &aggregationv1.ResultPredicate_RequestNodeFragment{
+				Action: &aggregationv1.ResultPredicate_RequestNodeFragment_NodeMetadataAction{
+					NodeMetadataAction: action,
+				},
+			},
+		},
+	}
+}
+
 func getExactAction() *aggregationv1.ResultPredicate_ResultAction {
 	return &aggregationv1.ResultPredicate_ResultAction{
 		Action: &aggregationv1.ResultPredicate_ResultAction_Exact{
@@ -1602,6 +1647,12 @@ func getRegexAction(pattern string, replace string) *aggregationv1.ResultPredica
 				Replace: replace,
 			},
 		},
+	}
+}
+
+func getNodeMetadataExactAction() *aggregationv1.ResultPredicate_NodeMetadataAction_StringAction {
+	return &aggregationv1.ResultPredicate_NodeMetadataAction_StringAction{
+		StringAction: getExactAction(),
 	}
 }
 
