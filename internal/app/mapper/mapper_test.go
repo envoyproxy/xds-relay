@@ -746,7 +746,7 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			getRequestNodeIDExactMatch(nodeid),
 			getResultStringFragment(),
-			getDiscoveryRequestWithNode(getNode("mismatch", nodecluster, noderegion, nodezone, nodesubzone)),
+			getDiscoveryRequestWithNode(getNode("mismatch", nodecluster, noderegion, nodezone, nodesubzone, nil)),
 		},
 	},
 	{
@@ -754,7 +754,7 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			getRequestNodeIDRegexMatch(nodeid),
 			getResultStringFragment(),
-			getDiscoveryRequestWithNode(getNode("mismatch", nodecluster, noderegion, nodezone, nodesubzone)),
+			getDiscoveryRequestWithNode(getNode("mismatch", nodecluster, noderegion, nodezone, nodesubzone, nil)),
 		},
 	},
 	{
@@ -762,7 +762,7 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			getRequestNodeClusterExactMatch(nodecluster),
 			getResultStringFragment(),
-			getDiscoveryRequestWithNode(getNode(nodeid, "mismatch", noderegion, nodezone, nodesubzone)),
+			getDiscoveryRequestWithNode(getNode(nodeid, "mismatch", noderegion, nodezone, nodesubzone, nil)),
 		},
 	},
 	{
@@ -770,7 +770,7 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			getRequestNodeClusterRegexMatch(nodecluster),
 			getResultStringFragment(),
-			getDiscoveryRequestWithNode(getNode(nodeid, "mismatch", noderegion, nodezone, nodesubzone)),
+			getDiscoveryRequestWithNode(getNode(nodeid, "mismatch", noderegion, nodezone, nodesubzone, nil)),
 		},
 	},
 	{
@@ -778,7 +778,7 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			getRequestNodeLocality(getExactMatch(noderegion), getExactMatch(nodezone), getExactMatch(nodesubzone)),
 			getResultStringFragment(),
-			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "mismatch", nodezone, nodesubzone)),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "mismatch", nodezone, nodesubzone, nil)),
 		},
 	},
 	{
@@ -786,7 +786,7 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			getRequestNodeLocality(getExactMatch(noderegion), getExactMatch(nodezone), getExactMatch(nodesubzone)),
 			getResultStringFragment(),
-			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, "mismatch", nodesubzone)),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, "mismatch", nodesubzone, nil)),
 		},
 	},
 	{
@@ -794,7 +794,7 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			getRequestNodeLocality(getExactMatch(noderegion), getExactMatch(nodezone), getExactMatch(nodesubzone)),
 			getResultStringFragment(),
-			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, "mismatch")),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, "mismatch", nil)),
 		},
 	},
 
@@ -803,7 +803,7 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			getRequestNodeLocality(getRegexMatch(noderegion), getExactMatch(nodezone), getExactMatch(nodesubzone)),
 			getResultStringFragment(),
-			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "mismatch", nodezone, nodesubzone)),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "mismatch", nodezone, nodesubzone, nil)),
 		},
 	},
 	{
@@ -811,7 +811,7 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			getRequestNodeLocality(getExactMatch(noderegion), getRegexMatch(nodezone), getExactMatch(nodesubzone)),
 			getResultStringFragment(),
-			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, "mismatch", nodesubzone)),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, "mismatch", nodesubzone, nil)),
 		},
 	},
 	{
@@ -819,10 +819,9 @@ var negativeTests = []TableEntry{
 		Parameters: []interface{}{
 			getRequestNodeLocality(getExactMatch(noderegion), getExactMatch(nodezone), getRegexMatch(nodesubzone)),
 			getResultStringFragment(),
-			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, "mismatch")),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, "mismatch", nil)),
 		},
 	},
-
 	{
 		Description: "AndMatch RequestNodeMatch does not match first predicate",
 		Parameters: []interface{}{
@@ -1058,7 +1057,7 @@ var emptyFragmentErrorCases = []TableEntry{
 		Parameters: []interface{}{
 			getRequestNodeIDExactMatch(nodeid),
 			getResultRequestNodeIDFragment(getExactAction()),
-			getDiscoveryRequestWithNode(getNode("", nodecluster, noderegion, nodezone, nodesubzone)),
+			getDiscoveryRequestWithNode(getNode("", nodecluster, noderegion, nodezone, nodesubzone, nil)),
 			"MatchPredicate Node field cannot be empty",
 		},
 	},
@@ -1067,7 +1066,7 @@ var emptyFragmentErrorCases = []TableEntry{
 		Parameters: []interface{}{
 			getRequestNodeClusterExactMatch(nodecluster),
 			getResultRequestNodeIDFragment(getExactAction()),
-			getDiscoveryRequestWithNode(getNode(nodeid, "", noderegion, nodezone, nodesubzone)),
+			getDiscoveryRequestWithNode(getNode(nodeid, "", noderegion, nodezone, nodesubzone, nil)),
 			"MatchPredicate Node field cannot be empty",
 		},
 	},
@@ -1078,7 +1077,7 @@ var emptyFragmentErrorCases = []TableEntry{
 			getResultRequestNodeLocalityFragment(&aggregationv1.ResultPredicate_LocalityResultAction{
 				RegionAction: getExactAction(),
 			}),
-			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "", nodezone, nodesubzone)),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "", nodezone, nodesubzone, nil)),
 			"RequestNodeFragment exact match resulted in an empty fragment",
 		},
 	},
@@ -1089,7 +1088,7 @@ var emptyFragmentErrorCases = []TableEntry{
 			getResultRequestNodeLocalityFragment(&aggregationv1.ResultPredicate_LocalityResultAction{
 				ZoneAction: getExactAction(),
 			}),
-			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, "", nodesubzone)),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, "", nodesubzone, nil)),
 			"RequestNodeFragment exact match resulted in an empty fragment",
 		},
 	},
@@ -1100,7 +1099,7 @@ var emptyFragmentErrorCases = []TableEntry{
 			getResultRequestNodeLocalityFragment(&aggregationv1.ResultPredicate_LocalityResultAction{
 				SubzoneAction: getExactAction(),
 			}),
-			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, "")),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, "", nil)),
 			"RequestNodeFragment exact match resulted in an empty fragment",
 		},
 	},
@@ -1109,7 +1108,7 @@ var emptyFragmentErrorCases = []TableEntry{
 		Parameters: []interface{}{
 			getAnyMatch(true),
 			getResultRequestNodeIDFragment(getExactAction()),
-			getDiscoveryRequestWithNode(getNode("", nodecluster, noderegion, nodezone, nodesubzone)),
+			getDiscoveryRequestWithNode(getNode("", nodecluster, noderegion, nodezone, nodesubzone, nil)),
 			"RequestNodeFragment exact match resulted in an empty fragment",
 		},
 	},
@@ -1118,7 +1117,7 @@ var emptyFragmentErrorCases = []TableEntry{
 		Parameters: []interface{}{
 			getAnyMatch(true),
 			getResultRequestNodeClusterFragment(getExactAction()),
-			getDiscoveryRequestWithNode(getNode(nodeid, "", noderegion, nodezone, nodesubzone)),
+			getDiscoveryRequestWithNode(getNode(nodeid, "", noderegion, nodezone, nodesubzone, nil)),
 			"RequestNodeFragment exact match resulted in an empty fragment",
 		},
 	},
@@ -1129,7 +1128,7 @@ var emptyFragmentErrorCases = []TableEntry{
 			getResultRequestNodeLocalityFragment(&aggregationv1.ResultPredicate_LocalityResultAction{
 				RegionAction: getExactAction(),
 			}),
-			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "", nodezone, nodesubzone)),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "", nodezone, nodesubzone, nil)),
 			"RequestNodeFragment exact match resulted in an empty fragment",
 		},
 	},
@@ -1140,7 +1139,7 @@ var emptyFragmentErrorCases = []TableEntry{
 			getResultRequestNodeLocalityFragment(&aggregationv1.ResultPredicate_LocalityResultAction{
 				ZoneAction: getExactAction(),
 			}),
-			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, "", nodesubzone)),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, "", nodesubzone, nil)),
 			"RequestNodeFragment exact match resulted in an empty fragment",
 		},
 	},
@@ -1151,7 +1150,7 @@ var emptyFragmentErrorCases = []TableEntry{
 			getResultRequestNodeLocalityFragment(&aggregationv1.ResultPredicate_LocalityResultAction{
 				SubzoneAction: getExactAction(),
 			}),
-			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, "")),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, "", nil)),
 			"RequestNodeFragment exact match resulted in an empty fragment",
 		},
 	},
@@ -1211,7 +1210,7 @@ var emptyFragmentErrorCases = []TableEntry{
 		Parameters: []interface{}{
 			getAnyMatch(true),
 			getResourceNameFragment(-1, getExactAction()),
-			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "", nodezone, nodesubzone)),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "", nodezone, nodesubzone, nil)),
 			"ResourceNamesFragment.Element cannot be negative or larger than length",
 		},
 	},
@@ -1220,7 +1219,7 @@ var emptyFragmentErrorCases = []TableEntry{
 		Parameters: []interface{}{
 			getAnyMatch(true),
 			getResourceNameFragment(10, getExactAction()),
-			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "", nodezone, nodesubzone)),
+			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "", nodezone, nodesubzone, nil)),
 			"ResourceNamesFragment.Element cannot be negative or larger than length",
 		},
 	},
@@ -1750,7 +1749,7 @@ func getNodeMetadataRegexAction(pattern string, replace string) *StringAction {
 }
 
 func getDiscoveryRequest() v2.DiscoveryRequest {
-	return getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, nodesubzone))
+	return getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, nodesubzone, getNodeMetatada()))
 }
 
 func getDiscoveryRequestWithNode(node *core.Node) v2.DiscoveryRequest {
@@ -1762,7 +1761,8 @@ func getDiscoveryRequestWithNode(node *core.Node) v2.DiscoveryRequest {
 	}
 }
 
-func getNode(id string, cluster string, region string, zone string, subzone string) *core.Node {
+func getNode(id string, cluster string, region string, zone string, subzone string,
+	nodeMetadata *structpb.Struct) *core.Node {
 	return &core.Node{
 		Id:      id,
 		Cluster: cluster,
@@ -1771,7 +1771,7 @@ func getNode(id string, cluster string, region string, zone string, subzone stri
 			Zone:    zone,
 			SubZone: subzone,
 		},
-		Metadata: getNodeMetatada(),
+		Metadata: nodeMetadata,
 	}
 }
 
