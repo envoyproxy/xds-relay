@@ -1806,11 +1806,11 @@ func getNodeMetadataRegexAction(pattern string, replace string) *StringAction {
 	}
 }
 
-func getBoolAction(value bool) *aggregationv1.ResultPredicate_BoolAction {
-	return &aggregationv1.ResultPredicate_BoolAction{
-		BoolAction: value,
-	}
-}
+// func getBoolAction(value bool) *aggregationv1.ResultPredicate_BoolAction {
+// 	return &aggregationv1.ResultPredicate_BoolAction{
+// 		BoolAction: value,
+// 	}
+// }
 
 func getDiscoveryRequest() v2.DiscoveryRequest {
 	return getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, nodesubzone, getNodeMetatada()))
