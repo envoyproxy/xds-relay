@@ -169,11 +169,11 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 
 	// Log + stat to investigate NACK behavior
 	isNackRequest := req.GetError() != nil
+	resourceString := ""
+	if req.GetResourceNames() != nil {
+		resourceString = strings.Join(req.GetResourceNames()[:], ",")
+	}
 	if isNackRequest {
-		resourceString := ""
-		if req.GetResourceNames() != nil {
-			resourceString = strings.Join(req.GetResourceNames()[:], ",")
-		}
 		o.logger.With(
 			"request_version", req.GetVersionInfo(),
 			"resource_names", resourceString,
@@ -211,6 +211,9 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 						"aggregated_key", aggregatedKey,
 						"request_version", req.GetVersionInfo(),
 						"response_version", cached.Resp.GetPayloadVersion(),
+						"request_type", req.GetTypeURL(),
+						"error", req.GetError(),
+						"resource_names", resourceString,
 					).Debug(context.Background(), "NACK request receives cached response with different version")
 				}
 			}
@@ -220,9 +223,15 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 	// Check if we have a upstream stream open for this aggregated key. If not,
 	// open a stream with the representative request.
 	if !o.upstreamResponseMap.exists(aggregatedKey) {
+		// Should not happen, but logging behavior as a sanity check
 		if isNackRequest {
 			o.logger.With(
 				"aggregated_key", aggregatedKey,
+				"version_info", req.GetVersionInfo(),
+				"request_type", req.GetTypeURL(),
+				"error", req.GetError(),
+				"resource_names", resourceString,
+				"nonce", req.GetResponseNonce(),
 			).Debug(context.Background(), "NACK request attempting to open new stream")
 		}
 		upstreamResponseChan, shutdown, err := o.upstreamClient.OpenStream(req)

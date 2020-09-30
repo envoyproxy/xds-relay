@@ -23,6 +23,7 @@ import (
 	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/stretchr/testify/assert"
 	"github.com/uber-go/tally"
+	"google.golang.org/genproto/googleapis/rpc/status"
 )
 
 type mockSimpleUpstreamClient struct {
@@ -439,4 +440,72 @@ func TestUpstreamFailure(t *testing.T) {
 		t, 1, countersSnapshot[fmt.Sprintf("mock_orchestrator.cache_evict.calls+key=%v", aggregatedKey)].Value())
 	assert.EqualValues(
 		t, 1, countersSnapshot[fmt.Sprintf("mock_orchestrator.cache_evict.requests_evicted+key=%v", aggregatedKey)].Value())
+}
+
+func TestNACKRequest(t *testing.T) {
+	upstreamResponseChannel := make(chan transport.Response)
+	mapper := mapper.NewMock(t)
+	mockScope := stats.NewMockScope("mock_orchestrator")
+	orchestrator := newMockOrchestrator(
+		t,
+		mockScope,
+		mapper,
+		mockSimpleUpstreamClient{
+			responseChan: upstreamResponseChannel,
+		},
+	)
+	assert.NotNil(t, orchestrator)
+
+	// Test scenario of client sending NACK request
+	errorDetail := status.Status{
+		Message: "test_error",
+	}
+	req := gcp.Request{
+		VersionInfo: "0",
+		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
+		ErrorDetail: &errorDetail,
+	}
+
+	aggregatedKey, err := mapper.GetKey(transport.NewRequestV2(&req))
+	assert.NoError(t, err)
+	mockResponse := v2.DiscoveryResponse{
+		VersionInfo: "1",
+		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
+		Resources: []*any.Any{
+			{
+				Value: []byte("lds resource"),
+			},
+		},
+	}
+	watchers, err := orchestrator.cache.SetResponse(aggregatedKey, transport.NewResponseV2(&req, &mockResponse))
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(watchers))
+
+	respChannel, cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&req))
+	assert.NotNil(t, respChannel)
+	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.responseChannels))
+	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
+	orchestrator.upstreamResponseMap.internal.Range(func(key, val interface{}) bool {
+		assert.Equal(t, "lds", key.(string))
+		return true
+	})
+
+	// Verify stat increments counter on NACK requests
+	countersSnapshot := mockScope.Snapshot().Counters()
+	assert.EqualValues(
+		t, 1, countersSnapshot[fmt.Sprintf("mock_orchestrator.watch.created_nack+key=%v", aggregatedKey)].Value())
+
+	gotResponse := <-respChannel.GetChannel().V2
+	assertEqualResponse(t, gotResponse, mockResponse, req)
+
+	// If we pass this point, it's safe to assume the respChannel2 is empty,
+	// otherwise the test would block and not complete.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	orchestrator.shutdown(ctx)
+	testutils.AssertSyncMapLen(t, 0, orchestrator.upstreamResponseMap.internal)
+
+	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.responseChannels))
+	cancelWatch()
+	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.responseChannels))
 }
