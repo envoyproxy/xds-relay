@@ -452,8 +452,9 @@ func getFragmentFromNodeMetadataAction(
 	}
 
 	// Compare value with the one in the action
-	// TODO: implement fragment extraction for other StrucValue types.
-	return getResultFragmentFromAction(value.GetStringValue(), action.GetStringAction())
+	// TODO: We need to stringify values other than strings (bool, integers, etc) before
+	// extracting the fragment via getResultFragmentFromAction
+	return getResultFragmentFromAction(value.GetStringValue(), action.GetAction())
 }
 
 func compareString(stringMatch *aggregationv1.StringMatch, nodeValue string) (bool, error) {

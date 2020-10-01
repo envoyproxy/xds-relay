@@ -1483,75 +1483,6 @@ var _ interface {
 	ErrorName() string
 } = ResultPredicate_ResultActionValidationError{}
 
-// Validate checks the field values on ResultPredicate_BoolAction with the
-// rules defined in the proto definition for this message. If any rules are
-// violated, an error is returned.
-func (m *ResultPredicate_BoolAction) Validate() error {
-	if m == nil {
-		return nil
-	}
-
-	// no validation rules for BoolAction
-
-	return nil
-}
-
-// ResultPredicate_BoolActionValidationError is the validation error returned
-// by ResultPredicate_BoolAction.Validate if the designated constraints aren't met.
-type ResultPredicate_BoolActionValidationError struct {
-	field  string
-	reason string
-	cause  error
-	key    bool
-}
-
-// Field function returns field value.
-func (e ResultPredicate_BoolActionValidationError) Field() string { return e.field }
-
-// Reason function returns reason value.
-func (e ResultPredicate_BoolActionValidationError) Reason() string { return e.reason }
-
-// Cause function returns cause value.
-func (e ResultPredicate_BoolActionValidationError) Cause() error { return e.cause }
-
-// Key function returns key value.
-func (e ResultPredicate_BoolActionValidationError) Key() bool { return e.key }
-
-// ErrorName returns error name.
-func (e ResultPredicate_BoolActionValidationError) ErrorName() string {
-	return "ResultPredicate_BoolActionValidationError"
-}
-
-// Error satisfies the builtin error interface
-func (e ResultPredicate_BoolActionValidationError) Error() string {
-	cause := ""
-	if e.cause != nil {
-		cause = fmt.Sprintf(" | caused by: %v", e.cause)
-	}
-
-	key := ""
-	if e.key {
-		key = "key for "
-	}
-
-	return fmt.Sprintf(
-		"invalid %sResultPredicate_BoolAction.%s: %s%s",
-		key,
-		e.field,
-		e.reason,
-		cause)
-}
-
-var _ error = ResultPredicate_BoolActionValidationError{}
-
-var _ interface {
-	Field() string
-	Reason() string
-	Key() bool
-	Cause() error
-	ErrorName() string
-} = ResultPredicate_BoolActionValidationError{}
-
 // Validate checks the field values on ResultPredicate_LocalityResultAction
 // with the rules defined in the proto definition for this message. If any
 // rules are violated, an error is returned.
@@ -1680,38 +1611,21 @@ func (m *ResultPredicate_NodeMetadataAction) Validate() error {
 
 	}
 
-	switch m.Action.(type) {
-
-	case *ResultPredicate_NodeMetadataAction_StringAction:
-
-		if v, ok := interface{}(m.GetStringAction()).(interface{ Validate() error }); ok {
-			if err := v.Validate(); err != nil {
-				return ResultPredicate_NodeMetadataActionValidationError{
-					field:  "StringAction",
-					reason: "embedded message failed validation",
-					cause:  err,
-				}
-			}
-		}
-
-	case *ResultPredicate_NodeMetadataAction_BoolAction:
-
-		if v, ok := interface{}(m.GetBoolAction()).(interface{ Validate() error }); ok {
-			if err := v.Validate(); err != nil {
-				return ResultPredicate_NodeMetadataActionValidationError{
-					field:  "BoolAction",
-					reason: "embedded message failed validation",
-					cause:  err,
-				}
-			}
-		}
-
-	default:
+	if m.GetAction() == nil {
 		return ResultPredicate_NodeMetadataActionValidationError{
 			field:  "Action",
 			reason: "value is required",
 		}
+	}
 
+	if v, ok := interface{}(m.GetAction()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return ResultPredicate_NodeMetadataActionValidationError{
+				field:  "Action",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
 	}
 
 	return nil

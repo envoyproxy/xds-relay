@@ -20,7 +20,7 @@ type FragmentRule = aggregationv1.KeyerConfiguration_Fragment_Rule
 type MatchPredicate = aggregationv1.MatchPredicate
 type ResultPredicate = aggregationv1.ResultPredicate
 type LocalityResultAction = aggregationv1.ResultPredicate_LocalityResultAction
-type StringAction = aggregationv1.ResultPredicate_NodeMetadataAction_StringAction
+type StringAction = aggregationv1.ResultPredicate_ResultAction
 type StringMatch = aggregationv1.StringMatch
 type BoolMatch = aggregationv1.BoolMatch
 type Struct = structpb.Struct
@@ -410,7 +410,7 @@ var positiveTests = []TableEntry{
 			getResultRequestNodeMetadataFragment(
 				&aggregationv1.ResultPredicate_NodeMetadataAction{
 					Path:   buildPath([]string{"f1"}),
-					Action: getNodeMetadataExactAction(),
+					Action: getExactAction(),
 				},
 			),
 			clusterTypeURL,
@@ -424,7 +424,7 @@ var positiveTests = []TableEntry{
 			getResultRequestNodeMetadataFragment(
 				&aggregationv1.ResultPredicate_NodeMetadataAction{
 					Path:   buildPath([]string{"nested-field", "f2"}),
-					Action: getNodeMetadataExactAction(),
+					Action: getExactAction(),
 				},
 			),
 			clusterTypeURL,
@@ -495,7 +495,7 @@ var positiveTests = []TableEntry{
 			getResultRequestNodeMetadataFragment(
 				&aggregationv1.ResultPredicate_NodeMetadataAction{
 					Path:   buildPath([]string{"f1"}),
-					Action: getNodeMetadataRegexAction("v(.)", "version-$1"),
+					Action: getRegexAction("v(.)", "version-$1"),
 				},
 			),
 			clusterTypeURL,
@@ -509,7 +509,7 @@ var positiveTests = []TableEntry{
 			getResultRequestNodeMetadataFragment(
 				&aggregationv1.ResultPredicate_NodeMetadataAction{
 					Path:   buildPath([]string{"nested-field", "f2"}),
-					Action: getNodeMetadataRegexAction("v(.)", "version-$1"),
+					Action: getRegexAction("v(.)", "version-$1"),
 				},
 			),
 			clusterTypeURL,
@@ -1793,24 +1793,6 @@ func getRegexAction(pattern string, replace string) *aggregationv1.ResultPredica
 		},
 	}
 }
-
-func getNodeMetadataExactAction() *aggregationv1.ResultPredicate_NodeMetadataAction_StringAction {
-	return &aggregationv1.ResultPredicate_NodeMetadataAction_StringAction{
-		StringAction: getExactAction(),
-	}
-}
-
-func getNodeMetadataRegexAction(pattern string, replace string) *StringAction {
-	return &StringAction{
-		StringAction: getRegexAction(pattern, replace),
-	}
-}
-
-// func getBoolAction(value bool) *aggregationv1.ResultPredicate_BoolAction {
-// 	return &aggregationv1.ResultPredicate_BoolAction{
-// 		BoolAction: value,
-// 	}
-// }
 
 func getDiscoveryRequest() v2.DiscoveryRequest {
 	return getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, nodesubzone, getNodeMetatada()))

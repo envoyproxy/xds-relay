@@ -176,11 +176,6 @@ message ResultPredicate {
     }
   }
 
-  // [#next-free-field: 2]
-  message BoolAction {
-    bool bool_action = 1;
-  }
-
   // Rule for how to generate a fragment from a Locality object
   // [#next-free-field: 4]
   message LocalityResultAction {
@@ -191,17 +186,11 @@ message ResultPredicate {
     ResultAction subzone_action = 3;
   }
 
-  // [#next-free-field: 4]
+  // [#next-free-field: 3]
   message NodeMetadataAction {
     repeated PathSegment path = 1 [(validate.rules).repeated.min_items = 1];
 
-    oneof action {
-      option (validate.required) = true;
-
-      ResultAction string_action = 2;
-
-      BoolAction bool_action = 3;
-    }
+    ResultAction action = 2 [(validate.rules).message.required = true];
   }
 
   // [#next-free-field: 2]
