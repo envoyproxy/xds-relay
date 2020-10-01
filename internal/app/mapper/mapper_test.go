@@ -123,6 +123,15 @@ var positiveTests = []TableEntry{
 		},
 	},
 	{
+		Description: "RequestNodeMatch with nested level bool node metadata exact match",
+		Parameters: []interface{}{
+			getRequestNodeMetadataBoolMatch([]string{"nested-field", "nested-bool-field"}, getBoolMatch(false)),
+			getResultStringFragment(),
+			clusterTypeURL,
+			stringFragment,
+		},
+	},
+	{
 		Description: "RequestNodeMatch with node id regex match",
 		Parameters: []interface{}{
 			getRequestNodeIDRegexMatch("n....d"),
@@ -1828,7 +1837,8 @@ func getNodeMetatada() *structpb.Struct {
 			"nested-field": {Kind: &structpb.Value_StructValue{
 				StructValue: &Struct{
 					Fields: map[string]*Value{
-						"f2": {Kind: &StringValue{StringValue: "v2"}},
+						"f2":                {Kind: &StringValue{StringValue: "v2"}},
+						"nested-bool-field": {Kind: &structpb.Value_BoolValue{BoolValue: false}},
 					},
 				},
 			}},
