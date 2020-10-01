@@ -451,9 +451,8 @@ func getFragmentFromNodeMetadataAction(
 		nodeMetadata = value.GetStructValue()
 	}
 
-	// Compare value with the one in the action
 	// TODO: We need to stringify values other than strings (bool, integers, etc) before
-	// extracting the fragment via getResultFragmentFromAction
+	// extracting the fragment via a call to getResultFragmentFromAction.
 	return getResultFragmentFromAction(value.GetStringValue(), action.GetAction())
 }
 

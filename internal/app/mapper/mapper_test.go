@@ -20,7 +20,6 @@ type FragmentRule = aggregationv1.KeyerConfiguration_Fragment_Rule
 type MatchPredicate = aggregationv1.MatchPredicate
 type ResultPredicate = aggregationv1.ResultPredicate
 type LocalityResultAction = aggregationv1.ResultPredicate_LocalityResultAction
-type StringAction = aggregationv1.ResultPredicate_ResultAction
 type StringMatch = aggregationv1.StringMatch
 type BoolMatch = aggregationv1.BoolMatch
 type Struct = structpb.Struct
