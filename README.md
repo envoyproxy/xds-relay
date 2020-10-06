@@ -60,12 +60,12 @@ And voilà! You should be seeing logs flowing in both the terminal window where 
 
 We expose the contents of the cache in `xds-relay` via an endpoint, so we can use that to verify what are the contents of the cache for the keys being requested by the two envoy clients:
 
-    curl -s 0:6070/cache/cluster1_cds | jq '(.Resp.Resources.Clusters | map({"name": .name})) as $resp_clusters | (.Requests | map({"version_info": .version_info, "node.id": .node.id, "node.cluster": .node.cluster})) as $reqs | {"response": {"version": .Resp.VersionInfo, "clusters": $resp_clusters}, "requests": $reqs}'
+    curl -s 0:6070/cache/cluster1_cds | jq '(.Cache[0].Resp.Resources.Clusters | map({"name": .name})) as $resp_clusters | (.Cache[0].Requests | map({"version_info": .version_info, "node.id": .node.id, "node.cluster": .node.cluster})) as $reqs | {"response": {"version": .Cache[0].Resp.VersionInfo, "clusters": $resp_clusters}, "requests": $reqs}'
 
 Sample result:
 
 ``` shellsession
-❯ curl -s 0:6070/cache/cluster1_cds | jq '(.Resp.Resources.Clusters | map({"name": .name})) as $resp_clusters | (.Requests | map({"version_info": .version_info, "node.id": .node.id, "node.cluster": .node.cluster})) as $reqs | {"response": {"version": .Resp.VersionInfo, "clusters": $resp_clusters}, "requests": $reqs}'
+❯ curl -s 0:6070/cache/cluster1_cds | jq '(.Cache[0].Resp.Resources.Clusters | map({"name": .name})) as $resp_clusters | (.Cache[0].Requests | map({"version_info": .version_info, "node.id": .node.id, "node.cluster": .node.cluster})) as $reqs | {"response": {"version": .Cache[0].Resp.VersionInfo, "clusters": $resp_clusters}, "requests": $reqs}'
 {
   "response": {
     "version": "v66936",
