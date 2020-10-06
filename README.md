@@ -83,13 +83,13 @@ Sample result:
     "requests": [
       {
         "version_info": "v66936",
-        "node.id": "xds-relay",
-        "node.cluster": "cluster1"
+        "node.id": "envoy-client-1",
+        "node.cluster": "staging"
       },
       {
         "version_info": "v66936",
-        "node.id": "xds-relay-2",
-        "node.cluster": "cluster1"
+        "node.id": "envoy-client-2",
+        "node.cluster": "staging"
       }
     ]
   }
