@@ -43,7 +43,7 @@ func generateTestSnapshotNewVersion(snapshotCache cache.SnapshotCache) {
 		if err := snapshot.Consistent(); err != nil {
 			fmt.Printf("snapshot inconsistency: %+v", snapshot)
 		}
-		err := snapshotCache.SetSnapshot("xds-relay", snapshot)
+		err := snapshotCache.SetSnapshot("envoy-client-1", snapshot)
 		if err != nil {
 			fmt.Printf("set snapshot error %q for %+v", err, snapshot)
 		}

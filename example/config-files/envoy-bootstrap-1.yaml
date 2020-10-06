@@ -1,6 +1,6 @@
 node:
-  id: xds-relay
-  cluster: cluster1
+  id: envoy-client-1
+  cluster: staging
 admin:
   access_log_path: /dev/null
   address:
