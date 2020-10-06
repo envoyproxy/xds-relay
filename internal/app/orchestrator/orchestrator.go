@@ -168,12 +168,11 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 	metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchCreated).Inc(1)
 
 	// Log + stat to investigate NACK behavior
-	isNackRequest := req.GetError() != nil
 	resourceString := ""
 	if req.GetResourceNames() != nil {
 		resourceString = strings.Join(req.GetResourceNames()[:], ",")
 	}
-	if isNackRequest {
+	if isNackRequest(req) {
 		o.logger.With(
 			"request_version", req.GetVersionInfo(),
 			"resource_names", resourceString,
@@ -206,16 +205,6 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 				metrics.OrchestratorWatchErrorsSubscope(o.scope, aggregatedKey).Counter(metrics.ErrorChannelFull).Inc(1)
 			} else {
 				metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchFanouts).Inc(1)
-				if isNackRequest {
-					o.logger.With(
-						"aggregated_key", aggregatedKey,
-						"request_version", req.GetVersionInfo(),
-						"response_version", cached.Resp.GetPayloadVersion(),
-						"request_type", req.GetTypeURL(),
-						"error", req.GetError(),
-						"resource_names", resourceString,
-					).Debug(context.Background(), "NACK request receives cached response with different version")
-				}
 			}
 		}()
 	}
@@ -224,16 +213,6 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 	// open a stream with the representative request.
 	if !o.upstreamResponseMap.exists(aggregatedKey) {
 		// Should not happen, but logging behavior as a sanity check
-		if isNackRequest {
-			o.logger.With(
-				"aggregated_key", aggregatedKey,
-				"version_info", req.GetVersionInfo(),
-				"request_type", req.GetTypeURL(),
-				"error", req.GetError(),
-				"resource_names", resourceString,
-				"nonce", req.GetResponseNonce(),
-			).Debug(context.Background(), "NACK request attempting to open new stream")
-		}
 		upstreamResponseChan, shutdown, err := o.upstreamClient.OpenStream(req)
 		if err != nil {
 			// TODO implement retry/back-off logic on error scenario.
@@ -436,4 +415,9 @@ func (o *orchestrator) onCancelWatch(aggregatedKey string, req transport.Request
 func (o *orchestrator) shutdown(ctx context.Context) {
 	<-ctx.Done()
 	o.upstreamResponseMap.deleteAll()
+}
+
+
+func isNackRequest(req transport.Request) bool {
+	return req.GetError() != nil
 }
