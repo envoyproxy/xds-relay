@@ -417,7 +417,6 @@ func (o *orchestrator) shutdown(ctx context.Context) {
 	o.upstreamResponseMap.deleteAll()
 }
 
-
 func isNackRequest(req transport.Request) bool {
 	return req.GetError() != nil
 }
