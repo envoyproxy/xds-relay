@@ -65,6 +65,8 @@ type client struct {
 
 	logger log.Logger
 	scope  tally.Scope
+
+	shutdown <-chan struct{}
 }
 
 // CallOptions contains grpc client call options
@@ -113,7 +115,8 @@ func New(
 	edsClientV3 := endpointservice.NewEndpointDiscoveryServiceClient(conn)
 	cdsClientV3 := clusterservice.NewClusterDiscoveryServiceClient(conn)
 
-	go shutDown(ctx, conn)
+	shutdownSignal := make(chan struct{})
+	go shutDown(ctx, conn, shutdownSignal)
 
 	return &client{
 		ldsClient:   ldsClient,
@@ -127,6 +130,7 @@ func New(
 		callOptions: callOptions,
 		logger:      namedLogger,
 		scope:       subScope,
+		shutdown:    shutdownSignal,
 	}, nil
 }
 
@@ -156,6 +160,12 @@ func (m *client) handleStreamsWithRetry(
 	for {
 		childCtx, cancel := context.WithCancel(ctx)
 		select {
+		case _, ok := <-m.shutdown:
+			if !ok {
+				cancel()
+				close(respCh)
+				return
+			}
 		case <-ctx.Done():
 			// Context was cancelled, hence this is not an erroneous scenario.
 			// Context is cancelled only when shutdown is called or any of the send/recv goroutines error out.
@@ -305,9 +315,10 @@ func handleError(ctx context.Context, logger log.Logger, errMsg string, cancelFu
 
 // shutDown should be called in a separate goroutine.
 // This is a blocking function that closes the upstream connection on context completion.
-func shutDown(ctx context.Context, conn *grpc.ClientConn) {
+func shutDown(ctx context.Context, conn *grpc.ClientConn, signal chan struct{}) {
 	<-ctx.Done()
 	conn.Close()
+	close(signal)
 }
 
 func (e *UnsupportedResourceError) Error() string {

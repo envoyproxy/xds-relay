@@ -1,5 +1,4 @@
 // +build integration
-
 package integration
 
 import (
@@ -46,7 +45,7 @@ func TestXdsClientGetsIncrementalResponsesFromUpstreamServer(t *testing.T) {
 	snapshotsv2, configv2 := createSnapshotCache(updates, log.MockLogger)
 	cb := gcptestv2.Callbacks{Signal: make(chan struct{})}
 	scope := stats.NewMockScope("mock")
-	respCh, _, err := setup(ctx, log.MockLogger, scope, snapshotsv2, configv2, &cb)
+	respCh, _, err := setup(ctx, false, log.MockLogger, scope, snapshotsv2, configv2, &cb)
 	if err != nil {
 		assert.Fail(t, "Setup failed: %s", err.Error())
 		return
@@ -57,6 +56,9 @@ func TestXdsClientGetsIncrementalResponsesFromUpstreamServer(t *testing.T) {
 	version := 0
 	go func() {
 		for {
+			if version == 2 {
+				return
+			}
 			select {
 			case r, more := <-respCh:
 				if !more {
@@ -92,7 +94,7 @@ func TestXdsClientShutdownShouldCloseTheResponseChannel(t *testing.T) {
 
 	snapshotsv2, configv2 := createSnapshotCache(updates, log.MockLogger)
 	cb := gcptestv2.Callbacks{Signal: make(chan struct{})}
-	respCh, shutdown, err := setup(ctx, log.MockLogger, stats.NewMockScope("mock"), snapshotsv2, configv2, &cb)
+	respCh, shutdown, err := setup(ctx, false, log.MockLogger, stats.NewMockScope("mock"), snapshotsv2, configv2, &cb)
 	if err != nil {
 		assert.Fail(t, "Setup failed: %s", err.Error())
 		return
@@ -120,7 +122,7 @@ func TestServerShutdownShouldCloseResponseChannel(t *testing.T) {
 	snapshotsv2, configv2 := createSnapshotCache(updates, log.MockLogger)
 	cb := gcptestv2.Callbacks{Signal: make(chan struct{})}
 	scope := stats.NewMockScope("mock")
-	respCh, _, err := setup(serverCtx, log.MockLogger, scope, snapshotsv2, configv2, &cb)
+	respCh, _, err := setup(serverCtx, true, log.MockLogger, scope, snapshotsv2, configv2, &cb)
 	if err != nil {
 		assert.Fail(t, "Setup failed: %s", err.Error())
 		cancel()
@@ -154,7 +156,7 @@ func TestClientContextCancellationShouldCloseAllResponseChannels(t *testing.T) {
 	snapshotsv2, configv2 := createSnapshotCache(updates, log.MockLogger)
 	cb := gcptestv2.Callbacks{Signal: make(chan struct{})}
 	scope := stats.NewMockScope("mock")
-	_, _, err := setup(serverCtx, log.MockLogger, scope, snapshotsv2, configv2, &cb)
+	_, _, err := setup(serverCtx, false, log.MockLogger, scope, snapshotsv2, configv2, &cb)
 	if err != nil {
 		assert.Fail(t, "Setup failed: %s", err.Error())
 		return
@@ -210,6 +212,7 @@ func TestClientContextCancellationShouldCloseAllResponseChannels(t *testing.T) {
 
 func setup(
 	ctx context.Context,
+	useServerCtx bool,
 	logger log.Logger,
 	scope tally.Scope,
 	snapshotv2 resourcev2.TestSnapshot,
@@ -221,8 +224,12 @@ func setup(
 	// Start the origin server
 	go gcptest.RunManagementServer(ctx, srv2, srv3, originServerPort)
 
+	xdsrelayCtx := context.Background()
+	if useServerCtx {
+		xdsrelayCtx = ctx
+	}
 	client, err := upstream.New(
-		context.Background(),
+		xdsrelayCtx,
 		strings.Join([]string{"127.0.0.1", strconv.Itoa(originServerPort)}, ":"),
 		upstream.CallOptions{Timeout: time.Minute},
 		logger,
