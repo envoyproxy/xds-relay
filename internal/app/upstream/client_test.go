@@ -64,7 +64,7 @@ func TestOpenStreamShouldRetryOnStreamCreationFailure(t *testing.T) {
 			}
 			for {
 				if v, ok := scope.Snapshot().Counters()[stats[1]]; ok {
-					assert.Equal(t, int64(1), v.Value())
+					assert.NotEqual(t, int64(0), v.Value())
 					break
 				}
 			}
@@ -98,7 +98,7 @@ func TestOpenStreamShouldNotRetryOnStreamCreationFailureV3(t *testing.T) {
 			}
 			for {
 				if v, ok := scope.Snapshot().Counters()[stats[1]]; ok {
-					assert.Equal(t, int64(1), v.Value())
+					assert.NotEqual(t, int64(0), v.Value())
 					break
 				}
 			}
