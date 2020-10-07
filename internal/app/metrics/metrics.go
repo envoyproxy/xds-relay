@@ -58,6 +58,8 @@ const (
 
 	UpstreamStreamOpened = "stream_opened" // counter, # of times a gRPC stream was opened to the origin server.
 
+	UpstreamStreamCreationFailure = "stream_failure" // counter, # of times a gRPC stream creation failed.
+
 	UpstreamConnected = "connected"
 )
 

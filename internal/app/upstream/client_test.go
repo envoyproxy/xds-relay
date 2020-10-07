@@ -23,24 +23,20 @@ type CallOptions = upstream.CallOptions
 func TestOpenStreamShouldReturnErrorForInvalidTypeUrl(t *testing.T) {
 	client := createMockClient()
 
-	respCh, _, err := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{}))
-	assert.NotNil(t, err)
-	_, ok := err.(*upstream.UnsupportedResourceError)
-	assert.True(t, ok)
-	assert.Nil(t, respCh)
+	respCh, _ := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{}))
+	_, ok := <-respCh
+	assert.False(t, ok)
 }
 
 func TestOpenStreamShouldReturnErrorForInvalidTypeUrlV3(t *testing.T) {
 	client := createMockClientV3()
 
-	respCh, _, err := client.OpenStream(transport.NewRequestV3(&discoveryv3.DiscoveryRequest{}))
-	assert.NotNil(t, err)
-	_, ok := err.(*upstream.UnsupportedResourceError)
-	assert.True(t, ok)
-	assert.Nil(t, respCh)
+	respCh, _ := client.OpenStream(transport.NewRequestV3(&discoveryv3.DiscoveryRequest{}))
+	_, ok := <-respCh
+	assert.False(t, ok)
 }
 
-func TestOpenStreamShouldReturnErrorOnStreamCreationFailure(t *testing.T) {
+func TestOpenStreamShouldNotReturnErrorOnStreamCreationFailure(t *testing.T) {
 	client := createMockClientWithError()
 
 	typeURLs := []string{
@@ -51,13 +47,14 @@ func TestOpenStreamShouldReturnErrorOnStreamCreationFailure(t *testing.T) {
 	}
 	for _, typeURL := range typeURLs {
 		t.Run(typeURL, func(t *testing.T) {
-			respCh, _, err := client.OpenStream(
+			respCh, _ := client.OpenStream(
 				transport.NewRequestV2(&v2.DiscoveryRequest{
 					TypeUrl: typeURL,
 					Node:    &core.Node{},
 				}))
-			assert.Nil(t, respCh)
-			assert.NotNil(t, err)
+			result, ok := <-respCh
+			assert.Nil(t, result)
+			assert.False(t, ok)
 		})
 	}
 }
@@ -73,13 +70,14 @@ func TestOpenStreamShouldReturnErrorOnStreamCreationFailureV3(t *testing.T) {
 	}
 	for _, typeURL := range typeURLs {
 		t.Run(typeURL, func(t *testing.T) {
-			respCh, _, err := client.OpenStream(
+			respCh, _ := client.OpenStream(
 				transport.NewRequestV3(&discoveryv3.DiscoveryRequest{
 					TypeUrl: typeURL,
 					Node:    &corev3.Node{},
 				}))
-			assert.Nil(t, respCh)
-			assert.NotNil(t, err)
+			result, ok := <-respCh
+			assert.Nil(t, result)
+			assert.False(t, ok)
 		})
 	}
 }
@@ -87,26 +85,24 @@ func TestOpenStreamShouldReturnErrorOnStreamCreationFailureV3(t *testing.T) {
 func TestOpenStreamShouldReturnNonEmptyResponseChannel(t *testing.T) {
 	client := createMockClient()
 
-	respCh, done, err := client.OpenStream(
+	respCh, done := client.OpenStream(
 		transport.NewRequestV2(&v2.DiscoveryRequest{
 			TypeUrl: resource.ListenerType,
 			Node:    &core.Node{},
 		}))
 	assert.NotNil(t, respCh)
-	assert.Nil(t, err)
 	done()
 }
 
 func TestOpenStreamShouldReturnNonEmptyResponseChannelV3(t *testing.T) {
 	client := createMockClientV3()
 
-	respCh, done, err := client.OpenStream(
+	respCh, done := client.OpenStream(
 		transport.NewRequestV3(&discoveryv3.DiscoveryRequest{
 			TypeUrl: resourcev3.ListenerType,
 			Node:    &corev3.Node{},
 		}))
 	assert.NotNil(t, respCh)
-	assert.Nil(t, err)
 	done()
 }
 
@@ -130,7 +126,7 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServer(t *testing.T) {
 	)
 
 	node := &core.Node{}
-	_, done, _ := client.OpenStream(
+	_, done := client.OpenStream(
 		transport.NewRequestV2(&v2.DiscoveryRequest{
 			TypeUrl: resource.ListenerType,
 			Node:    node,
@@ -162,7 +158,7 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServerV3(t *testing.T) {
 	)
 
 	node := &corev3.Node{}
-	_, done, _ := client.OpenStream(
+	_, done := client.OpenStream(
 		transport.NewRequestV3(&discoveryv3.DiscoveryRequest{
 			TypeUrl: resourcev3.ListenerType,
 			Node:    node,
@@ -181,7 +177,7 @@ func TestOpenStreamShouldSendErrorIfSendFails(t *testing.T) {
 		return sendError
 	})
 
-	resp, done, _ := client.OpenStream(
+	resp, done := client.OpenStream(
 		transport.NewRequestV2(&v2.DiscoveryRequest{
 			TypeUrl: resource.ListenerType,
 			Node:    &core.Node{},
@@ -198,7 +194,7 @@ func TestOpenStreamShouldSendErrorIfSendFailsV3(t *testing.T) {
 		return sendError
 	})
 
-	resp, done, _ := client.OpenStream(
+	resp, done := client.OpenStream(
 		transport.NewRequestV3(&discoveryv3.DiscoveryRequest{
 			TypeUrl: resourcev3.ListenerType,
 			Node:    &corev3.Node{},
@@ -216,12 +212,11 @@ func TestOpenStreamShouldSendTheResponseOnTheChannel(t *testing.T) {
 		return nil
 	})
 
-	resp, done, err := client.OpenStream(
+	resp, done := client.OpenStream(
 		transport.NewRequestV2(&v2.DiscoveryRequest{
 			TypeUrl: resource.ListenerType,
 			Node:    &core.Node{},
 		}))
-	assert.Nil(t, err)
 	assert.NotNil(t, resp)
 	val := <-resp
 	assert.Equal(t, val.Get().V2, response)
@@ -236,12 +231,11 @@ func TestOpenStreamShouldSendTheResponseOnTheChannelV3(t *testing.T) {
 		return nil
 	})
 
-	resp, done, err := client.OpenStream(
+	resp, done := client.OpenStream(
 		transport.NewRequestV3(&discoveryv3.DiscoveryRequest{
 			TypeUrl: resourcev3.ListenerType,
 			Node:    &corev3.Node{},
 		}))
-	assert.Nil(t, err)
 	assert.NotNil(t, resp)
 	val := <-resp
 	assert.Equal(t, val.Get().V3, response)
@@ -269,12 +263,11 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonce(t *testing
 		return nil
 	})
 
-	resp, done, err := client.OpenStream(
+	resp, done := client.OpenStream(
 		transport.NewRequestV2(&v2.DiscoveryRequest{
 			TypeUrl: resource.ListenerType,
 			Node:    &core.Node{},
 		}))
-	assert.Nil(t, err)
 	assert.NotNil(t, resp)
 	for i := 0; i < 5; i++ {
 		val := <-resp
@@ -306,12 +299,11 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonceV3(t *testi
 		return nil
 	})
 
-	resp, done, err := client.OpenStream(
+	resp, done := client.OpenStream(
 		transport.NewRequestV3(&discoveryv3.DiscoveryRequest{
 			TypeUrl: resourcev3.ListenerType,
 			Node:    &corev3.Node{},
 		}))
-	assert.Nil(t, err)
 	assert.NotNil(t, resp)
 	for i := 0; i < 5; i++ {
 		val := <-resp
@@ -332,11 +324,10 @@ func TestOpenStreamShouldSendErrorWhenSendMsgBlocks(t *testing.T) {
 		return nil
 	})
 
-	resp, done, err := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{
+	resp, done := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{
 		TypeUrl: resource.ListenerType,
 		Node:    &core.Node{},
 	}))
-	assert.Nil(t, err)
 	assert.NotNil(t, resp)
 	_, more := <-resp
 	assert.False(t, more)
@@ -355,11 +346,10 @@ func TestOpenStreamShouldSendErrorWhenSendMsgBlocksV3(t *testing.T) {
 		return nil
 	})
 
-	resp, done, err := client.OpenStream(transport.NewRequestV3(&discoveryv3.DiscoveryRequest{
+	resp, done := client.OpenStream(transport.NewRequestV3(&discoveryv3.DiscoveryRequest{
 		TypeUrl: resourcev3.ListenerType,
 		Node:    &corev3.Node{},
 	}))
-	assert.Nil(t, err)
 	assert.NotNil(t, resp)
 	_, more := <-resp
 	assert.False(t, more)
