@@ -38,7 +38,7 @@ func TestOpenStreamShouldReturnErrorForInvalidTypeUrlV3(t *testing.T) {
 	assert.False(t, ok)
 }
 
-func TestOpenStreamShouldNotReturnErrorOnStreamCreationFailure(t *testing.T) {
+func TestOpenStreamShouldRetryOnStreamCreationFailure(t *testing.T) {
 	scope := stats.NewMockScope("mock")
 	client := createMockClientWithError(scope)
 
@@ -72,7 +72,7 @@ func TestOpenStreamShouldNotReturnErrorOnStreamCreationFailure(t *testing.T) {
 	}
 }
 
-func TestOpenStreamShouldNotReturnErrorOnStreamCreationFailureV3(t *testing.T) {
+func TestOpenStreamShouldNotRetryOnStreamCreationFailureV3(t *testing.T) {
 	scope := stats.NewMockScope("mock")
 	client := createMockClientWithErrorV3(scope)
 
@@ -381,8 +381,8 @@ func TestOpenStreamShouldRetryWhenSendMsgBlocks(t *testing.T) {
 
 	cancel()
 	select {
-	case <-respCh:
-		assert.Fail(t, "Channel should not contain any response")
+	case v := <-respCh:
+		assert.Fail(t, "Channel should not contain any response %s", v.Get().V2.VersionInfo)
 	default:
 	}
 

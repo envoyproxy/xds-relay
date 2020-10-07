@@ -1,5 +1,3 @@
-// +build integration
-
 package integration
 
 import (
@@ -168,13 +166,13 @@ func TestClientContextCancellationShouldCloseAllResponseChannels(t *testing.T) {
 		log.MockLogger,
 		stats.NewMockScope("mock"),
 	)
-	respCh1, _, _ := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{
+	respCh1, _ := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{
 		TypeUrl: resource.ClusterType,
 		Node: &corev2.Node{
 			Id: nodeID,
 		},
 	}))
-	respCh2, _, _ := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{
+	respCh2, _ := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{
 		TypeUrl: resource.ClusterType,
 		Node: &corev2.Node{
 			Id: nodeID,
@@ -233,17 +231,12 @@ func setup(
 		return nil, nil, err
 	}
 
-	respCh, shutdown, err := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{
+	respCh, shutdown := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{
 		TypeUrl: resource.ClusterType,
 		Node: &corev2.Node{
 			Id: nodeID,
 		},
 	}))
-
-	if err != nil {
-		logger.Error(ctx, "Open stream failed %s", err.Error())
-		return nil, nil, err
-	}
 
 	select {
 	case <-cb.Signal:
