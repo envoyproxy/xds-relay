@@ -309,6 +309,7 @@ func TestAdminServer_CacheDumpHandler_EntireCacheV3(t *testing.T) {
 			nil,
 			upstreamResponseChannelCDS,
 			func(m interface{}) error { return nil },
+			stats.NewMockScope("mock"),
 		)
 		orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
 		assert.NotNil(t, orchestrator)
@@ -508,6 +509,7 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffixV3(t *testing.T) {
 			nil,
 			upstreamResponseChannelCDS,
 			func(m interface{}) error { return nil },
+			stats.NewMockScope("mock"),
 		)
 		orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
 		assert.NotNil(t, orchestrator)
