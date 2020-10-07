@@ -14,6 +14,7 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
 
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
+	"github.com/envoyproxy/xds-relay/internal/pkg/stats"
 
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
 	"github.com/envoyproxy/xds-relay/internal/app/orchestrator"
@@ -112,6 +113,7 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 		nil,
 		nil,
 		func(m interface{}) error { return nil },
+		stats.NewMockScope("mock"),
 	)
 	orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
 	assert.NotNil(t, orchestrator)
@@ -174,6 +176,7 @@ func TestAdminServer_CacheDumpHandler_NotFound(t *testing.T) {
 		nil,
 		upstreamResponseChannel,
 		func(m interface{}) error { return nil },
+		stats.NewMockScope("mock"),
 	)
 	orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
 	assert.NotNil(t, orchestrator)
@@ -205,6 +208,7 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
 			nil,
 			upstreamResponseChannelCDS,
 			func(m interface{}) error { return nil },
+			stats.NewMockScope("mock"),
 		)
 		orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
 		assert.NotNil(t, orchestrator)
@@ -403,6 +407,7 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffix(t *testing.T) {
 			nil,
 			upstreamResponseChannelCDS,
 			func(m interface{}) error { return nil },
+			stats.NewMockScope("scope"),
 		)
 		orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
 		assert.NotNil(t, orchestrator)
@@ -605,6 +610,7 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffix_NotFound(t *testing.T) {
 			nil,
 			upstreamResponseChannelCDS,
 			func(m interface{}) error { return nil },
+			stats.NewMockScope("mock"),
 		)
 		orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
 		assert.NotNil(t, orchestrator)
