@@ -358,13 +358,11 @@ func TestOpenStreamShouldRetryWhenSendMsgBlocks(t *testing.T) {
 	responseChan := make(chan *v2.DiscoveryResponse)
 	blockedCtx, cancel := context.WithCancel(context.Background())
 	first := true
-	response1 := &v2.DiscoveryResponse{VersionInfo: "1"}
 	response2 := &v2.DiscoveryResponse{VersionInfo: "2"}
 	client := createMockClientWithResponse(time.Nanosecond, responseChan, func(m interface{}) error {
 		if first {
 			first = !first
 			<-blockedCtx.Done()
-			responseChan <- response1
 			return nil
 		}
 		responseChan <- response2
@@ -380,16 +378,10 @@ func TestOpenStreamShouldRetryWhenSendMsgBlocks(t *testing.T) {
 	assert.Equal(t, resp.Get().V2.VersionInfo, response2.VersionInfo)
 
 	cancel()
-	select {
-	case v := <-respCh:
-		assert.Fail(t, "Channel should not contain any response %s", v.Get().V2.VersionInfo)
-	default:
-	}
-
 	done()
 }
 
-func TestOpenStreamShouldSendErrorWhenSendMsgBlocksV3(t *testing.T) {
+func TestOpenStreamShouldRetryWhenSendMsgBlocksV3(t *testing.T) {
 	responseChan := make(chan *discoveryv3.DiscoveryResponse)
 	blockedCtx, cancel := context.WithCancel(context.Background())
 	first := true
@@ -415,12 +407,6 @@ func TestOpenStreamShouldSendErrorWhenSendMsgBlocksV3(t *testing.T) {
 	assert.Equal(t, resp.Get().V3.VersionInfo, response2.VersionInfo)
 
 	cancel()
-	select {
-	case v := <-respCh:
-		assert.Fail(t, "Channel should not contain any response %s", v.Get().V3.VersionInfo)
-	default:
-	}
-
 	done()
 }
 
