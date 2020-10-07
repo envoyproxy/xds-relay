@@ -232,7 +232,7 @@ func TestOpenStreamShouldRetryIfSendFailsV3(t *testing.T) {
 		}
 		responseChan <- response
 		return nil
-	})
+	}, stats.NewMockScope("mock"))
 
 	resp, done := client.OpenStream(
 		transport.NewRequestV3(&discoveryv3.DiscoveryRequest{
@@ -269,7 +269,7 @@ func TestOpenStreamShouldSendTheResponseOnTheChannelV3(t *testing.T) {
 	client := createMockClientWithResponseV3(time.Second, responseChan, func(m interface{}) error {
 		responseChan <- response
 		return nil
-	})
+	}, stats.NewMockScope("mock"))
 
 	resp, done := client.OpenStream(
 		transport.NewRequestV3(&discoveryv3.DiscoveryRequest{
@@ -337,7 +337,7 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonceV3(t *testi
 		index++
 		responseChan <- response
 		return nil
-	})
+	}, stats.NewMockScope("mock"))
 
 	resp, done := client.OpenStream(
 		transport.NewRequestV3(&discoveryv3.DiscoveryRequest{
@@ -387,29 +387,41 @@ func TestOpenStreamShouldRetryWhenSendMsgBlocks(t *testing.T) {
 	}
 
 	done()
-
 }
 
 func TestOpenStreamShouldSendErrorWhenSendMsgBlocksV3(t *testing.T) {
 	responseChan := make(chan *discoveryv3.DiscoveryResponse)
 	blockedCtx, cancel := context.WithCancel(context.Background())
+	first := true
+	response1 := &discoveryv3.DiscoveryResponse{VersionInfo: "1"}
+	response2 := &discoveryv3.DiscoveryResponse{VersionInfo: "2"}
 	client := createMockClientWithResponseV3(time.Nanosecond, responseChan, func(m interface{}) error {
-		// TODO: When stats are available, strengthen the test
-		// https://github.com/envoyproxy/xds-relay/issues/61
-		<-blockedCtx.Done()
+		if first {
+			first = !first
+			<-blockedCtx.Done()
+			responseChan <- response1
+			return nil
+		}
+		responseChan <- response2
 		return nil
-	})
+	}, stats.NewMockScope("mock"))
 
-	resp, done := client.OpenStream(transport.NewRequestV3(&discoveryv3.DiscoveryRequest{
+	respCh, done := client.OpenStream(transport.NewRequestV3(&discoveryv3.DiscoveryRequest{
 		TypeUrl: resourcev3.ListenerType,
 		Node:    &corev3.Node{},
 	}))
-	assert.NotNil(t, resp)
-	_, more := <-resp
-	assert.False(t, more)
+	resp, ok := <-respCh
+	assert.True(t, ok)
+	assert.Equal(t, resp.Get().V3.VersionInfo, response2.VersionInfo)
+
+	cancel()
+	select {
+	case <-respCh:
+		assert.Fail(t, "Channel should not contain any response")
+	default:
+	}
 
 	done()
-	cancel()
 }
 
 func createMockClient() upstream.Client {
@@ -475,6 +487,7 @@ func createMockClientWithErrorV3(scope tally.Scope) upstream.Client {
 func createMockClientWithResponseV3(
 	t time.Duration,
 	r chan *discoveryv3.DiscoveryResponse,
-	sendCb func(m interface{}) error) upstream.Client {
-	return upstream.NewMockV3(context.Background(), CallOptions{Timeout: t}, nil, r, r, r, r, sendCb, stats.NewMockScope("mock"))
+	sendCb func(m interface{}) error,
+	scope tally.Scope) upstream.Client {
+	return upstream.NewMockV3(context.Background(), CallOptions{Timeout: t}, nil, r, r, r, r, sendCb, scope)
 }
