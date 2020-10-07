@@ -134,7 +134,7 @@ func (m *client) OpenStream(request transport.Request) (<-chan transport.Respons
 	ctx, cancel := context.WithCancel(context.Background())
 	response := make(chan transport.Response)
 
-	go m.handleStreamsWithRetry(ctx, cancel, request, response)
+	go m.handleStreamsWithRetry(ctx, request, response)
 
 	// We use context cancellation over using a separate channel for signalling stream shutdown.
 	// The reason is cancelling a context tied with the stream is straightforward to signal closure.
@@ -145,7 +145,6 @@ func (m *client) OpenStream(request transport.Request) (<-chan transport.Respons
 
 func (m *client) handleStreamsWithRetry(
 	ctx context.Context,
-	cancel context.CancelFunc,
 	request transport.Request,
 	respCh chan transport.Response) {
 	var (
@@ -155,50 +154,53 @@ func (m *client) handleStreamsWithRetry(
 		scope  tally.Scope
 	)
 	for {
+		childCtx, cancel := context.WithCancel(ctx)
 		select {
 		case <-ctx.Done():
 			// Context was cancelled, hence this is not an erroneous scenario.
 			// Context is cancelled only when shutdown is called or any of the send/recv goroutines error out.
 			// The shutdown can be called by the caller in many cases, during app shutdown/ttl expiry, etc
+			cancel()
 			close(respCh)
 			return
 		default:
 			signal := make(chan *version, 1)
 			switch request.GetTypeURL() {
 			case resource.ListenerType:
-				s, err = m.ldsClient.StreamListeners(ctx)
+				s, err = m.ldsClient.StreamListeners(childCtx)
 				stream = transport.NewStreamV2(s, request, m.logger)
 				scope = m.scope.SubScope(metrics.ScopeUpstreamLDS)
 			case resource.ClusterType:
-				s, err = m.cdsClient.StreamClusters(ctx)
+				s, err = m.cdsClient.StreamClusters(childCtx)
 				stream = transport.NewStreamV2(s, request, m.logger)
 				scope = m.scope.SubScope(metrics.ScopeUpstreamCDS)
 			case resource.RouteType:
-				s, err = m.rdsClient.StreamRoutes(ctx)
+				s, err = m.rdsClient.StreamRoutes(childCtx)
 				stream = transport.NewStreamV2(s, request, m.logger)
 				scope = m.scope.SubScope(metrics.ScopeUpstreamRDS)
 			case resource.EndpointType:
-				s, err = m.edsClient.StreamEndpoints(ctx)
+				s, err = m.edsClient.StreamEndpoints(childCtx)
 				stream = transport.NewStreamV2(s, request, m.logger)
 				scope = m.scope.SubScope(metrics.ScopeUpstreamEDS)
 			case resourcev3.ListenerType:
-				s, err = m.ldsClientV3.StreamListeners(ctx)
+				s, err = m.ldsClientV3.StreamListeners(childCtx)
 				stream = transport.NewStreamV3(s, request, m.logger)
 				scope = m.scope.SubScope(metrics.ScopeUpstreamLDS)
 			case resourcev3.ClusterType:
-				s, err = m.cdsClientV3.StreamClusters(ctx)
+				s, err = m.cdsClientV3.StreamClusters(childCtx)
 				stream = transport.NewStreamV3(s, request, m.logger)
 				scope = m.scope.SubScope(metrics.ScopeUpstreamCDS)
 			case resourcev3.RouteType:
-				s, err = m.rdsClientV3.StreamRoutes(ctx)
+				s, err = m.rdsClientV3.StreamRoutes(childCtx)
 				stream = transport.NewStreamV3(s, request, m.logger)
 				scope = m.scope.SubScope(metrics.ScopeUpstreamRDS)
 			case resourcev3.EndpointType:
-				s, err = m.edsClientV3.StreamEndpoints(ctx)
+				s, err = m.edsClientV3.StreamEndpoints(childCtx)
 				stream = transport.NewStreamV3(s, request, m.logger)
 				scope = m.scope.SubScope(metrics.ScopeUpstreamEDS)
 			default:
-				handleError(ctx, m.logger, "Unsupported Type Url", cancel, fmt.Errorf(request.GetTypeURL()))
+				handleError(ctx, m.logger, "Unsupported Type Url", func() {}, fmt.Errorf(request.GetTypeURL()))
+				cancel()
 				close(signal)
 				close(respCh)
 				return
@@ -216,8 +218,8 @@ func (m *client) handleStreamsWithRetry(
 			var wg sync.WaitGroup
 			wg.Add(2)
 
-			go send(ctx, wg, m.logger, cancel, stream, signal, m.callOptions)
-			go recv(ctx, wg, cancel, m.logger, respCh, stream, signal)
+			go send(childCtx, wg.Done, m.logger, cancel, stream, signal, m.callOptions)
+			go recv(childCtx, wg.Done, cancel, m.logger, respCh, stream, signal)
 			m.logger.With("request_type", request.GetTypeURL()).Info(ctx, "stream opened")
 
 			wg.Wait()
@@ -231,13 +233,13 @@ func (m *client) handleStreamsWithRetry(
 // - send also exits on context cancellations.
 func send(
 	ctx context.Context,
-	wg sync.WaitGroup,
+	complete func(),
 	logger log.Logger,
 	cancelFunc context.CancelFunc,
 	stream transport.Stream,
 	signal chan *version,
 	callOptions CallOptions) {
-	defer wg.Done()
+	defer complete()
 	for {
 		select {
 		case sig, ok := <-signal:
@@ -264,13 +266,13 @@ func send(
 // The only ways to exit the goroutine is by cancelling the context or when an error occurs.
 func recv(
 	ctx context.Context,
-	wg sync.WaitGroup,
+	complete func(),
 	cancelFunc context.CancelFunc,
 	logger log.Logger,
 	response chan transport.Response,
 	stream transport.Stream,
 	signal chan *version) {
-	defer wg.Done()
+	defer complete()
 	for {
 		resp, err := stream.RecvMsg()
 		if err != nil {
