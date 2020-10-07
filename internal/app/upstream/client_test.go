@@ -416,8 +416,8 @@ func TestOpenStreamShouldSendErrorWhenSendMsgBlocksV3(t *testing.T) {
 
 	cancel()
 	select {
-	case <-respCh:
-		assert.Fail(t, "Channel should not contain any response")
+	case v := <-respCh:
+		assert.Fail(t, "Channel should not contain any response %s", v.Get().V3.VersionInfo)
 	default:
 	}
 
