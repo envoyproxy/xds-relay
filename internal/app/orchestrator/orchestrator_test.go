@@ -457,13 +457,12 @@ func TestNACKRequest(t *testing.T) {
 	assert.NotNil(t, orchestrator)
 
 	// Test scenario of client sending NACK request
-	errorDetail := status.Status{
-		Message: "test_error",
-	}
 	req := gcp.Request{
 		VersionInfo: "0",
 		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
-		ErrorDetail: &errorDetail,
+		ErrorDetail: &status.Status{
+			Message: "test_error",
+		},
 	}
 
 	aggregatedKey, err := mapper.GetKey(transport.NewRequestV2(&req))

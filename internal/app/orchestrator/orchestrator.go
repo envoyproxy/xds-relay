@@ -168,11 +168,11 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 	metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchCreated).Inc(1)
 
 	// Log + stat to investigate NACK behavior
-	resourceString := ""
-	if req.GetResourceNames() != nil {
-		resourceString = strings.Join(req.GetResourceNames()[:], ",")
-	}
 	if isNackRequest(req) {
+		resourceString := ""
+		if req.GetResourceNames() != nil {
+			resourceString = strings.Join(req.GetResourceNames()[:], ",")
+		}
 		o.logger.With(
 			"request_version", req.GetVersionInfo(),
 			"resource_names", resourceString,
