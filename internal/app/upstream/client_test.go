@@ -455,6 +455,44 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonceV3(t *testi
 	}
 }
 
+func TestOpenStreamShouldRetryWhenSendMsgBlocks(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	responseChan := make(chan *v2.DiscoveryResponse)
+	blocked := make(chan struct{})
+	first := true
+	response2 := &v2.DiscoveryResponse{VersionInfo: "2"}
+	exit := make(chan struct{})
+	client := createMockClientWithResponse(ctx, time.Nanosecond, responseChan, func(m interface{}) error {
+		if first {
+			first = false
+			<-blocked
+			return nil
+		}
+
+		select {
+		case <-exit:
+			return nil
+		default:
+			responseChan <- response2
+			return nil
+		}
+	}, stats.NewMockScope("mock"))
+
+	respCh, done := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{
+		TypeUrl: resource.ListenerType,
+		Node:    &core.Node{},
+	}))
+	resp, ok := <-respCh
+	assert.True(t, ok)
+	assert.Equal(t, resp.Get().V2.VersionInfo, response2.VersionInfo)
+
+	done()
+	cancel()
+	close(exit)
+	close(blocked)
+}
+
 func createMockClient(ctx context.Context) upstream.Client {
 	return upstream.NewMock(
 		ctx,
