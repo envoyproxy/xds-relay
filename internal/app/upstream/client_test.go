@@ -18,11 +18,13 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/pkg/stats"
 	"github.com/stretchr/testify/assert"
 	"github.com/uber-go/tally"
+	"go.uber.org/goleak"
 )
 
 type CallOptions = upstream.CallOptions
 
 func TestOpenStreamShouldReturnErrorForInvalidTypeUrl(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	client := createMockClient()
 
 	respCh, _ := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{}))
