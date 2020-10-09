@@ -217,8 +217,12 @@ func (m *client) handleStreamsWithRetry(
 			}
 			if err != nil {
 				scope.Counter(metrics.UpstreamStreamCreationFailure).Inc(1)
+				m.logger.With("request_type", request.GetTypeURL()).Info(ctx, "stream failed")
+				close(signal)
 				continue
 			}
+
+			m.logger.With("request_type", request.GetTypeURL()).Info(ctx, "stream opened")
 
 			scope.Counter(metrics.UpstreamStreamOpened).Inc(1)
 			// The xds protocol https://www.envoyproxy.io/docs/envoy/latest/api-docs/xds_protocol#ack
@@ -230,7 +234,6 @@ func (m *client) handleStreamsWithRetry(
 
 			go send(childCtx, wg.Done, m.logger, cancel, stream, signal, m.callOptions)
 			go recv(childCtx, wg.Done, cancel, m.logger, respCh, stream, signal)
-			m.logger.With("request_type", request.GetTypeURL()).Info(ctx, "stream opened")
 
 			wg.Wait()
 		}
