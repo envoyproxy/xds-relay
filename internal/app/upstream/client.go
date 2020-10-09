@@ -174,7 +174,6 @@ func (m *client) handleStreamsWithRetry(
 			close(respCh)
 			return
 		default:
-			signal := make(chan *version, 1)
 			switch request.GetTypeURL() {
 			case resource.ListenerType:
 				s, err = m.ldsClient.StreamListeners(childCtx)
@@ -211,19 +210,19 @@ func (m *client) handleStreamsWithRetry(
 			default:
 				handleError(ctx, m.logger, "Unsupported Type Url", func() {}, fmt.Errorf(request.GetTypeURL()))
 				cancel()
-				close(signal)
 				close(respCh)
 				return
 			}
 			if err != nil {
+				m.logger.With("request_type", request.GetTypeURL()).Warn(ctx, "stream failed")
 				scope.Counter(metrics.UpstreamStreamCreationFailure).Inc(1)
-				m.logger.With("request_type", request.GetTypeURL()).Info(ctx, "stream failed")
-				close(signal)
+				cancel()
 				continue
 			}
 
+			signal := make(chan *version, 1)
+			defer close(signal)
 			m.logger.With("request_type", request.GetTypeURL()).Info(ctx, "stream opened")
-
 			scope.Counter(metrics.UpstreamStreamOpened).Inc(1)
 			// The xds protocol https://www.envoyproxy.io/docs/envoy/latest/api-docs/xds_protocol#ack
 			// specifies that the first request be empty nonce and empty version.
