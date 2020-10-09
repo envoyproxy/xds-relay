@@ -242,6 +242,7 @@ func TestOpenStreamShouldRetryIfSendFails(t *testing.T) {
 	errResp := true
 	response := &v2.DiscoveryResponse{}
 	exit := make(chan struct{})
+	defer close(exit)
 	client := createMockClientWithResponse(ctx, time.Second, responseChan, func(m interface{}) error {
 		if errResp {
 			errResp = false
@@ -265,7 +266,6 @@ func TestOpenStreamShouldRetryIfSendFails(t *testing.T) {
 	defer done()
 	_, more := <-resp
 	assert.True(t, more)
-	close(exit)
 }
 
 func TestOpenStreamShouldRetryIfSendFailsV3(t *testing.T) {
@@ -277,6 +277,7 @@ func TestOpenStreamShouldRetryIfSendFailsV3(t *testing.T) {
 	errResp := true
 	response := &discoveryv3.DiscoveryResponse{}
 	exit := make(chan struct{})
+	defer close(exit)
 	client := createMockClientWithResponseV3(ctx, time.Second, responseChan, func(m interface{}) error {
 		if errResp {
 			errResp = false
@@ -300,7 +301,6 @@ func TestOpenStreamShouldRetryIfSendFailsV3(t *testing.T) {
 	defer done()
 	_, more := <-resp
 	assert.True(t, more)
-	close(exit)
 }
 
 func TestOpenStreamShouldSendTheResponseOnTheChannel(t *testing.T) {
