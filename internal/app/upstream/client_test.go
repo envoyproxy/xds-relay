@@ -458,11 +458,14 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonceV3(t *testi
 func TestOpenStreamShouldRetryWhenSendMsgBlocks(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	responseChan := make(chan *v2.DiscoveryResponse)
 	blocked := make(chan struct{})
+	defer close(blocked)
 	first := true
 	response2 := &v2.DiscoveryResponse{VersionInfo: "2"}
 	exit := make(chan struct{})
+	defer close(exit)
 	client := createMockClientWithResponse(ctx, time.Nanosecond, responseChan, func(m interface{}) error {
 		if first {
 			first = false
@@ -483,14 +486,47 @@ func TestOpenStreamShouldRetryWhenSendMsgBlocks(t *testing.T) {
 		TypeUrl: resource.ListenerType,
 		Node:    &core.Node{},
 	}))
+	defer done()
 	resp, ok := <-respCh
 	assert.True(t, ok)
 	assert.Equal(t, resp.Get().V2.VersionInfo, response2.VersionInfo)
+}
 
-	done()
-	cancel()
-	close(exit)
-	close(blocked)
+func TestOpenStreamShouldRetryWhenSendMsgBlocksV3(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	responseChan := make(chan *discoveryv3.DiscoveryResponse)
+	blocked := make(chan struct{})
+	defer close(blocked)
+	first := true
+	response2 := &discoveryv3.DiscoveryResponse{VersionInfo: "2"}
+	exit := make(chan struct{})
+	defer close(exit)
+	client := createMockClientWithResponseV3(ctx, time.Nanosecond, responseChan, func(m interface{}) error {
+		if first {
+			first = false
+			<-blocked
+			return nil
+		}
+
+		select {
+		case <-exit:
+			return nil
+		default:
+			responseChan <- response2
+			return nil
+		}
+	}, stats.NewMockScope("mock"))
+
+	respCh, done := client.OpenStream(transport.NewRequestV3(&discoveryv3.DiscoveryRequest{
+		TypeUrl: resourcev3.ListenerType,
+		Node:    &corev3.Node{},
+	}))
+	defer done()
+	resp, ok := <-respCh
+	assert.True(t, ok)
+	assert.Equal(t, response2.VersionInfo, resp.Get().V3.VersionInfo)
 }
 
 func createMockClient(ctx context.Context) upstream.Client {
