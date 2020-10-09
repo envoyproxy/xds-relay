@@ -289,12 +289,12 @@ func recv(
 		resp, err := stream.RecvMsg()
 		if err != nil {
 			handleError(ctx, logger, "Error in RecvMsg", cancelFunc, err)
-			break
+			return
 		}
 
 		select {
 		case <-ctx.Done():
-			break
+			return
 		default:
 			response <- resp
 			signal <- &version{version: resp.GetPayloadVersion(), nonce: resp.GetNonce()}
