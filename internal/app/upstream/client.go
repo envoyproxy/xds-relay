@@ -234,7 +234,6 @@ func (m *client) handleStreamsWithRetry(
 			go recv(childCtx, wg.Done, cancel, m.logger, respCh, stream, signal)
 
 			wg.Wait()
-			close(signal)
 		}
 	}
 }
