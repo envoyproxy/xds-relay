@@ -212,29 +212,19 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 	// Check if we have a upstream stream open for this aggregated key. If not,
 	// open a stream with the representative request.
 	if !o.upstreamResponseMap.exists(aggregatedKey) {
-		// Should not happen, but logging behavior as a sanity check
-		upstreamResponseChan, shutdown, err := o.upstreamClient.OpenStream(req)
-		if err != nil {
-			// TODO implement retry/back-off logic on error scenario.
-			// https://github.com/envoyproxy/xds-relay/issues/68
-			o.logger.With(
-				"error", err,
-				"aggregated_key", aggregatedKey,
-			).Error(ctx, "Failed to open stream to origin server")
+		upstreamResponseChan, shutdown := o.upstreamClient.OpenStream(req)
+		respChannel, upstreamOpenedPreviously := o.upstreamResponseMap.add(aggregatedKey, upstreamResponseChan)
+		if upstreamOpenedPreviously {
+			// A stream was opened previously due to a race between
+			// concurrent downstreams for the same aggregated key, between
+			// exists and add operations. In this event, simply close the
+			// slower stream and return the existing one.
+			shutdown()
 		} else {
-			respChannel, upstreamOpenedPreviously := o.upstreamResponseMap.add(aggregatedKey, upstreamResponseChan)
-			if upstreamOpenedPreviously {
-				// A stream was opened previously due to a race between
-				// concurrent downstreams for the same aggregated key, between
-				// exists and add operations. In this event, simply close the
-				// slower stream and return the existing one.
-				shutdown()
-			} else {
-				// Spin up a go routine to watch for upstream responses.
-				// One routine is opened per aggregate key.
-				o.logger.With("aggregated_key", aggregatedKey).Debug(ctx, "watching upstream")
-				go o.watchUpstream(ctx, aggregatedKey, respChannel.response, respChannel.done, shutdown)
-			}
+			// Spin up a go routine to watch for upstream responses.
+			// One routine is opened per aggregate key.
+			o.logger.With("aggregated_key", aggregatedKey).Debug(ctx, "watching upstream")
+			go o.watchUpstream(ctx, aggregatedKey, respChannel.response, respChannel.done, shutdown)
 		}
 	}
 

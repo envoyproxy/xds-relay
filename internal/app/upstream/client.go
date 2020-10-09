@@ -3,6 +3,7 @@ package upstream
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/envoyproxy/xds-relay/internal/app/metrics"
@@ -48,7 +49,7 @@ type Client interface {
 	// The shutdown function represents the intent that a stream is supposed to be closed.
 	// All goroutines that depend on the ctx object should consider ctx.Done to be related to shutdown.
 	// All such scenarios need to exit cleanly and are not considered an erroneous situation.
-	OpenStream(transport.Request) (<-chan transport.Response, func(), error)
+	OpenStream(transport.Request) (<-chan transport.Response, func())
 }
 
 type client struct {
@@ -64,6 +65,8 @@ type client struct {
 
 	logger log.Logger
 	scope  tally.Scope
+
+	shutdown <-chan struct{}
 }
 
 // CallOptions contains grpc client call options
@@ -112,7 +115,8 @@ func New(
 	edsClientV3 := endpointservice.NewEndpointDiscoveryServiceClient(conn)
 	cdsClientV3 := clusterservice.NewClusterDiscoveryServiceClient(conn)
 
-	go shutDown(ctx, conn)
+	shutdownSignal := make(chan struct{})
+	go shutDown(ctx, conn, shutdownSignal)
 
 	return &client{
 		ldsClient:   ldsClient,
@@ -126,80 +130,111 @@ func New(
 		callOptions: callOptions,
 		logger:      namedLogger,
 		scope:       subScope,
+		shutdown:    shutdownSignal,
 	}, nil
 }
 
-func (m *client) OpenStream(request transport.Request) (<-chan transport.Response, func(), error) {
+func (m *client) OpenStream(request transport.Request) (<-chan transport.Response, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
+	response := make(chan transport.Response)
+
+	go m.handleStreamsWithRetry(ctx, request, response)
+
+	// We use context cancellation over using a separate channel for signalling stream shutdown.
+	// The reason is cancelling a context tied with the stream is straightforward to signal closure.
+	// Also, the shutdown function could potentially be called more than once by a caller.
+	// Closing channels is not idempotent while cancelling context is idempotent.
+	return response, func() { cancel() }
+}
+
+func (m *client) handleStreamsWithRetry(
+	ctx context.Context,
+	request transport.Request,
+	respCh chan transport.Response) {
 	var (
 		s      grpc.ClientStream
 		stream transport.Stream
 		err    error
 		scope  tally.Scope
 	)
-	switch request.GetTypeURL() {
-	case resource.ListenerType:
-		s, err = m.ldsClient.StreamListeners(ctx)
-		stream = transport.NewStreamV2(s, request, m.logger)
-		scope = m.scope.SubScope(metrics.ScopeUpstreamLDS)
-	case resource.ClusterType:
-		s, err = m.cdsClient.StreamClusters(ctx)
-		stream = transport.NewStreamV2(s, request, m.logger)
-		scope = m.scope.SubScope(metrics.ScopeUpstreamCDS)
-	case resource.RouteType:
-		s, err = m.rdsClient.StreamRoutes(ctx)
-		stream = transport.NewStreamV2(s, request, m.logger)
-		scope = m.scope.SubScope(metrics.ScopeUpstreamRDS)
-	case resource.EndpointType:
-		s, err = m.edsClient.StreamEndpoints(ctx)
-		stream = transport.NewStreamV2(s, request, m.logger)
-		scope = m.scope.SubScope(metrics.ScopeUpstreamEDS)
-	case resourcev3.ListenerType:
-		s, err = m.ldsClientV3.StreamListeners(ctx)
-		stream = transport.NewStreamV3(s, request, m.logger)
-		scope = m.scope.SubScope(metrics.ScopeUpstreamLDS)
-	case resourcev3.ClusterType:
-		s, err = m.cdsClientV3.StreamClusters(ctx)
-		stream = transport.NewStreamV3(s, request, m.logger)
-		scope = m.scope.SubScope(metrics.ScopeUpstreamCDS)
-	case resourcev3.RouteType:
-		s, err = m.rdsClientV3.StreamRoutes(ctx)
-		stream = transport.NewStreamV3(s, request, m.logger)
-		scope = m.scope.SubScope(metrics.ScopeUpstreamRDS)
-	case resourcev3.EndpointType:
-		s, err = m.edsClientV3.StreamEndpoints(ctx)
-		stream = transport.NewStreamV3(s, request, m.logger)
-		scope = m.scope.SubScope(metrics.ScopeUpstreamEDS)
-	default:
-		defer cancel()
-		m.logger.Error(ctx, "Unsupported Type Url %s", request.GetTypeURL())
-		return nil, nil, &UnsupportedResourceError{TypeURL: request.GetTypeURL()}
+	for {
+		childCtx, cancel := context.WithCancel(ctx)
+		select {
+		case _, ok := <-m.shutdown:
+			if !ok {
+				cancel()
+				close(respCh)
+				return
+			}
+		case <-ctx.Done():
+			// Context was cancelled, hence this is not an erroneous scenario.
+			// Context is cancelled only when shutdown is called or any of the send/recv goroutines error out.
+			// The shutdown can be called by the caller in many cases, during app shutdown/ttl expiry, etc
+			cancel()
+			close(respCh)
+			return
+		default:
+			signal := make(chan *version, 1)
+			switch request.GetTypeURL() {
+			case resource.ListenerType:
+				s, err = m.ldsClient.StreamListeners(childCtx)
+				stream = transport.NewStreamV2(s, request, m.logger)
+				scope = m.scope.SubScope(metrics.ScopeUpstreamLDS)
+			case resource.ClusterType:
+				s, err = m.cdsClient.StreamClusters(childCtx)
+				stream = transport.NewStreamV2(s, request, m.logger)
+				scope = m.scope.SubScope(metrics.ScopeUpstreamCDS)
+			case resource.RouteType:
+				s, err = m.rdsClient.StreamRoutes(childCtx)
+				stream = transport.NewStreamV2(s, request, m.logger)
+				scope = m.scope.SubScope(metrics.ScopeUpstreamRDS)
+			case resource.EndpointType:
+				s, err = m.edsClient.StreamEndpoints(childCtx)
+				stream = transport.NewStreamV2(s, request, m.logger)
+				scope = m.scope.SubScope(metrics.ScopeUpstreamEDS)
+			case resourcev3.ListenerType:
+				s, err = m.ldsClientV3.StreamListeners(childCtx)
+				stream = transport.NewStreamV3(s, request, m.logger)
+				scope = m.scope.SubScope(metrics.ScopeUpstreamLDS)
+			case resourcev3.ClusterType:
+				s, err = m.cdsClientV3.StreamClusters(childCtx)
+				stream = transport.NewStreamV3(s, request, m.logger)
+				scope = m.scope.SubScope(metrics.ScopeUpstreamCDS)
+			case resourcev3.RouteType:
+				s, err = m.rdsClientV3.StreamRoutes(childCtx)
+				stream = transport.NewStreamV3(s, request, m.logger)
+				scope = m.scope.SubScope(metrics.ScopeUpstreamRDS)
+			case resourcev3.EndpointType:
+				s, err = m.edsClientV3.StreamEndpoints(childCtx)
+				stream = transport.NewStreamV3(s, request, m.logger)
+				scope = m.scope.SubScope(metrics.ScopeUpstreamEDS)
+			default:
+				handleError(ctx, m.logger, "Unsupported Type Url", func() {}, fmt.Errorf(request.GetTypeURL()))
+				cancel()
+				close(signal)
+				close(respCh)
+				return
+			}
+			if err != nil {
+				scope.Counter(metrics.UpstreamStreamCreationFailure).Inc(1)
+				continue
+			}
+
+			scope.Counter(metrics.UpstreamStreamOpened).Inc(1)
+			// The xds protocol https://www.envoyproxy.io/docs/envoy/latest/api-docs/xds_protocol#ack
+			// specifies that the first request be empty nonce and empty version.
+			// The origin server will respond with the latest version.
+			signal <- &version{nonce: "", version: ""}
+			var wg sync.WaitGroup
+			wg.Add(2)
+
+			go send(childCtx, wg.Done, m.logger, cancel, stream, signal, m.callOptions)
+			go recv(childCtx, wg.Done, cancel, m.logger, respCh, stream, signal)
+			m.logger.With("request_type", request.GetTypeURL()).Info(ctx, "stream opened")
+
+			wg.Wait()
+		}
 	}
-
-	if err != nil {
-		defer cancel()
-		return nil, nil, err
-	}
-	scope.Counter(metrics.UpstreamStreamOpened).Inc(1)
-
-	signal := make(chan *version, 1)
-	// The xds protocol https://www.envoyproxy.io/docs/envoy/latest/api-docs/xds_protocol#ack
-	// specifies that the first request be empty nonce and empty version.
-	// The origin server will respond with the latest version.
-	signal <- &version{nonce: "", version: ""}
-
-	response := make(chan transport.Response)
-
-	go send(ctx, m.logger, cancel, stream, signal, m.callOptions)
-	go recv(ctx, cancel, m.logger, response, stream, signal)
-
-	m.logger.With("request_type", request.GetTypeURL()).Info(ctx, "stream opened")
-
-	// We use context cancellation over using a separate channel for signalling stream shutdown.
-	// The reason is cancelling a context tied with the stream is straightforward to signal closure.
-	// Also, the shutdown function could potentially be called more than once by a caller.
-	// Closing channels is not idempotent while cancelling context is idempotent.
-	return response, func() { cancel() }, nil
 }
 
 // It is safe to assume send goroutine will not leak as long as these conditions are true:
@@ -208,11 +243,13 @@ func (m *client) OpenStream(request transport.Request) (<-chan transport.Respons
 // - send also exits on context cancellations.
 func send(
 	ctx context.Context,
+	complete func(),
 	logger log.Logger,
 	cancelFunc context.CancelFunc,
 	stream transport.Stream,
 	signal chan *version,
 	callOptions CallOptions) {
+	defer complete()
 	for {
 		select {
 		case sig, ok := <-signal:
@@ -239,11 +276,13 @@ func send(
 // The only ways to exit the goroutine is by cancelling the context or when an error occurs.
 func recv(
 	ctx context.Context,
+	complete func(),
 	cancelFunc context.CancelFunc,
 	logger log.Logger,
 	response chan transport.Response,
 	stream transport.Stream,
 	signal chan *version) {
+	defer complete()
 	for {
 		resp, err := stream.RecvMsg()
 		if err != nil {
@@ -259,7 +298,7 @@ func recv(
 			signal <- &version{version: resp.GetPayloadVersion(), nonce: resp.GetNonce()}
 		}
 	}
-	closeChannels(signal, response)
+	close(signal)
 }
 
 func handleError(ctx context.Context, logger log.Logger, errMsg string, cancelFunc context.CancelFunc, err error) {
@@ -274,18 +313,12 @@ func handleError(ctx context.Context, logger log.Logger, errMsg string, cancelFu
 	}
 }
 
-// closeChannels is called whenever the context is cancelled (ctx.Done) in Send and Recv goroutines.
-// It is also called when an irrecoverable error occurs and the error is passed to the caller.
-func closeChannels(versionChan chan *version, responseChan chan transport.Response) {
-	close(versionChan)
-	close(responseChan)
-}
-
 // shutDown should be called in a separate goroutine.
 // This is a blocking function that closes the upstream connection on context completion.
-func shutDown(ctx context.Context, conn *grpc.ClientConn) {
+func shutDown(ctx context.Context, conn *grpc.ClientConn, signal chan struct{}) {
 	<-ctx.Done()
 	conn.Close()
+	close(signal)
 }
 
 func (e *UnsupportedResourceError) Error() string {

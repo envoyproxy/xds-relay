@@ -30,8 +30,8 @@ type mockSimpleUpstreamClient struct {
 	responseChan <-chan transport.Response
 }
 
-func (m mockSimpleUpstreamClient) OpenStream(req transport.Request) (<-chan transport.Response, func(), error) {
-	return m.responseChan, func() {}, nil
+func (m mockSimpleUpstreamClient) OpenStream(req transport.Request) (<-chan transport.Response, func()) {
+	return m.responseChan, func() {}
 }
 
 type mockMultiStreamUpstreamClient struct {
@@ -44,18 +44,18 @@ type mockMultiStreamUpstreamClient struct {
 
 func (m mockMultiStreamUpstreamClient) OpenStream(
 	req transport.Request,
-) (<-chan transport.Response, func(), error) {
+) (<-chan transport.Response, func()) {
 	aggregatedKey, err := m.mapper.GetKey(req)
 	assert.NoError(m.t, err)
 
 	if aggregatedKey == "lds" {
-		return m.ldsResponseChan, func() {}, nil
+		return m.ldsResponseChan, func() {}
 	} else if aggregatedKey == "cds" {
-		return m.cdsResponseChan, func() {}, nil
+		return m.cdsResponseChan, func() {}
 	}
 
 	m.t.Errorf("Unsupported aggregated key, %s", aggregatedKey)
-	return nil, func() {}, nil
+	return nil, func() {}
 }
 
 func newMockOrchestrator(t *testing.T, mockScope tally.Scope, mapper mapper.Mapper,
@@ -94,6 +94,7 @@ func TestNew(t *testing.T) {
 		nil,
 		nil,
 		func(m interface{}) error { return nil },
+		stats.NewMockScope("mock"),
 	)
 
 	config := aggregationv1.KeyerConfiguration{
