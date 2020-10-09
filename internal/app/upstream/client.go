@@ -221,7 +221,6 @@ func (m *client) handleStreamsWithRetry(
 			}
 
 			signal := make(chan *version, 1)
-			defer close(signal)
 			m.logger.With("request_type", request.GetTypeURL()).Info(ctx, "stream opened")
 			scope.Counter(metrics.UpstreamStreamOpened).Inc(1)
 			// The xds protocol https://www.envoyproxy.io/docs/envoy/latest/api-docs/xds_protocol#ack
@@ -235,6 +234,7 @@ func (m *client) handleStreamsWithRetry(
 			go recv(childCtx, wg.Done, cancel, m.logger, respCh, stream, signal)
 
 			wg.Wait()
+			close(signal)
 		}
 	}
 }
