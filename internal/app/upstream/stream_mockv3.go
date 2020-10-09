@@ -27,7 +27,12 @@ type mockGrpcStreamV3 struct {
 }
 
 func (stream *mockGrpcStreamV3) SendMsg(m interface{}) error {
-	return stream.sendCb(m)
+	select {
+	case <-stream.ctx.Done():
+		return nil
+	default:
+		return stream.sendCb(m)
+	}
 }
 
 func (stream *mockGrpcStreamV3) RecvMsg(m interface{}) error {
