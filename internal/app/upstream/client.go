@@ -234,6 +234,7 @@ func (m *client) handleStreamsWithRetry(
 			go recv(childCtx, wg.Done, cancel, m.logger, respCh, stream, signal)
 
 			wg.Wait()
+			close(signal)
 		}
 	}
 }
@@ -299,7 +300,6 @@ func recv(
 			signal <- &version{version: resp.GetPayloadVersion(), nonce: resp.GetNonce()}
 		}
 	}
-	close(signal)
 }
 
 func handleError(ctx context.Context, logger log.Logger, errMsg string, cancelFunc context.CancelFunc, err error) {
