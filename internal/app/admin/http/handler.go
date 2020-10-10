@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"net/http/pprof"
 	"strings"
 	"time"
 
@@ -64,6 +65,66 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 			"/server_info",
 			"print bootstrap configuration",
 			configDumpHandler(bootstrap),
+		},
+		{
+			"/debug/pprof/",
+			"Index responds with the pprof-formatted profile named by the request",
+			pprof.Index,
+		},
+		{
+			"/debug/pprof",
+			"Index responds with the pprof-formatted profile named by the request",
+			pprof.Index,
+		},
+		{
+			"/debug/pprof/cmdline",
+			"The command line invocation of the current program",
+			pprof.Cmdline,
+		},
+		{
+			"/debug/pprof/profile",
+			"CPU profile. You can specify the duration in the seconds GET parameter. After you get the profile file, use the go tool pprof command to investigate the profile.",
+			pprof.Profile,
+		},
+		{
+			"/debug/pprof/symbol",
+			"Symbol looks up the program counters listed in the request, responding with a table mapping program counters to function names.",
+			pprof.Symbol,
+		},
+		{
+			"/debug/pprof/trace",
+			"A trace of execution of the current program. You can specify the duration in the seconds GET parameter. After you get the trace file, use the go tool trace command to investigate the trace.",
+			pprof.Trace,
+		},
+		{
+			"/debug/pprof/goroutine",
+			"Stack traces of all current goroutines",
+			pprof.Handler("goroutine").ServeHTTP,
+		},
+		{
+			"/debug/pprof/heap",
+			"A sampling of memory allocations of live objects. You can specify the gc GET parameter to run GC before taking the heap sample.",
+			pprof.Handler("heap").ServeHTTP,
+		},
+		{
+			"/debug/pprof/threadcreate",
+			"Stack traces that led to the creation of new OS threads",
+			pprof.Handler("threadcreate").ServeHTTP,
+		},
+		{
+			"/debug/pprof/block",
+			"Stack traces that led to blocking on synchronization primitives",
+			pprof.Handler("block").ServeHTTP,
+		},
+		{
+			"/debug/pprof/mutex",
+			"Stack traces of holders of contended mutexes",
+			pprof.Handler("mutex").ServeHTTP,
+		},
+		{
+			"/debug/pprof/allocs",
+			"A sampling of all past memory allocations",
+			pprof.Handler("allocs").ServeHTTP,
 		},
 	}
 	// The default handler is defined later to avoid infinite recursion.
