@@ -214,7 +214,7 @@ func (m *client) handleStreamsWithRetry(
 				return
 			}
 			if err != nil {
-				m.logger.With("request_type", request.GetTypeURL()).Warn(ctx, "stream failed")
+				//m.logger.With("request_type", request.GetTypeURL()).Warn(ctx, "stream failed")
 				scope.Counter(metrics.UpstreamStreamCreationFailure).Inc(1)
 				cancel()
 				continue
