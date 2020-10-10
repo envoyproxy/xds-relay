@@ -83,17 +83,17 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 		},
 		{
 			"/debug/pprof/profile",
-			"CPU profile. You can specify the duration in the seconds GET parameter. After you get the profile file, use the go tool pprof command to investigate the profile.",
+			"CPU profile. You can specify the duration in the seconds GET parameter.",
 			pprof.Profile,
 		},
 		{
 			"/debug/pprof/symbol",
-			"Symbol looks up the program counters listed in the request, responding with a table mapping program counters to function names.",
+			"Symbol looks up the program counters listed in the request.",
 			pprof.Symbol,
 		},
 		{
 			"/debug/pprof/trace",
-			"A trace of execution of the current program. You can specify the duration in the seconds GET parameter. After you get the trace file, use the go tool trace command to investigate the trace.",
+			"A trace of execution of the current program. You can specify the duration in the seconds GET parameter.",
 			pprof.Trace,
 		},
 		{
@@ -103,7 +103,7 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 		},
 		{
 			"/debug/pprof/heap",
-			"A sampling of memory allocations of live objects. You can specify the gc GET parameter to run GC before taking the heap sample.",
+			"A sampling of memory allocations of live objects.",
 			pprof.Handler("heap").ServeHTTP,
 		},
 		{
