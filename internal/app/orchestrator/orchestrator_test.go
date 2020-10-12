@@ -498,7 +498,7 @@ func TestNACKRequest(t *testing.T) {
 	gotResponse := <-respChannel.GetChannel().V2
 	assertEqualResponse(t, gotResponse, mockResponse, req)
 
-	// If we pass this point, it's safe to assume the respChannel2 is empty,
+	// If we pass this point, it's safe to assume the respChannel is empty,
 	// otherwise the test would block and not complete.
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
