@@ -23,4 +23,5 @@ require (
 	google.golang.org/genproto v0.0.0-20191108220845-16a3f7862a1a
 	google.golang.org/grpc v1.27.1
 	google.golang.org/protobuf v1.23.0
+	go.uber.org/goleak v1.1.0
 )
