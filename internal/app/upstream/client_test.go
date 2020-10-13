@@ -370,12 +370,9 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonce(t *testing
 	responseChan := make(chan *v2.DiscoveryResponse)
 	lastAppliedVersion := ""
 	index := 0
-	exit := make(chan struct{})
-	defer close(exit)
 	client := createMockClientWithResponse(ctx, time.Second, responseChan, func(m interface{}) error {
 		select {
-		case <-exit:
-			close(responseChan)
+		case <-ctx.Done():
 			return nil
 		default:
 		}
@@ -391,7 +388,12 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonce(t *testing
 		}
 		lastAppliedVersion = strconv.Itoa(index)
 		index++
-		responseChan <- response
+		select {
+		case responseChan <- response:
+		case <-ctx.Done():
+			return nil
+		}
+
 		return nil
 	}, stats.NewMockScope("mock"))
 
@@ -407,6 +409,12 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonce(t *testing
 		assert.Equal(t, val.GetPayloadVersion(), strconv.Itoa(i))
 		assert.Equal(t, val.GetNonce(), strconv.Itoa(i))
 	}
+
+	done()
+	cancel()
+	blockUntilClean(resp, func() {
+		close(responseChan)
+	})
 }
 
 func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonceV3(t *testing.T) {
@@ -597,4 +605,16 @@ func createMockClientWithResponseV3(
 	sendCb func(m interface{}) error,
 	scope tally.Scope) upstream.Client {
 	return upstream.NewMockV3(ctx, CallOptions{Timeout: t}, nil, r, r, r, r, sendCb, scope)
+}
+
+func blockUntilClean(resp <-chan transport.Response, tearDown func()) {
+	for {
+		select {
+		case _, ok := <-resp:
+			if !ok {
+				tearDown()
+				return
+			}
+		}
+	}
 }
