@@ -67,25 +67,24 @@ func TestOpenStreamShouldRetryOnStreamCreationFailure(t *testing.T) {
 					TypeUrl: url,
 					Node:    &core.Node{},
 				}))
-			defer done()
 			assert.NotNil(t, respCh)
 			for {
-				if v, ok := scope.Snapshot().Counters()[stats[0]]; ok {
-					assert.Equal(t, int64(1), v.Value())
+				if v, ok := scope.Snapshot().Counters()[stats[0]]; ok && v.Value() == 1 {
 					break
 				}
 			}
 			for {
-				if v, ok := scope.Snapshot().Counters()[stats[1]]; ok {
-					assert.NotEqual(t, int64(0), v.Value())
+				if v, ok := scope.Snapshot().Counters()[stats[1]]; ok && v.Value() != 0 {
 					break
 				}
 			}
+			done()
+			blockUntilClean(respCh, func() {})
 		})
 	}
 }
 
-func TestOpenStreamShouldNotRetryOnStreamCreationFailureV3(t *testing.T) {
+func TestOpenStreamShouldRetryOnStreamCreationFailureV3(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	scope := stats.NewMockScope("mock")
 	ctx, cancel := context.WithCancel(context.Background())
@@ -105,20 +104,19 @@ func TestOpenStreamShouldNotRetryOnStreamCreationFailureV3(t *testing.T) {
 					TypeUrl: url,
 					Node:    &corev3.Node{},
 				}))
-			defer done()
 			assert.NotNil(t, respCh)
 			for {
-				if v, ok := scope.Snapshot().Counters()[stats[0]]; ok {
-					assert.Equal(t, int64(1), v.Value())
+				if v, ok := scope.Snapshot().Counters()[stats[0]]; ok && v.Value() == 1 {
 					break
 				}
 			}
 			for {
-				if v, ok := scope.Snapshot().Counters()[stats[1]]; ok {
-					assert.NotEqual(t, int64(0), v.Value())
+				if v, ok := scope.Snapshot().Counters()[stats[1]]; ok && v.Value() != 0 {
 					break
 				}
 			}
+			done()
+			blockUntilClean(respCh, func() {})
 		})
 	}
 }
@@ -126,7 +124,6 @@ func TestOpenStreamShouldNotRetryOnStreamCreationFailureV3(t *testing.T) {
 func TestOpenStreamShouldReturnNonEmptyResponseChannel(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	client := createMockClient(ctx)
 
 	respCh, done := client.OpenStream(
@@ -134,14 +131,16 @@ func TestOpenStreamShouldReturnNonEmptyResponseChannel(t *testing.T) {
 			TypeUrl: resource.ListenerType,
 			Node:    &core.Node{},
 		}))
-	defer done()
 	assert.NotNil(t, respCh)
+
+	done()
+	cancel()
+	blockUntilClean(respCh, func() {})
 }
 
 func TestOpenStreamShouldReturnNonEmptyResponseChannelV3(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	client := createMockClientV3(ctx)
 
 	respCh, done := client.OpenStream(
@@ -149,14 +148,16 @@ func TestOpenStreamShouldReturnNonEmptyResponseChannelV3(t *testing.T) {
 			TypeUrl: resourcev3.ListenerType,
 			Node:    &corev3.Node{},
 		}))
-	defer done()
 	assert.NotNil(t, respCh)
+
+	done()
+	cancel()
+	blockUntilClean(respCh, func() {})
 }
 
 func TestOpenStreamShouldSendTheFirstRequestToOriginServer(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	var message *v2.DiscoveryRequest
 	responseChan := make(chan *v2.DiscoveryResponse)
 	wait := make(chan bool)
@@ -181,22 +182,24 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServer(t *testing.T) {
 	)
 
 	node := &core.Node{}
-	_, done := client.OpenStream(
+	resp, done := client.OpenStream(
 		transport.NewRequestV2(&v2.DiscoveryRequest{
 			TypeUrl: resource.ListenerType,
 			Node:    node,
 		}))
-	defer done()
 	<-wait
 	assert.NotNil(t, message)
 	assert.Equal(t, message.GetNode(), node)
 	assert.Equal(t, message.GetTypeUrl(), resource.ListenerType)
+
+	done()
+	cancel()
+	blockUntilClean(resp, func() {})
 }
 
 func TestOpenStreamShouldSendTheFirstRequestToOriginServerV3(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	var message *discoveryv3.DiscoveryRequest
 	responseChan := make(chan *discoveryv3.DiscoveryResponse)
 	wait := make(chan bool)
@@ -221,16 +224,19 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServerV3(t *testing.T) {
 	)
 
 	node := &corev3.Node{}
-	_, done := client.OpenStream(
+	resp, done := client.OpenStream(
 		transport.NewRequestV3(&discoveryv3.DiscoveryRequest{
 			TypeUrl: resourcev3.ListenerType,
 			Node:    node,
 		}))
-	defer done()
 	<-wait
 	assert.NotNil(t, message)
 	assert.Equal(t, message.GetNode(), node)
 	assert.Equal(t, message.GetTypeUrl(), resourcev3.ListenerType)
+
+	done()
+	cancel()
+	blockUntilClean(resp, func() {})
 }
 
 func TestOpenStreamShouldRetryIfSendFails(t *testing.T) {
