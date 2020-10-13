@@ -470,23 +470,18 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonceV3(t *testi
 func TestOpenStreamShouldRetryWhenSendMsgBlocks(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	responseChan := make(chan *v2.DiscoveryResponse)
-	blocked := make(chan struct{})
-	defer close(blocked)
 	first := true
 	response2 := &v2.DiscoveryResponse{VersionInfo: "2"}
-	exit := make(chan struct{})
-	defer close(exit)
 	client := createMockClientWithResponse(ctx, time.Nanosecond, responseChan, func(m interface{}) error {
 		if first {
 			first = false
-			<-blocked
+			<-ctx.Done()
 			return nil
 		}
 
 		select {
-		case <-exit:
+		case <-ctx.Done():
 			return nil
 		default:
 			responseChan <- response2
@@ -498,10 +493,13 @@ func TestOpenStreamShouldRetryWhenSendMsgBlocks(t *testing.T) {
 		TypeUrl: resource.ListenerType,
 		Node:    &core.Node{},
 	}))
-	defer done()
 	resp, ok := <-respCh
 	assert.True(t, ok)
 	assert.Equal(t, resp.Get().V2.VersionInfo, response2.VersionInfo)
+
+	done()
+	cancel()
+	blockUntilClean(respCh, func() {})
 }
 
 func TestOpenStreamShouldRetryWhenSendMsgBlocksV3(t *testing.T) {
@@ -509,21 +507,17 @@ func TestOpenStreamShouldRetryWhenSendMsgBlocksV3(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	responseChan := make(chan *discoveryv3.DiscoveryResponse)
-	blocked := make(chan struct{})
-	defer close(blocked)
 	first := true
 	response2 := &discoveryv3.DiscoveryResponse{VersionInfo: "2"}
-	exit := make(chan struct{})
-	defer close(exit)
 	client := createMockClientWithResponseV3(ctx, time.Nanosecond, responseChan, func(m interface{}) error {
 		if first {
 			first = false
-			<-blocked
+			<-ctx.Done()
 			return nil
 		}
 
 		select {
-		case <-exit:
+		case <-ctx.Done():
 			return nil
 		default:
 			responseChan <- response2
@@ -535,10 +529,13 @@ func TestOpenStreamShouldRetryWhenSendMsgBlocksV3(t *testing.T) {
 		TypeUrl: resourcev3.ListenerType,
 		Node:    &corev3.Node{},
 	}))
-	defer done()
 	resp, ok := <-respCh
 	assert.True(t, ok)
 	assert.Equal(t, response2.VersionInfo, resp.Get().V3.VersionInfo)
+
+	done()
+	cancel()
+	blockUntilClean(respCh, func() {})
 }
 
 func createMockClient(ctx context.Context) upstream.Client {
