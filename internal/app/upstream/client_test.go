@@ -420,16 +420,12 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonce(t *testing
 func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonceV3(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	responseChan := make(chan *discoveryv3.DiscoveryResponse)
 	lastAppliedVersion := ""
 	index := 0
-	exit := make(chan struct{})
-	defer close(exit)
 	client := createMockClientWithResponseV3(ctx, time.Second, responseChan, func(m interface{}) error {
 		select {
-		case <-exit:
-			close(responseChan)
+		case <-ctx.Done():
 			return nil
 		default:
 		}
@@ -445,7 +441,11 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonceV3(t *testi
 		}
 		lastAppliedVersion = strconv.Itoa(index)
 		index++
-		responseChan <- response
+		select {
+		case responseChan <- response:
+		case <-ctx.Done():
+			return nil
+		}
 		return nil
 	}, stats.NewMockScope("mock"))
 
@@ -454,13 +454,18 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonceV3(t *testi
 			TypeUrl: resourcev3.ListenerType,
 			Node:    &corev3.Node{},
 		}))
-	defer done()
 	assert.NotNil(t, resp)
 	for i := 0; i < 5; i++ {
 		val := <-resp
 		assert.Equal(t, val.GetPayloadVersion(), strconv.Itoa(i))
 		assert.Equal(t, val.GetNonce(), strconv.Itoa(i))
 	}
+
+	done()
+	cancel()
+	blockUntilClean(resp, func() {
+		close(responseChan)
+	})
 }
 
 func TestOpenStreamShouldRetryWhenSendMsgBlocks(t *testing.T) {
