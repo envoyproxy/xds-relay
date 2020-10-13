@@ -72,12 +72,6 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 			true,
 		},
 		{
-			"/debug/pprof",
-			"Index responds with the pprof-formatted profile named by the request",
-			pprof.Index,
-			false,
-		},
-		{
 			"/debug/pprof/goroutine",
 			"Stack traces of all current goroutines",
 			pprof.Handler("goroutine").ServeHTTP,
