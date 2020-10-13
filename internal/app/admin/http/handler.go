@@ -39,6 +39,7 @@ type Handler struct {
 	pattern     string
 	description string
 	handler     http.HandlerFunc
+	redirect    bool
 }
 
 func getHandlers(bootstrap *bootstrapv1.Bootstrap,
@@ -49,77 +50,92 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 			"/",
 			"admin home page",
 			func(http.ResponseWriter, *http.Request) {},
+			true,
 		},
 		{
 			"/cache",
 			"print cache entry for a given key. Omitting the key outputs all cache entries. usage: `/cache/<key>`",
 			cacheDumpHandler(orchestrator),
+			true,
 		},
 		{
 			"/log_level",
 			"update the log level to `debug`, `info`, `warn`, or `error`. " +
 				"Omitting the level outputs the current log level. usage: `/log_level/<level>`",
 			logLevelHandler(logger),
+			true,
 		},
 		{
 			"/server_info",
 			"print bootstrap configuration",
 			configDumpHandler(bootstrap),
+			true,
 		},
 		{
-			"/debug/pprof/",
+			"/debug/pprof",
 			"Index responds with the pprof-formatted profile named by the request",
 			pprof.Index,
+			false,
 		},
 		{
-			"/debug/pprof/cmdline/",
+			"/debug/pprof/cmdline",
 			"The command line invocation of the current program",
 			pprof.Cmdline,
+			false,
 		},
 		{
-			"/debug/pprof/profile/",
+			"/debug/pprof/profile",
 			"CPU profile. You can specify the duration in the seconds GET parameter.",
 			pprof.Profile,
+			false,
 		},
 		{
-			"/debug/pprof/symbol/",
+			"/debug/pprof/symbol",
 			"Symbol looks up the program counters listed in the request.",
 			pprof.Symbol,
+			false,
 		},
 		{
-			"/debug/pprof/trace/",
+			"/debug/pprof/trace",
 			"A trace of execution of the current program. You can specify the duration in the seconds GET parameter.",
 			pprof.Trace,
+			false,
 		},
 		{
-			"/debug/pprof/goroutine/",
+			"/debug/pprof/goroutine",
 			"Stack traces of all current goroutines",
 			pprof.Handler("goroutine").ServeHTTP,
+			false,
 		},
 		{
-			"/debug/pprof/heap/",
+			"/debug/pprof/heap",
 			"A sampling of memory allocations of live objects.",
 			pprof.Handler("heap").ServeHTTP,
+			false,
 		},
 		{
-			"/debug/pprof/threadcreate/",
+			"/debug/pprof/threadcreate",
 			"Stack traces that led to the creation of new OS threads",
 			pprof.Handler("threadcreate").ServeHTTP,
+			false,
 		},
 		{
-			"/debug/pprof/block/",
+			"/debug/pprof/block",
 			"Stack traces that led to blocking on synchronization primitives",
 			pprof.Handler("block").ServeHTTP,
+			false,
 		},
 		{
-			"/debug/pprof/mutex/",
+			"/debug/pprof/mutex",
 			"Stack traces of holders of contended mutexes",
 			pprof.Handler("mutex").ServeHTTP,
+			false,
 		},
 		{
-			"/debug/pprof/allocs/",
+			"/debug/pprof/allocs",
 			"A sampling of all past memory allocations",
 			pprof.Handler("allocs").ServeHTTP,
+			false,
 		},
 	}
 	// The default handler is defined later to avoid infinite recursion.
@@ -132,7 +148,7 @@ func RegisterHandlers(bootstrapConfig *bootstrapv1.Bootstrap,
 	logger log.Logger) {
 	for _, handler := range getHandlers(bootstrapConfig, orchestrator, logger) {
 		http.Handle(handler.pattern, handler.handler)
-		if !strings.HasSuffix(handler.pattern, "/") {
+		if !strings.HasSuffix(handler.pattern, "/") && handler.redirect {
 			http.Handle(handler.pattern+"/", handler.handler)
 		}
 	}

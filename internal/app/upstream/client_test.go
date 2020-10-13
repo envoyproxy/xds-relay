@@ -23,8 +23,11 @@ import (
 
 type CallOptions = upstream.CallOptions
 
+func TestMain(m *testing.M) {
+	defer goleak.VerifyTestMain(m)
+}
+
 func TestOpenStreamShouldReturnErrorForInvalidTypeUrl(t *testing.T) {
-	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	client := createMockClient(ctx)
@@ -36,7 +39,6 @@ func TestOpenStreamShouldReturnErrorForInvalidTypeUrl(t *testing.T) {
 }
 
 func TestOpenStreamShouldReturnErrorForInvalidTypeUrlV3(t *testing.T) {
-	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	client := createMockClientV3(ctx)
@@ -48,7 +50,6 @@ func TestOpenStreamShouldReturnErrorForInvalidTypeUrlV3(t *testing.T) {
 }
 
 func TestOpenStreamShouldRetryOnStreamCreationFailure(t *testing.T) {
-	defer goleak.VerifyNone(t)
 	scope := stats.NewMockScope("mock")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -85,7 +86,6 @@ func TestOpenStreamShouldRetryOnStreamCreationFailure(t *testing.T) {
 }
 
 func TestOpenStreamShouldRetryOnStreamCreationFailureV3(t *testing.T) {
-	defer goleak.VerifyNone(t)
 	scope := stats.NewMockScope("mock")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -122,7 +122,6 @@ func TestOpenStreamShouldRetryOnStreamCreationFailureV3(t *testing.T) {
 }
 
 func TestOpenStreamShouldReturnNonEmptyResponseChannel(t *testing.T) {
-	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	client := createMockClient(ctx)
 
@@ -139,7 +138,6 @@ func TestOpenStreamShouldReturnNonEmptyResponseChannel(t *testing.T) {
 }
 
 func TestOpenStreamShouldReturnNonEmptyResponseChannelV3(t *testing.T) {
-	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	client := createMockClientV3(ctx)
 
@@ -156,7 +154,6 @@ func TestOpenStreamShouldReturnNonEmptyResponseChannelV3(t *testing.T) {
 }
 
 func TestOpenStreamShouldSendTheFirstRequestToOriginServer(t *testing.T) {
-	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	var message *v2.DiscoveryRequest
 	responseChan := make(chan *v2.DiscoveryResponse)
@@ -198,7 +195,6 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServer(t *testing.T) {
 }
 
 func TestOpenStreamShouldSendTheFirstRequestToOriginServerV3(t *testing.T) {
-	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	var message *discoveryv3.DiscoveryRequest
 	responseChan := make(chan *discoveryv3.DiscoveryResponse)
@@ -240,7 +236,6 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServerV3(t *testing.T) {
 }
 
 func TestOpenStreamShouldRetryIfSendFails(t *testing.T) {
-	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	responseChan := make(chan *v2.DiscoveryResponse)
 	sendError := fmt.Errorf("")
@@ -277,7 +272,6 @@ func TestOpenStreamShouldRetryIfSendFails(t *testing.T) {
 }
 
 func TestOpenStreamShouldRetryIfSendFailsV3(t *testing.T) {
-	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	responseChan := make(chan *discoveryv3.DiscoveryResponse)
 	sendError := fmt.Errorf("")
@@ -313,7 +307,6 @@ func TestOpenStreamShouldRetryIfSendFailsV3(t *testing.T) {
 }
 
 func TestOpenStreamShouldSendTheResponseOnTheChannel(t *testing.T) {
-	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	responseChan := make(chan *v2.DiscoveryResponse)
 	response := &v2.DiscoveryResponse{}
@@ -344,7 +337,6 @@ func TestOpenStreamShouldSendTheResponseOnTheChannel(t *testing.T) {
 }
 
 func TestOpenStreamShouldSendTheResponseOnTheChannelV3(t *testing.T) {
-	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	responseChan := make(chan *discoveryv3.DiscoveryResponse)
 	response := &discoveryv3.DiscoveryResponse{}
@@ -375,7 +367,6 @@ func TestOpenStreamShouldSendTheResponseOnTheChannelV3(t *testing.T) {
 }
 
 func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonce(t *testing.T) {
-	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	responseChan := make(chan *v2.DiscoveryResponse)
 	lastAppliedVersion := ""
@@ -428,7 +419,6 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonce(t *testing
 }
 
 func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonceV3(t *testing.T) {
-	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	responseChan := make(chan *discoveryv3.DiscoveryResponse)
 	lastAppliedVersion := ""
@@ -479,7 +469,6 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonceV3(t *testi
 }
 
 func TestOpenStreamShouldRetryWhenSendMsgBlocks(t *testing.T) {
-	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	responseChan := make(chan *v2.DiscoveryResponse)
 	first := true
@@ -514,7 +503,6 @@ func TestOpenStreamShouldRetryWhenSendMsgBlocks(t *testing.T) {
 }
 
 func TestOpenStreamShouldRetryWhenSendMsgBlocksV3(t *testing.T) {
-	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	responseChan := make(chan *discoveryv3.DiscoveryResponse)
