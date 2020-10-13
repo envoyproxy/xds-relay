@@ -67,11 +67,6 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 			configDumpHandler(bootstrap),
 		},
 		{
-			"/debug/pprof/",
-			"Index responds with the pprof-formatted profile named by the request",
-			pprof.Index,
-		},
-		{
 			"/debug/pprof",
 			"Index responds with the pprof-formatted profile named by the request",
 			pprof.Index,
