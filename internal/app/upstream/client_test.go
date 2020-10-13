@@ -620,13 +620,8 @@ func createMockClientWithResponseV3(
 }
 
 func blockUntilClean(resp <-chan transport.Response, tearDown func()) {
-	for {
-		select {
-		case _, ok := <-resp:
-			if !ok {
-				tearDown()
-				return
-			}
-		}
+	for range resp {
 	}
+
+	tearDown()
 }
