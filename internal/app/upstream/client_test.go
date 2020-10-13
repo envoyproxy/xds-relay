@@ -67,25 +67,24 @@ func TestOpenStreamShouldRetryOnStreamCreationFailure(t *testing.T) {
 					TypeUrl: url,
 					Node:    &core.Node{},
 				}))
-			defer done()
 			assert.NotNil(t, respCh)
 			for {
-				if v, ok := scope.Snapshot().Counters()[stats[0]]; ok {
-					assert.Equal(t, int64(1), v.Value())
+				if v, ok := scope.Snapshot().Counters()[stats[0]]; ok && v.Value() == 1 {
 					break
 				}
 			}
 			for {
-				if v, ok := scope.Snapshot().Counters()[stats[1]]; ok {
-					assert.NotEqual(t, int64(0), v.Value())
+				if v, ok := scope.Snapshot().Counters()[stats[1]]; ok && v.Value() != 0 {
 					break
 				}
 			}
+			done()
+			blockUntilClean(respCh, func() {})
 		})
 	}
 }
 
-func TestOpenStreamShouldNotRetryOnStreamCreationFailureV3(t *testing.T) {
+func TestOpenStreamShouldRetryOnStreamCreationFailureV3(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	scope := stats.NewMockScope("mock")
 	ctx, cancel := context.WithCancel(context.Background())
@@ -105,20 +104,19 @@ func TestOpenStreamShouldNotRetryOnStreamCreationFailureV3(t *testing.T) {
 					TypeUrl: url,
 					Node:    &corev3.Node{},
 				}))
-			defer done()
 			assert.NotNil(t, respCh)
 			for {
-				if v, ok := scope.Snapshot().Counters()[stats[0]]; ok {
-					assert.Equal(t, int64(1), v.Value())
+				if v, ok := scope.Snapshot().Counters()[stats[0]]; ok && v.Value() == 1 {
 					break
 				}
 			}
 			for {
-				if v, ok := scope.Snapshot().Counters()[stats[1]]; ok {
-					assert.NotEqual(t, int64(0), v.Value())
+				if v, ok := scope.Snapshot().Counters()[stats[1]]; ok && v.Value() != 0 {
 					break
 				}
 			}
+			done()
+			blockUntilClean(respCh, func() {})
 		})
 	}
 }
@@ -126,7 +124,6 @@ func TestOpenStreamShouldNotRetryOnStreamCreationFailureV3(t *testing.T) {
 func TestOpenStreamShouldReturnNonEmptyResponseChannel(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	client := createMockClient(ctx)
 
 	respCh, done := client.OpenStream(
@@ -134,14 +131,16 @@ func TestOpenStreamShouldReturnNonEmptyResponseChannel(t *testing.T) {
 			TypeUrl: resource.ListenerType,
 			Node:    &core.Node{},
 		}))
-	defer done()
 	assert.NotNil(t, respCh)
+
+	done()
+	cancel()
+	blockUntilClean(respCh, func() {})
 }
 
 func TestOpenStreamShouldReturnNonEmptyResponseChannelV3(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	client := createMockClientV3(ctx)
 
 	respCh, done := client.OpenStream(
@@ -149,14 +148,16 @@ func TestOpenStreamShouldReturnNonEmptyResponseChannelV3(t *testing.T) {
 			TypeUrl: resourcev3.ListenerType,
 			Node:    &corev3.Node{},
 		}))
-	defer done()
 	assert.NotNil(t, respCh)
+
+	done()
+	cancel()
+	blockUntilClean(respCh, func() {})
 }
 
 func TestOpenStreamShouldSendTheFirstRequestToOriginServer(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	var message *v2.DiscoveryRequest
 	responseChan := make(chan *v2.DiscoveryResponse)
 	wait := make(chan bool)
@@ -181,22 +182,24 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServer(t *testing.T) {
 	)
 
 	node := &core.Node{}
-	_, done := client.OpenStream(
+	resp, done := client.OpenStream(
 		transport.NewRequestV2(&v2.DiscoveryRequest{
 			TypeUrl: resource.ListenerType,
 			Node:    node,
 		}))
-	defer done()
 	<-wait
 	assert.NotNil(t, message)
 	assert.Equal(t, message.GetNode(), node)
 	assert.Equal(t, message.GetTypeUrl(), resource.ListenerType)
+
+	done()
+	cancel()
+	blockUntilClean(resp, func() {})
 }
 
 func TestOpenStreamShouldSendTheFirstRequestToOriginServerV3(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	var message *discoveryv3.DiscoveryRequest
 	responseChan := make(chan *discoveryv3.DiscoveryResponse)
 	wait := make(chan bool)
@@ -221,36 +224,35 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServerV3(t *testing.T) {
 	)
 
 	node := &corev3.Node{}
-	_, done := client.OpenStream(
+	resp, done := client.OpenStream(
 		transport.NewRequestV3(&discoveryv3.DiscoveryRequest{
 			TypeUrl: resourcev3.ListenerType,
 			Node:    node,
 		}))
-	defer done()
 	<-wait
 	assert.NotNil(t, message)
 	assert.Equal(t, message.GetNode(), node)
 	assert.Equal(t, message.GetTypeUrl(), resourcev3.ListenerType)
+
+	done()
+	cancel()
+	blockUntilClean(resp, func() {})
 }
 
 func TestOpenStreamShouldRetryIfSendFails(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	responseChan := make(chan *v2.DiscoveryResponse)
 	sendError := fmt.Errorf("")
 	errResp := true
 	response := &v2.DiscoveryResponse{}
-	exit := make(chan struct{})
-	defer close(exit)
 	client := createMockClientWithResponse(ctx, time.Second, responseChan, func(m interface{}) error {
 		if errResp {
 			errResp = false
 			return sendError
 		}
 		select {
-		case <-exit:
-			close(responseChan)
+		case <-ctx.Done():
 			return nil
 		default:
 			responseChan <- response
@@ -266,26 +268,28 @@ func TestOpenStreamShouldRetryIfSendFails(t *testing.T) {
 	defer done()
 	_, more := <-resp
 	assert.True(t, more)
+
+	done()
+	cancel()
+	blockUntilClean(resp, func() {
+		close(responseChan)
+	})
 }
 
 func TestOpenStreamShouldRetryIfSendFailsV3(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	responseChan := make(chan *discoveryv3.DiscoveryResponse)
 	sendError := fmt.Errorf("")
 	errResp := true
 	response := &discoveryv3.DiscoveryResponse{}
-	exit := make(chan struct{})
-	defer close(exit)
 	client := createMockClientWithResponseV3(ctx, time.Second, responseChan, func(m interface{}) error {
 		if errResp {
 			errResp = false
 			return sendError
 		}
 		select {
-		case <-exit:
-			close(responseChan)
+		case <-ctx.Done():
 			return nil
 		default:
 			responseChan <- response
@@ -298,23 +302,24 @@ func TestOpenStreamShouldRetryIfSendFailsV3(t *testing.T) {
 			TypeUrl: resourcev3.ListenerType,
 			Node:    &corev3.Node{},
 		}))
-	defer done()
 	_, more := <-resp
 	assert.True(t, more)
+
+	done()
+	cancel()
+	blockUntilClean(resp, func() {
+		close(responseChan)
+	})
 }
 
 func TestOpenStreamShouldSendTheResponseOnTheChannel(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	responseChan := make(chan *v2.DiscoveryResponse)
 	response := &v2.DiscoveryResponse{}
-	exit := make(chan struct{})
-	defer close(exit)
 	client := createMockClientWithResponse(ctx, time.Second, responseChan, func(m interface{}) error {
 		select {
-		case <-exit:
-			close(responseChan)
+		case <-ctx.Done():
 			return nil
 		default:
 			responseChan <- response
@@ -327,24 +332,25 @@ func TestOpenStreamShouldSendTheResponseOnTheChannel(t *testing.T) {
 			TypeUrl: resource.ListenerType,
 			Node:    &core.Node{},
 		}))
-	defer done()
 	assert.NotNil(t, resp)
 	val := <-resp
 	assert.Equal(t, val.Get().V2, response)
+
+	done()
+	cancel()
+	blockUntilClean(resp, func() {
+		close(responseChan)
+	})
 }
 
 func TestOpenStreamShouldSendTheResponseOnTheChannelV3(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	responseChan := make(chan *discoveryv3.DiscoveryResponse)
 	response := &discoveryv3.DiscoveryResponse{}
-	exit := make(chan struct{})
-	defer close(exit)
 	client := createMockClientWithResponseV3(ctx, time.Second, responseChan, func(m interface{}) error {
 		select {
-		case <-exit:
-			close(responseChan)
+		case <-ctx.Done():
 			return nil
 		default:
 			responseChan <- response
@@ -357,25 +363,26 @@ func TestOpenStreamShouldSendTheResponseOnTheChannelV3(t *testing.T) {
 			TypeUrl: resourcev3.ListenerType,
 			Node:    &corev3.Node{},
 		}))
-	defer done()
 	assert.NotNil(t, resp)
 	val := <-resp
 	assert.Equal(t, val.Get().V3, response)
+
+	done()
+	cancel()
+	blockUntilClean(resp, func() {
+		close(responseChan)
+	})
 }
 
 func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonce(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	responseChan := make(chan *v2.DiscoveryResponse)
 	lastAppliedVersion := ""
 	index := 0
-	exit := make(chan struct{})
-	defer close(exit)
 	client := createMockClientWithResponse(ctx, time.Second, responseChan, func(m interface{}) error {
 		select {
-		case <-exit:
-			close(responseChan)
+		case <-ctx.Done():
 			return nil
 		default:
 		}
@@ -391,7 +398,12 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonce(t *testing
 		}
 		lastAppliedVersion = strconv.Itoa(index)
 		index++
-		responseChan <- response
+		select {
+		case responseChan <- response:
+		case <-ctx.Done():
+			return nil
+		}
+
 		return nil
 	}, stats.NewMockScope("mock"))
 
@@ -407,21 +419,23 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonce(t *testing
 		assert.Equal(t, val.GetPayloadVersion(), strconv.Itoa(i))
 		assert.Equal(t, val.GetNonce(), strconv.Itoa(i))
 	}
+
+	done()
+	cancel()
+	blockUntilClean(resp, func() {
+		close(responseChan)
+	})
 }
 
 func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonceV3(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	responseChan := make(chan *discoveryv3.DiscoveryResponse)
 	lastAppliedVersion := ""
 	index := 0
-	exit := make(chan struct{})
-	defer close(exit)
 	client := createMockClientWithResponseV3(ctx, time.Second, responseChan, func(m interface{}) error {
 		select {
-		case <-exit:
-			close(responseChan)
+		case <-ctx.Done():
 			return nil
 		default:
 		}
@@ -437,7 +451,11 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonceV3(t *testi
 		}
 		lastAppliedVersion = strconv.Itoa(index)
 		index++
-		responseChan <- response
+		select {
+		case responseChan <- response:
+		case <-ctx.Done():
+			return nil
+		}
 		return nil
 	}, stats.NewMockScope("mock"))
 
@@ -446,35 +464,35 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonceV3(t *testi
 			TypeUrl: resourcev3.ListenerType,
 			Node:    &corev3.Node{},
 		}))
-	defer done()
 	assert.NotNil(t, resp)
 	for i := 0; i < 5; i++ {
 		val := <-resp
 		assert.Equal(t, val.GetPayloadVersion(), strconv.Itoa(i))
 		assert.Equal(t, val.GetNonce(), strconv.Itoa(i))
 	}
+
+	done()
+	cancel()
+	blockUntilClean(resp, func() {
+		close(responseChan)
+	})
 }
 
 func TestOpenStreamShouldRetryWhenSendMsgBlocks(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	responseChan := make(chan *v2.DiscoveryResponse)
-	blocked := make(chan struct{})
-	defer close(blocked)
 	first := true
 	response2 := &v2.DiscoveryResponse{VersionInfo: "2"}
-	exit := make(chan struct{})
-	defer close(exit)
 	client := createMockClientWithResponse(ctx, time.Nanosecond, responseChan, func(m interface{}) error {
 		if first {
 			first = false
-			<-blocked
+			<-ctx.Done()
 			return nil
 		}
 
 		select {
-		case <-exit:
+		case <-ctx.Done():
 			return nil
 		default:
 			responseChan <- response2
@@ -486,10 +504,13 @@ func TestOpenStreamShouldRetryWhenSendMsgBlocks(t *testing.T) {
 		TypeUrl: resource.ListenerType,
 		Node:    &core.Node{},
 	}))
-	defer done()
 	resp, ok := <-respCh
 	assert.True(t, ok)
 	assert.Equal(t, resp.Get().V2.VersionInfo, response2.VersionInfo)
+
+	done()
+	cancel()
+	blockUntilClean(respCh, func() {})
 }
 
 func TestOpenStreamShouldRetryWhenSendMsgBlocksV3(t *testing.T) {
@@ -497,21 +518,17 @@ func TestOpenStreamShouldRetryWhenSendMsgBlocksV3(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	responseChan := make(chan *discoveryv3.DiscoveryResponse)
-	blocked := make(chan struct{})
-	defer close(blocked)
 	first := true
 	response2 := &discoveryv3.DiscoveryResponse{VersionInfo: "2"}
-	exit := make(chan struct{})
-	defer close(exit)
 	client := createMockClientWithResponseV3(ctx, time.Nanosecond, responseChan, func(m interface{}) error {
 		if first {
 			first = false
-			<-blocked
+			<-ctx.Done()
 			return nil
 		}
 
 		select {
-		case <-exit:
+		case <-ctx.Done():
 			return nil
 		default:
 			responseChan <- response2
@@ -523,10 +540,13 @@ func TestOpenStreamShouldRetryWhenSendMsgBlocksV3(t *testing.T) {
 		TypeUrl: resourcev3.ListenerType,
 		Node:    &corev3.Node{},
 	}))
-	defer done()
 	resp, ok := <-respCh
 	assert.True(t, ok)
 	assert.Equal(t, response2.VersionInfo, resp.Get().V3.VersionInfo)
+
+	done()
+	cancel()
+	blockUntilClean(respCh, func() {})
 }
 
 func createMockClient(ctx context.Context) upstream.Client {
@@ -597,4 +617,11 @@ func createMockClientWithResponseV3(
 	sendCb func(m interface{}) error,
 	scope tally.Scope) upstream.Client {
 	return upstream.NewMockV3(ctx, CallOptions{Timeout: t}, nil, r, r, r, r, sendCb, scope)
+}
+
+func blockUntilClean(resp <-chan transport.Response, tearDown func()) {
+	for range resp {
+	}
+
+	tearDown()
 }

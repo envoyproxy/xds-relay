@@ -8,6 +8,7 @@ package orchestrator
 
 import (
 	"context"
+	"strings"
 	"sync"
 
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
@@ -165,6 +166,23 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 		return o.downstreamResponseMap.delete(req), nil
 	}
 	metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchCreated).Inc(1)
+
+	// Log + stat to investigate NACK behavior
+	if isNackRequest(req) {
+		resourceString := ""
+		if req.GetResourceNames() != nil {
+			resourceString = strings.Join(req.GetResourceNames()[:], ",")
+		}
+		o.logger.With(
+			"request_version", req.GetVersionInfo(),
+			"resource_names", resourceString,
+			"nonce", req.GetResponseNonce(),
+			"request_type", req.GetTypeURL(),
+			"error", req.GetError(),
+			"aggregated_key", aggregatedKey,
+		).Debug(ctx, "NACK request")
+		metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorNackWatchCreated).Inc(1)
+	}
 
 	// Check if we have a cached response first.
 	cached, err := o.cache.Fetch(aggregatedKey)
@@ -387,4 +405,8 @@ func (o *orchestrator) onCancelWatch(aggregatedKey string, req transport.Request
 func (o *orchestrator) shutdown(ctx context.Context) {
 	<-ctx.Done()
 	o.upstreamResponseMap.deleteAll()
+}
+
+func isNackRequest(req transport.Request) bool {
+	return req.GetError() != nil
 }
