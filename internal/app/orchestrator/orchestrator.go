@@ -191,7 +191,9 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 		o.logger.With("error", err).With("aggregated_key", aggregatedKey).Warn(ctx, "failed to fetch aggregated key")
 	}
 
-	if cached != nil && cached.Resp != nil && cached.Resp.GetPayloadVersion() != req.GetVersionInfo() {
+	if cached != nil && cached.Resp != nil &&
+		cached.Resp.GetPayloadVersion() != req.GetVersionInfo() &&
+		req.GetError() == nil {
 		// If we have a cached response and the version is different,
 		// immediately push the result to the response channel.
 		go func() {
