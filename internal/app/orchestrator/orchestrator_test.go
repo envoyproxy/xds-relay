@@ -495,8 +495,21 @@ func TestNACKRequest(t *testing.T) {
 	assert.EqualValues(
 		t, 1, countersSnapshot[fmt.Sprintf("mock_orchestrator.watch.created_nack+key=%v", aggregatedKey)].Value())
 
+	// Verify that the presence of NACK in request doesn't send an immediate response
+	select {
+	case <-respChannel.GetChannel().V2:
+		assert.Fail(t, "Nack request should block until an update is available")
+	default:
+	}
+
+	// Verify that an upstream update causes a response
+	mockResponse.VersionInfo = "2"
+	upstreamResponseChannel <- transport.NewResponseV2(&mockRequest, &mockResponse)
+
 	gotResponse := <-respChannel.GetChannel().V2
-	assertEqualResponse(t, gotResponse, mockResponse, req)
+	version, err := gotResponse.GetVersion()
+	assert.NoError(t, err)
+	assert.Equal(t, "2", version)
 
 	// If we pass this point, it's safe to assume the respChannel is empty,
 	// otherwise the test would block and not complete.

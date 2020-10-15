@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/uber-go/tally"
 	"go.uber.org/goleak"
+	"google.golang.org/genproto/googleapis/rpc/status"
 )
 
 type CallOptions = upstream.CallOptions
@@ -229,6 +230,92 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServerV3(t *testing.T) {
 	assert.NotNil(t, message)
 	assert.Equal(t, message.GetNode(), node)
 	assert.Equal(t, message.GetTypeUrl(), resourcev3.ListenerType)
+
+	done()
+	cancel()
+	blockUntilClean(resp, func() {})
+}
+
+func TestOpenStreamShouldClearNackFromRequestInTheFirstRequestToOriginServer(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	var message *v2.DiscoveryRequest
+	responseChan := make(chan *v2.DiscoveryResponse)
+	wait := make(chan bool)
+	first := true
+	client := upstream.NewMock(
+		ctx,
+		CallOptions{Timeout: time.Nanosecond},
+		nil,
+		responseChan,
+		responseChan,
+		responseChan,
+		responseChan,
+		func(m interface{}) error {
+			message = m.(*v2.DiscoveryRequest)
+			if first {
+				close(wait)
+				first = false
+			}
+			return nil
+		},
+		stats.NewMockScope("mock"),
+	)
+
+	node := &core.Node{}
+	resp, done := client.OpenStream(
+		transport.NewRequestV2(&v2.DiscoveryRequest{
+			TypeUrl:     resource.ListenerType,
+			Node:        node,
+			ErrorDetail: &status.Status{Message: "message", Code: 1},
+		}))
+	<-wait
+	assert.NotNil(t, message)
+	assert.Equal(t, message.GetNode(), node)
+	assert.Equal(t, message.GetTypeUrl(), resource.ListenerType)
+	assert.Nil(t, message.GetErrorDetail())
+
+	done()
+	cancel()
+	blockUntilClean(resp, func() {})
+}
+
+func TestOpenStreamShouldClearNackFromRequestInTheFirstRequestToOriginServerV3(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	var message *discoveryv3.DiscoveryRequest
+	responseChan := make(chan *discoveryv3.DiscoveryResponse)
+	wait := make(chan bool)
+	first := true
+	client := upstream.NewMockV3(
+		ctx,
+		CallOptions{Timeout: time.Nanosecond},
+		nil,
+		responseChan,
+		responseChan,
+		responseChan,
+		responseChan,
+		func(m interface{}) error {
+			message = m.(*discoveryv3.DiscoveryRequest)
+			if first {
+				close(wait)
+				first = false
+			}
+			return nil
+		},
+		stats.NewMockScope("mock"),
+	)
+
+	node := &corev3.Node{}
+	resp, done := client.OpenStream(
+		transport.NewRequestV3(&discoveryv3.DiscoveryRequest{
+			TypeUrl:     resourcev3.ListenerType,
+			Node:        node,
+			ErrorDetail: &status.Status{Message: "message", Code: 1},
+		}))
+	<-wait
+	assert.NotNil(t, message)
+	assert.Equal(t, message.GetNode(), node)
+	assert.Equal(t, message.GetTypeUrl(), resourcev3.ListenerType)
+	assert.Nil(t, message.GetErrorDetail())
 
 	done()
 	cancel()
