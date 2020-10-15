@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"net/http/pprof"
 	"strings"
 	"time"
 
@@ -38,6 +39,7 @@ type Handler struct {
 	pattern     string
 	description string
 	handler     http.HandlerFunc
+	redirect    bool
 }
 
 func getHandlers(bootstrap *bootstrapv1.Bootstrap,
@@ -48,22 +50,50 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 			"/",
 			"admin home page",
 			func(http.ResponseWriter, *http.Request) {},
+			true,
 		},
 		{
 			"/cache",
 			"print cache entry for a given key. Omitting the key outputs all cache entries. usage: `/cache/<key>`",
 			cacheDumpHandler(orchestrator),
+			true,
 		},
 		{
 			"/log_level",
 			"update the log level to `debug`, `info`, `warn`, or `error`. " +
 				"Omitting the level outputs the current log level. usage: `/log_level/<level>`",
 			logLevelHandler(logger),
+			true,
 		},
 		{
 			"/server_info",
 			"print bootstrap configuration",
 			configDumpHandler(bootstrap),
+			true,
+		},
+		{
+			"/debug/pprof/goroutine",
+			"Stack traces of all current goroutines",
+			pprof.Handler("goroutine").ServeHTTP,
+			false,
+		},
+		{
+			"/debug/pprof/heap",
+			"A sampling of memory allocations of live objects.",
+			pprof.Handler("heap").ServeHTTP,
+			false,
+		},
+		{
+			"/debug/pprof/threadcreate",
+			"Stack traces that led to the creation of new OS threads",
+			pprof.Handler("threadcreate").ServeHTTP,
+			false,
+		},
+		{
+			"/debug/pprof/block",
+			"Stack traces that led to blocking on synchronization primitives",
+			pprof.Handler("block").ServeHTTP,
+			false,
 		},
 	}
 	// The default handler is defined later to avoid infinite recursion.
@@ -76,7 +106,7 @@ func RegisterHandlers(bootstrapConfig *bootstrapv1.Bootstrap,
 	logger log.Logger) {
 	for _, handler := range getHandlers(bootstrapConfig, orchestrator, logger) {
 		http.Handle(handler.pattern, handler.handler)
-		if !strings.HasSuffix(handler.pattern, "/") {
+		if !strings.HasSuffix(handler.pattern, "/") && handler.redirect {
 			http.Handle(handler.pattern+"/", handler.handler)
 		}
 	}

@@ -45,6 +45,7 @@ func TestAdminServer_DefaultHandler(t *testing.T) {
 		"/foo",
 		"does nothing",
 		http.HandlerFunc(nil),
+		true,
 	}})
 
 	handler.ServeHTTP(rr, req)
@@ -61,6 +62,7 @@ func TestAdminServer_DefaultHandler_NotFound(t *testing.T) {
 		"/foo",
 		"does nothing",
 		http.HandlerFunc(nil),
+		true,
 	}})
 
 	handler.ServeHTTP(rr, req)
