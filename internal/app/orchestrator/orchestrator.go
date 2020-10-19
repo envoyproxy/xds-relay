@@ -214,7 +214,7 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 	// Check if we have a upstream stream open for this aggregated key. If not,
 	// open a stream with the representative request.
 	if !o.upstreamResponseMap.exists(aggregatedKey) {
-		upstreamResponseChan, shutdown := o.upstreamClient.OpenStream(req)
+		upstreamResponseChan, shutdown := o.upstreamClient.OpenStream(req, aggregatedKey)
 		respChannel, upstreamOpenedPreviously := o.upstreamResponseMap.add(aggregatedKey, upstreamResponseChan)
 		if upstreamOpenedPreviously {
 			// A stream was opened previously due to a race between

@@ -49,7 +49,7 @@ type Client interface {
 	// The shutdown function represents the intent that a stream is supposed to be closed.
 	// All goroutines that depend on the ctx object should consider ctx.Done to be related to shutdown.
 	// All such scenarios need to exit cleanly and are not considered an erroneous situation.
-	OpenStream(transport.Request) (<-chan transport.Response, func())
+	OpenStream(transport.Request, string) (<-chan transport.Response, func())
 }
 
 type client struct {
@@ -134,11 +134,11 @@ func New(
 	}, nil
 }
 
-func (m *client) OpenStream(request transport.Request) (<-chan transport.Response, func()) {
+func (m *client) OpenStream(request transport.Request, aggregatedKey string) (<-chan transport.Response, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 	response := make(chan transport.Response)
 
-	go m.handleStreamsWithRetry(ctx, request, response)
+	go m.handleStreamsWithRetry(ctx, request, response, aggregatedKey)
 
 	// We use context cancellation over using a separate channel for signalling stream shutdown.
 	// The reason is cancelling a context tied with the stream is straightforward to signal closure.
@@ -150,7 +150,8 @@ func (m *client) OpenStream(request transport.Request) (<-chan transport.Respons
 func (m *client) handleStreamsWithRetry(
 	ctx context.Context,
 	request transport.Request,
-	respCh chan transport.Response) {
+	respCh chan transport.Response,
+	aggregatedKey string) {
 	var (
 		s      grpc.ClientStream
 		stream transport.Stream
@@ -164,6 +165,7 @@ func (m *client) handleStreamsWithRetry(
 			if !ok {
 				cancel()
 				close(respCh)
+				m.logger.With("aggregated_key", aggregatedKey).Info(ctx, "server shutdown")
 				return
 			}
 		case <-ctx.Done():
@@ -172,6 +174,7 @@ func (m *client) handleStreamsWithRetry(
 			// The shutdown can be called by the caller in many cases, during app shutdown/ttl expiry, etc
 			cancel()
 			close(respCh)
+			m.logger.With("aggregated_key", aggregatedKey).Info(ctx, "context cancelled")
 			return
 		default:
 			switch request.GetTypeURL() {
@@ -208,11 +211,12 @@ func (m *client) handleStreamsWithRetry(
 				stream = transport.NewStreamV3(s, request, m.logger)
 				scope = m.scope.SubScope(metrics.ScopeUpstreamEDS)
 			default:
-				handleError(ctx, m.logger, "Unsupported Type Url", func() {}, fmt.Errorf(request.GetTypeURL()))
+				handleError(ctx, m.logger, aggregatedKey, "Unsupported Type Url", func() {}, fmt.Errorf(request.GetTypeURL()))
 				cancel()
 				close(respCh)
 				return
 			}
+			scope = scope.Tagged(map[string]string{metrics.TagName: aggregatedKey})
 			if err != nil {
 				m.logger.With("request_type", request.GetTypeURL()).Warn(ctx, "stream failed")
 				scope.Counter(metrics.UpstreamStreamCreationFailure).Inc(1)
@@ -221,7 +225,7 @@ func (m *client) handleStreamsWithRetry(
 			}
 
 			signal := make(chan *version, 1)
-			m.logger.With("request_type", request.GetTypeURL()).Info(ctx, "stream opened")
+			m.logger.With("request_type", request.GetTypeURL(), "aggregated_key", aggregatedKey).Info(ctx, "stream opened")
 			scope.Counter(metrics.UpstreamStreamOpened).Inc(1)
 			// The xds protocol https://www.envoyproxy.io/docs/envoy/latest/api-docs/xds_protocol#ack
 			// specifies that the first request be empty nonce and empty version.
@@ -230,10 +234,12 @@ func (m *client) handleStreamsWithRetry(
 			var wg sync.WaitGroup
 			wg.Add(2)
 
-			go send(childCtx, wg.Done, m.logger, cancel, stream, signal, m.callOptions)
-			go recv(childCtx, wg.Done, cancel, m.logger, respCh, stream, signal)
+			go send(childCtx, wg.Done, m.logger, cancel, stream, signal, m.callOptions, aggregatedKey)
+			go recv(childCtx, wg.Done, cancel, m.logger, respCh, stream, signal, aggregatedKey)
 
 			wg.Wait()
+			scope.Counter(metrics.UpstreamStreamRetry).Inc(1)
+			m.logger.With("aggregated_key", aggregatedKey).Info(ctx, "retrying")
 			close(signal)
 		}
 	}
@@ -250,7 +256,8 @@ func send(
 	cancelFunc context.CancelFunc,
 	stream transport.Stream,
 	signal chan *version,
-	callOptions CallOptions) {
+	callOptions CallOptions,
+	aggregatedKey string) {
 	defer complete()
 	for {
 		select {
@@ -264,7 +271,7 @@ func send(
 				return stream.SendMsg(sig.version, sig.nonce)
 			}, callOptions.Timeout)
 			if err != nil {
-				handleError(ctx, logger, "Error in SendMsg", cancelFunc, err)
+				handleError(ctx, logger, aggregatedKey, "Error in SendMsg", cancelFunc, err)
 				return
 			}
 		case <-ctx.Done():
@@ -283,12 +290,13 @@ func recv(
 	logger log.Logger,
 	response chan transport.Response,
 	stream transport.Stream,
-	signal chan *version) {
+	signal chan *version,
+	aggregatedKey string) {
 	defer complete()
 	for {
 		resp, err := stream.RecvMsg()
 		if err != nil {
-			handleError(ctx, logger, "Error in RecvMsg", cancelFunc, err)
+			handleError(ctx, logger, aggregatedKey, "Error in RecvMsg", cancelFunc, err)
 			return
 		}
 
@@ -302,7 +310,8 @@ func recv(
 	}
 }
 
-func handleError(ctx context.Context, logger log.Logger, errMsg string, cancelFunc context.CancelFunc, err error) {
+func handleError(ctx context.Context, logger log.Logger, key string, errMsg string,
+	cancelFunc context.CancelFunc, err error) {
 	defer cancelFunc()
 	select {
 	case <-ctx.Done():
@@ -310,7 +319,7 @@ func handleError(ctx context.Context, logger log.Logger, errMsg string, cancelFu
 		// Context is cancelled only when shutdown is called or any of the send/recv goroutines error out.
 		// The shutdown can be called by the caller in many cases, during app shutdown/ttl expiry, etc
 	default:
-		logger.Error(ctx, "%s: %s", errMsg, err.Error())
+		logger.With("aggregated_key", key).Error(ctx, "%s: %s", errMsg, err.Error())
 	}
 }
 
