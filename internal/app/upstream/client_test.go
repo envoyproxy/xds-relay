@@ -57,10 +57,10 @@ func TestOpenStreamShouldRetryOnStreamCreationFailure(t *testing.T) {
 	client := createMockClientWithError(ctx, scope)
 
 	typeURLs := map[string][]string{
-		resource.ListenerType: {"mock.lds.stream_failure+", "mock.lds.stream_opened+"},
-		resource.ClusterType:  {"mock.cds.stream_failure+", "mock.cds.stream_opened+"},
-		resource.RouteType:    {"mock.rds.stream_failure+", "mock.rds.stream_opened+"},
-		resource.EndpointType: {"mock.eds.stream_failure+", "mock.eds.stream_opened+"},
+		resource.ListenerType: {"mock.lds.stream_failure+key=aggregated_key", "mock.lds.stream_opened+key=aggregated_key"},
+		resource.ClusterType:  {"mock.cds.stream_failure+key=aggregated_key", "mock.cds.stream_opened+key=aggregated_key"},
+		resource.RouteType:    {"mock.rds.stream_failure+key=aggregated_key", "mock.rds.stream_opened+key=aggregated_key"},
+		resource.EndpointType: {"mock.eds.stream_failure+key=aggregated_key", "mock.eds.stream_opened+key=aggregated_key"},
 	}
 	for url, stats := range typeURLs {
 		t.Run(url, func(t *testing.T) {
@@ -93,10 +93,10 @@ func TestOpenStreamShouldRetryOnStreamCreationFailureV3(t *testing.T) {
 	client := createMockClientWithErrorV3(ctx, scope)
 
 	typeURLs := map[string][]string{
-		resourcev3.ListenerType: {"mock.lds.stream_failure+", "mock.lds.stream_opened+"},
-		resourcev3.ClusterType:  {"mock.cds.stream_failure+", "mock.cds.stream_opened+"},
-		resourcev3.RouteType:    {"mock.rds.stream_failure+", "mock.rds.stream_opened+"},
-		resourcev3.EndpointType: {"mock.eds.stream_failure+", "mock.eds.stream_opened+"},
+		resourcev3.ListenerType: {"mock.lds.stream_failure+key=aggregated_key", "mock.lds.stream_opened+key=aggregated_key"},
+		resourcev3.ClusterType:  {"mock.cds.stream_failure+key=aggregated_key", "mock.cds.stream_opened+key=aggregated_key"},
+		resourcev3.RouteType:    {"mock.rds.stream_failure+key=aggregated_key", "mock.rds.stream_opened+key=aggregated_key"},
+		resourcev3.EndpointType: {"mock.eds.stream_failure+key=aggregated_key", "mock.eds.stream_opened+key=aggregated_key"},
 	}
 	for url, stats := range typeURLs {
 		t.Run(url, func(t *testing.T) {
