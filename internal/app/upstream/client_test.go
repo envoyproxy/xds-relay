@@ -328,6 +328,7 @@ func TestOpenStreamShouldRetryIfSendFails(t *testing.T) {
 	sendError := fmt.Errorf("")
 	errResp := true
 	response := &v2.DiscoveryResponse{}
+	scope := stats.NewMockScope("mock")
 	client := createMockClientWithResponse(ctx, time.Second, responseChan, func(m interface{}) error {
 		if errResp {
 			errResp = false
@@ -340,7 +341,7 @@ func TestOpenStreamShouldRetryIfSendFails(t *testing.T) {
 			responseChan <- response
 			return nil
 		}
-	}, stats.NewMockScope("mock"))
+	}, scope)
 
 	resp, done := client.OpenStream(
 		transport.NewRequestV2(&v2.DiscoveryRequest{
@@ -350,6 +351,7 @@ func TestOpenStreamShouldRetryIfSendFails(t *testing.T) {
 	defer done()
 	_, more := <-resp
 	assert.True(t, more)
+	assert.Equal(t, int64(1), scope.Snapshot().Counters()["mock.lds.stream_retry+key=aggregated_key"].Value())
 
 	done()
 	cancel()
@@ -364,6 +366,7 @@ func TestOpenStreamShouldRetryIfSendFailsV3(t *testing.T) {
 	sendError := fmt.Errorf("")
 	errResp := true
 	response := &discoveryv3.DiscoveryResponse{}
+	scope := stats.NewMockScope("mock")
 	client := createMockClientWithResponseV3(ctx, time.Second, responseChan, func(m interface{}) error {
 		if errResp {
 			errResp = false
@@ -376,7 +379,7 @@ func TestOpenStreamShouldRetryIfSendFailsV3(t *testing.T) {
 			responseChan <- response
 			return nil
 		}
-	}, stats.NewMockScope("mock"))
+	}, scope)
 
 	resp, done := client.OpenStream(
 		transport.NewRequestV3(&discoveryv3.DiscoveryRequest{
@@ -385,6 +388,7 @@ func TestOpenStreamShouldRetryIfSendFailsV3(t *testing.T) {
 		}), "aggregated_key")
 	_, more := <-resp
 	assert.True(t, more)
+	assert.Equal(t, int64(1), scope.Snapshot().Counters()["mock.lds.stream_retry+key=aggregated_key"].Value())
 
 	done()
 	cancel()
