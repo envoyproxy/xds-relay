@@ -165,7 +165,7 @@ func (m *client) handleStreamsWithRetry(
 			if !ok {
 				cancel()
 				close(respCh)
-				m.logger.With("aggregated_key", aggregatedKey).Info(ctx, "server shutdown")
+				m.logger.With("aggregated_key", aggregatedKey).Info(ctx, "stream shutdown")
 				return
 			}
 		case <-ctx.Done():
