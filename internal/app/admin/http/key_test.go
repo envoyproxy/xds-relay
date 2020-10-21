@@ -39,6 +39,8 @@ func TestAdminServer_KeyDumpHandler(t *testing.T) {
 	)
 	orchestrator := orchestrator.NewMock(t, mapper, client, stats.NewMockScope("mock_orchestrator"))
 
+	verifyKeyLen(t, 0, &orchestrator)
+
 	respChannel, cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
 		Node: &corev2.Node{
@@ -68,11 +70,16 @@ func TestAdminServer_KeyDumpHandler(t *testing.T) {
 	<-respChannel.GetChannel().V2
 	<-respChannel2.GetChannel().V2
 
+	verifyKeyLen(t, 2, &orchestrator)
+	cancelWatch()
+	cancelWatch2()
+}
+
+func verifyKeyLen(t *testing.T, len int, o *orchestrator.Orchestrator) {
 	req, err := http.NewRequest("GET", "/keys", nil)
 	assert.NoError(t, err)
-
 	rr := httptest.NewRecorder()
-	handler := keyDumpHandler(&orchestrator)
+	handler := keyDumpHandler(o)
 
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
@@ -80,7 +87,5 @@ func TestAdminServer_KeyDumpHandler(t *testing.T) {
 	keys := &marshallable.Key{}
 	err = json.Unmarshal([]byte(rr.Body.String()), keys)
 	assert.NoError(t, err)
-	assert.Len(t, keys.Names, 2)
-	cancelWatch()
-	cancelWatch2()
+	assert.Len(t, keys.Names, len)
 }
