@@ -59,6 +59,18 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 			true,
 		},
 		{
+			"/eds",
+			"print the eds payload for a particular key. usage: `/eds/<key>`",
+			edsDumpHandler(orchestrator),
+			true,
+		},
+		{
+			"/keys",
+			"print all keys",
+			keyDumpHandler(orchestrator),
+			true,
+		},
+		{
 			"/log_level",
 			"update the log level to `debug`, `info`, `warn`, or `error`. " +
 				"Omitting the level outputs the current log level. usage: `/log_level/<level>`",
