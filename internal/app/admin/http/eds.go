@@ -24,16 +24,11 @@ func edsDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 		c := orchestrator.Orchestrator.GetReadOnlyCache(*o)
 		resp, err := c.FetchReadOnly(edsKey)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusNotFound)
 			s, _ := stringify.InterfaceToString(&marshallable.Error{
 				Message: err.Error(),
 			})
 			w.Write([]byte(s))
-			return
-		}
-
-		if resp.Resp == nil {
-			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
