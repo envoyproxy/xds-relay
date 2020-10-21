@@ -17,7 +17,7 @@ func keyDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 			errMessage, _ := stringify.InterfaceToString(&marshallable.Error{
 				Message: fmt.Sprintf("error in getting cache keys: %s", err.Error()),
 			})
-			w.Write([]byte(errMessage))
+			_, _ = w.Write([]byte(errMessage))
 			return
 		}
 
@@ -35,10 +35,10 @@ func keyDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 			errMessage, _ := stringify.InterfaceToString(&marshallable.Error{
 				Message: fmt.Sprintf("error in marshalling keys: %s", err.Error()),
 			})
-			w.Write([]byte(errMessage))
+			_, _ = w.Write([]byte(errMessage))
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(marshalledKeys))
+		_, _ = w.Write([]byte(marshalledKeys))
 	}
 }

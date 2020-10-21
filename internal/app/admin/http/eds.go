@@ -18,7 +18,7 @@ func edsDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 			s, _ := stringify.InterfaceToString(&marshallable.Error{
 				Message: "Empty key",
 			})
-			w.Write([]byte(s))
+			_, _ = w.Write([]byte(s))
 		}
 
 		c := orchestrator.Orchestrator.GetReadOnlyCache(*o)
@@ -28,7 +28,7 @@ func edsDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 			s, _ := stringify.InterfaceToString(&marshallable.Error{
 				Message: err.Error(),
 			})
-			w.Write([]byte(s))
+			_, _ = w.Write([]byte(s))
 			return
 		}
 
@@ -79,6 +79,6 @@ func edsDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(x))
+		_, _ = w.Write([]byte(x))
 	}
 }

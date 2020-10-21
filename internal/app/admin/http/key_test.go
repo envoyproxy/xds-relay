@@ -85,7 +85,7 @@ func verifyKeyLen(t *testing.T, len int, o *orchestrator.Orchestrator) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 
 	keys := &marshallable.Key{}
-	err = json.Unmarshal([]byte(rr.Body.String()), keys)
+	err = json.Unmarshal(rr.Body.Bytes(), keys)
 	assert.NoError(t, err)
 	assert.Len(t, keys.Names, len)
 }

@@ -104,7 +104,7 @@ func TestAdminServer_EDSDumpHandler404(t *testing.T) {
 
 func verifyEdsLen(t *testing.T, rr *httptest.ResponseRecorder, len int) {
 	eds := &marshallable.EDS{}
-	err := json.Unmarshal([]byte(rr.Body.String()), eds)
+	err := json.Unmarshal(rr.Body.Bytes(), eds)
 	assert.NoError(t, err)
 	assert.Len(t, eds.Endpoints, len)
 }
