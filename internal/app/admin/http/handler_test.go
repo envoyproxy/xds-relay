@@ -237,7 +237,7 @@ func TestAdminServer_ClearCacheHandler(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, resp, *gotDiscoveryResponse)
 
-	// Assert cache has two entries before clearing
+	// Assert cache has one entry before clearing
 	cacheKeys, err := orchestrator.GetDownstreamAggregatedKeys()
 	assert.Nil(t, err)
 	assert.Equal(t, len(cacheKeys), 1)
