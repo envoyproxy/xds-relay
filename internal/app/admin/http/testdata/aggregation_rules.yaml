@@ -35,7 +35,7 @@ fragments:
       - match:
           request_type_match:
             types:
-              - "type.googleapis.com/envoy.api.v2.Endpoint"
+              - "type.googleapis.com/envoy.api.v2.ClusterLoadAssignment"
         result:
           string_fragment: "eds"
       - match:
