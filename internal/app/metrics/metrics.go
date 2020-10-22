@@ -99,7 +99,7 @@ const (
 	ScopeCacheDeleteKey   = "delete_key"
 	CacheDeleteKeyAttempt = "attempt" // counter, # of cache delete key requests called
 	CacheDeleteKeySuccess = "success" // counter, # of cache delete key requests succeeded
-	CacheDeleteKeyError   = "error"   // counter, # of errors while calling cache delete
+	CacheDeleteKeyError   = "error"   // counter, # of errors while calling cache delete key
 )
 
 // .mapper
