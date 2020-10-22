@@ -235,7 +235,7 @@ func clearCacheEntries(keys []string, cache cache.Cache, w http.ResponseWriter) 
 	for _, key := range keys {
 		err := cache.DeleteKey(key)
 		if err != nil {
-			fmt.Fprintf(w, err.Error())
+			fmt.Fprintln(w, err.Error())
 		}
 	}
 }

@@ -286,7 +286,7 @@ func TestAdminServer_ClearCacheHandler_NotFound(t *testing.T) {
 
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Equal(t, "unable to delete entry for nonexistent key: cds", rr.Body.String())
+	assert.Equal(t, "unable to delete entry for nonexistent key: cds\n", rr.Body.String())
 }
 
 func TestGetParam(t *testing.T) {
