@@ -29,7 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestAdminServer_EDSDumpHandlerV2(t *testing.T) {
+func TestAdminServer_EDSDumpHandler(t *testing.T) {
 	ctx := context.Background()
 	mapper := mapper.NewMock(t)
 	upstreamEdsResponseChannel := make(chan *v2.DiscoveryResponse)
@@ -206,7 +206,7 @@ func verifyEdsLen(t *testing.T, rr *httptest.ResponseRecorder, len int) {
 }
 
 func getResponse(t *testing.T, key string, o *orchestrator.Orchestrator) *httptest.ResponseRecorder {
-	req, err := http.NewRequest("GET", "/eds/"+key, nil)
+	req, err := http.NewRequest("GET", "/cache/eds/"+key, nil)
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
 	handler := edsDumpHandler(o)
@@ -244,7 +244,7 @@ func getEndpointV3(address string) *endpointv3.LbEndpoint_Endpoint {
 }
 
 func verifyKeyLen(t *testing.T, len int, o *orchestrator.Orchestrator) {
-	req, err := http.NewRequest("GET", "/keys", nil)
+	req, err := http.NewRequest("GET", "/cache/keys", nil)
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
 	handler := keyDumpHandler(o)

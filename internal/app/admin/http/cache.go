@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"path/filepath"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	endpointv3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
@@ -13,7 +14,7 @@ import (
 
 func edsDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		edsKey := getParam(req.URL.Path)
+		edsKey := filepath.Base(req.URL.Path)
 		if edsKey == "" {
 			w.WriteHeader(http.StatusBadRequest)
 			s, _ := stringify.InterfaceToString(&marshallable.Error{
