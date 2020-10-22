@@ -52,6 +52,8 @@ type Orchestrator interface {
 	// open channels.
 	shutdown(ctx context.Context)
 
+	GetCache() cache.Cache
+
 	GetReadOnlyCache() cache.ReadOnlyCache
 
 	GetDownstreamAggregatedKeys() (map[string]bool, error)
@@ -236,6 +238,11 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 // GetReadOnlyCache returns the request/response cache with only read-only methods exposed.
 func (o *orchestrator) GetReadOnlyCache() cache.ReadOnlyCache {
 	return o.cache.GetReadOnlyCache()
+}
+
+// GetCache returns the request/response cache with only all cache methods exposed.
+func (o *orchestrator) GetCache() cache.Cache {
+	return o.cache
 }
 
 // GetDownstreamAggregatedKeys returns the aggregated keys for all requests stored in the downstream response map.

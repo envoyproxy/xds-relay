@@ -189,6 +189,106 @@ func TestAdminServer_CacheDumpHandler_NotFound(t *testing.T) {
 	assert.Equal(t, "", rr.Body.String())
 }
 
+func TestAdminServer_ClearCacheHandler(t *testing.T) {
+	ctx := context.Background()
+	mapper := mapper.NewMock(t)
+	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
+	mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
+	client := upstream.NewMock(
+		ctx,
+		upstream.CallOptions{Timeout: time.Second},
+		nil,
+		upstreamResponseChannel,
+		nil,
+		nil,
+		nil,
+		func(m interface{}) error { return nil },
+		stats.NewMockScope("mock"),
+	)
+	orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
+	assert.NotNil(t, orchestrator)
+
+	reqNode := corev2.Node{
+		Id:      "test-1",
+		Cluster: "test-prod",
+	}
+	gcpReq := gcp.Request{
+		TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
+		Node:    &reqNode,
+	}
+	respChannel, cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq))
+	assert.NotNil(t, respChannel)
+
+	listener := &v2.Listener{
+		Name: "lds resource",
+	}
+	listenerAny, err := ptypes.MarshalAny(listener)
+	assert.NoError(t, err)
+	resp := v2.DiscoveryResponse{
+		VersionInfo: "1",
+		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
+		Resources: []*any.Any{
+			listenerAny,
+		},
+	}
+	upstreamResponseChannel <- &resp
+	gotResponse := <-respChannel.GetChannel().V2
+	gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
+	assert.NoError(t, err)
+	assert.Equal(t, resp, *gotDiscoveryResponse)
+
+	// Assert cache has two entries before clearing
+	cacheKeys, err := orchestrator.GetDownstreamAggregatedKeys()
+	assert.Nil(t, err)
+	assert.Equal(t, len(cacheKeys), 1)
+
+	req, err := http.NewRequest("POST", "/clear_cache/test_lds", nil)
+	assert.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler := clearCacheHandler(&orchestrator)
+
+	handler.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	// Assert cache has zero entries after clearing
+	cacheKeys, err = orchestrator.GetDownstreamAggregatedKeys()
+	assert.Nil(t, err)
+	assert.Equal(t, len(cacheKeys), 0)
+
+	cancelWatch()
+}
+
+func TestAdminServer_ClearCacheHandler_NotFound(t *testing.T) {
+	ctx := context.Background()
+	mapper := mapper.NewMock(t)
+	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
+	mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
+	client := upstream.NewMock(
+		ctx,
+		upstream.CallOptions{Timeout: time.Second},
+		nil,
+		nil,
+		nil,
+		nil,
+		upstreamResponseChannel,
+		func(m interface{}) error { return nil },
+		stats.NewMockScope("mock"),
+	)
+	orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
+	assert.NotNil(t, orchestrator)
+
+	req, err := http.NewRequest("POST", "/clear_cache/cds", nil)
+	assert.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler := clearCacheHandler(&orchestrator)
+
+	handler.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, "unable to delete entry for nonexistent key: cds", rr.Body.String())
+}
+
 func TestGetParam(t *testing.T) {
 	path := "127.0.0.1:6070/cache/foo_production_*"
 	cacheKey := getParam(path)

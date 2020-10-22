@@ -34,6 +34,12 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 			true,
 		},
 		{
+			"/clear_cache",
+			"clear cache entry for a given key. Omitting the key clears all cache entries. usage: `/cache/<key>`",
+			clearCacheHandler(orchestrator),
+			true,
+		},
+		{
 			"/cache",
 			"print cache entry for a given key. Omitting the key outputs all cache entries. usage: `/cache/<key>`",
 			cacheDumpHandler(orchestrator),
