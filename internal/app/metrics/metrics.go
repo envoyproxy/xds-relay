@@ -97,8 +97,8 @@ const (
 
 	// scope: .cache.$aggregated_key.delete_key.*
 	ScopeCacheDeleteKey   = "delete_key"
-	CacheDeleteKeyAttempt = "attempt" // counter, # of cache delete requests called
-	CacheDeleteKeySuccess = "success" // counter, # of cache delete requests succeeded
+	CacheDeleteKeyAttempt = "attempt" // counter, # of cache delete key requests called
+	CacheDeleteKeySuccess = "success" // counter, # of cache delete key requests succeeded
 	CacheDeleteKeyError   = "error"   // counter, # of errors while calling cache delete
 )
 

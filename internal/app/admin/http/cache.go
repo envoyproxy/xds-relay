@@ -205,7 +205,7 @@ func getRelevantKeys(o *orchestrator.Orchestrator, inputKey string, w http.Respo
 			}
 		}
 	} else {
-		// Otherwise return the cache entry corresponding to the given key.
+		// Otherwise return singular key.
 		relevantKeys = []string{inputKey}
 	}
 	return relevantKeys, nil

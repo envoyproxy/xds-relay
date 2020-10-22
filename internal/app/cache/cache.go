@@ -246,14 +246,14 @@ func (c *cache) DeleteRequest(key string, req transport.Request) error {
 func (c *cache) DeleteKey(key string) error {
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
-	metrics.CacheDeleteKeySubscope(c.scope, key).Counter(metrics.CacheDeleteAttempt).Inc(1)
+	metrics.CacheDeleteKeySubscope(c.scope, key).Counter(metrics.CacheDeleteKeyAttempt).Inc(1)
 	_, found := c.cache.Get(key)
 	if !found {
-		metrics.CacheDeleteKeySubscope(c.scope, key).Counter(metrics.CacheDeleteError).Inc(1)
+		metrics.CacheDeleteKeySubscope(c.scope, key).Counter(metrics.CacheDeleteKeyError).Inc(1)
 		return fmt.Errorf("unable to delete entry for nonexistent key: %s", key)
 	}
 	c.cache.Remove(key)
-	metrics.CacheDeleteKeySubscope(c.scope, key).Counter(metrics.CacheDeleteSuccess).Inc(1)
+	metrics.CacheDeleteKeySubscope(c.scope, key).Counter(metrics.CacheDeleteKeySuccess).Inc(1)
 	return nil
 }
 
