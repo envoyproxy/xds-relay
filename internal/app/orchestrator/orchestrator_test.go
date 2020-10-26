@@ -30,7 +30,7 @@ type mockSimpleUpstreamClient struct {
 	responseChan <-chan transport.Response
 }
 
-func (m mockSimpleUpstreamClient) OpenStream(req transport.Request) (<-chan transport.Response, func()) {
+func (m mockSimpleUpstreamClient) OpenStream(req transport.Request, key string) (<-chan transport.Response, func()) {
 	return m.responseChan, func() {}
 }
 
@@ -43,7 +43,7 @@ type mockMultiStreamUpstreamClient struct {
 }
 
 func (m mockMultiStreamUpstreamClient) OpenStream(
-	req transport.Request,
+	req transport.Request, key string,
 ) (<-chan transport.Response, func()) {
 	aggregatedKey, err := m.mapper.GetKey(req)
 	assert.NoError(m.t, err)
@@ -203,7 +203,7 @@ func TestUnaggregatedKey(t *testing.T) {
 
 	respChannel, _ := orchestrator.CreateWatch(req)
 	testutils.AssertCounterValue(t, mockScope.Snapshot().Counters(),
-		fmt.Sprintf("mock_orchestrator.watch.errors.unaggregated_key"), 1)
+		"mock_orchestrator.watch.errors.unaggregated_key", 1)
 	assert.NotNil(t, respChannel)
 	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.responseChannels))
 	_, more := <-respChannel.GetChannel().V2
