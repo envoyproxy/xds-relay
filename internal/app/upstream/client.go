@@ -218,7 +218,7 @@ func (m *client) handleStreamsWithRetry(
 			}
 			scope = scope.Tagged(map[string]string{metrics.TagName: aggregatedKey})
 			if err != nil {
-				m.logger.With("request_type", request.GetTypeURL()).Warn(ctx, "stream failed")
+				m.logger.With("request_type", request.GetTypeURL(), "aggregated_key", aggregatedKey).Warn(ctx, "stream failed")
 				scope.Counter(metrics.UpstreamStreamCreationFailure).Inc(1)
 				cancel()
 				continue
