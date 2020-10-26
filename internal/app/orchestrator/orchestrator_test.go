@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/envoyproxy/xds-relay/internal/pkg/stats"
+	"go.uber.org/goleak"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	v2_core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
@@ -83,8 +84,13 @@ func assertEqualResponse(t *testing.T, got gcp.Response, expected v2.DiscoveryRe
 	assert.Equal(t, req, *got.GetRequest())
 }
 
+func TestMain(m *testing.M) {
+	defer goleak.VerifyTestMain(m)
+}
+
 func TestNew(t *testing.T) {
 	// Trivial test to ensure orchestrator instantiates.
+	ctx, cancel := context.WithCancel(context.Background())
 	upstreamClient := upstream.NewMock(
 		context.Background(),
 		upstream.CallOptions{},
@@ -113,8 +119,9 @@ func TestNew(t *testing.T) {
 		MaxEntries: 10,
 	}
 
-	orchestrator := New(context.Background(), log.MockLogger, tally.NewTestScope("prefix",
+	orchestrator := New(ctx, log.MockLogger, tally.NewTestScope("prefix",
 		make(map[string]string)), requestMapper, upstreamClient, &cacheConfig)
+	cancel()
 	assert.NotNil(t, orchestrator)
 }
 
