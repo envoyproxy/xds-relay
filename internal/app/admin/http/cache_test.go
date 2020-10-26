@@ -699,8 +699,8 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffix_NotFound(t *testing.T) {
 	}
 }
 
-func TestAdminServer_ClearCacheHandler_EntireCache(t *testing.T) {
-	for _, url := range []string{"/clear_cache", "/clear_cache/", "/clear_cache/*"} {
+func testAdminServerClearCacheHelper(t *testing.T, urls []string) {
+	for _, url := range urls {
 		ctx := context.Background()
 		mapper := mapper.NewMock(t)
 		upstreamResponseChannelLDS := make(chan *v2.DiscoveryResponse)
@@ -802,8 +802,16 @@ func TestAdminServer_ClearCacheHandler_EntireCache(t *testing.T) {
 	}
 }
 
-func TestAdminServer_ClearCacheHandler_EntireCacheV3(t *testing.T) {
-	for _, url := range []string{"/clear_cache", "/clear_cache/", "/clear_cache/*"} {
+func TestAdminServer_ClearCacheHandler_EntireCache(t *testing.T) {
+	testAdminServerClearCacheHelper(t, []string{"/clear_cache", "/clear_cache/", "/clear_cache/*"})
+}
+
+func TestAdminServer_ClearCacheHandler_WildcardSuffix(t *testing.T) {
+	testAdminServerClearCacheHelper(t, []string{"/clear_cache/t*", "/clear_cache/tes*", "/clear_cache/test*"})
+}
+
+func testAdminServerClearCacheHelperV3(t *testing.T, urls []string) {
+	for _, url := range urls {
 		ctx := context.Background()
 		mapper := mapper.NewMock(t)
 		upstreamResponseChannelLDS := make(chan *discoveryv3.DiscoveryResponse)
@@ -904,107 +912,12 @@ func TestAdminServer_ClearCacheHandler_EntireCacheV3(t *testing.T) {
 	}
 }
 
+func TestAdminServer_ClearCacheHandler_EntireCacheV3(t *testing.T) {
+	testAdminServerClearCacheHelperV3(t, []string{"/clear_cache", "/clear_cache/", "/clear_cache/*"})
+}
+
 func TestAdminServer_ClearCacheHandler_WildcardSuffixV3(t *testing.T) {
-	for _, url := range []string{"/clear_cache/t*", "/clear_cache/tes*", "/clear_cache/test*"} {
-		ctx := context.Background()
-		mapper := mapper.NewMock(t)
-		upstreamResponseChannelLDS := make(chan *discoveryv3.DiscoveryResponse)
-		upstreamResponseChannelCDS := make(chan *discoveryv3.DiscoveryResponse)
-		mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
-		client := upstream.NewMockV3(
-			ctx,
-			upstream.CallOptions{Timeout: time.Second},
-			nil,
-			upstreamResponseChannelLDS,
-			nil,
-			nil,
-			upstreamResponseChannelCDS,
-			func(m interface{}) error { return nil },
-			stats.NewMockScope("mock"),
-		)
-		orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
-		assert.NotNil(t, orchestrator)
-
-		req1Node := envoy_config_core_v3.Node{
-			Id:      "test-1",
-			Cluster: "test-prod",
-		}
-		gcpReq1 := gcpv3.Request{
-			TypeUrl: resourcev3.ListenerType,
-			Node:    &req1Node,
-		}
-		ldsRespChannel, cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV3(&gcpReq1))
-		assert.NotNil(t, ldsRespChannel)
-
-		req2Node := envoy_config_core_v3.Node{
-			Id:      "test-2",
-			Cluster: "test-prod",
-		}
-		gcpReq2 := gcpv3.Request{
-			TypeUrl: resourcev3.ClusterType,
-			Node:    &req2Node,
-		}
-		cdsRespChannel, cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV3(&gcpReq2))
-		assert.NotNil(t, cdsRespChannel)
-
-		listener := &v2.Listener{
-			Name: "lds resource",
-		}
-		listenerAny, err := ptypes.MarshalAny(listener)
-		assert.NoError(t, err)
-		resp := discoveryv3.DiscoveryResponse{
-			VersionInfo: "1",
-			TypeUrl:     resourcev3.ListenerType,
-			Resources: []*any.Any{
-				listenerAny,
-			},
-		}
-		upstreamResponseChannelLDS <- &resp
-		gotResponse := <-ldsRespChannel.GetChannel().V3
-		gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
-		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
-
-		cluster := &v2.Cluster{
-			Name: "cds resource",
-		}
-		clusterAny, err := ptypes.MarshalAny(cluster)
-		assert.NoError(t, err)
-		resp = discoveryv3.DiscoveryResponse{
-			VersionInfo: "2",
-			TypeUrl:     resourcev3.ClusterType,
-			Resources: []*any.Any{
-				clusterAny,
-			},
-		}
-		upstreamResponseChannelCDS <- &resp
-		gotResponse = <-cdsRespChannel.GetChannel().V3
-		gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
-		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
-
-		// Assert cache has two entries before clearing
-		cacheKeys, err := orchestrator.GetDownstreamAggregatedKeys()
-		assert.Nil(t, err)
-		assert.Equal(t, len(cacheKeys), 2)
-
-		req, err := http.NewRequest("POST", url, nil)
-		assert.NoError(t, err)
-
-		rr := httptest.NewRecorder()
-		handler := clearCacheHandler(&orchestrator)
-
-		handler.ServeHTTP(rr, req)
-		assert.Equal(t, http.StatusOK, rr.Code)
-
-		// Assert cache has zero entries after clearing
-		cacheKeys, err = orchestrator.GetDownstreamAggregatedKeys()
-		assert.Nil(t, err)
-		assert.Equal(t, len(cacheKeys), 0)
-
-		cancelLDSWatch()
-		cancelCDSWatch()
-	}
+	testAdminServerClearCacheHelperV3(t, []string{"/clear_cache/t*", "/clear_cache/tes*", "/clear_cache/test*"})
 }
 
 func TestAdminServer_ClearCacheHandler_WildcardSuffix_NotFound(t *testing.T) {

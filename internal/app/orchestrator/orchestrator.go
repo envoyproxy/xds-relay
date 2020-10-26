@@ -240,7 +240,7 @@ func (o *orchestrator) GetReadOnlyCache() cache.ReadOnlyCache {
 	return o.cache.GetReadOnlyCache()
 }
 
-// GetCache returns the request/response cache with only all cache methods exposed.
+// GetCache returns the request/response cache with all cache methods exposed.
 func (o *orchestrator) GetCache() cache.Cache {
 	return o.cache
 }

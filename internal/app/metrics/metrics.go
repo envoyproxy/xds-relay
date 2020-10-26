@@ -174,9 +174,9 @@ func CacheDeleteRequestSubscope(parent tally.Scope, aggregatedKey string) tally.
 	return parent.SubScope(ScopeCacheDelete).Tagged(map[string]string{TagName: aggregatedKey})
 }
 
-// CacheDeleteKeySubscope gets the cache delete request subscope and adds the aggregated key
+// CacheDeleteKeySubscope gets the cache delete key subscope and adds the aggregated key
 // as a point tag.
-// ex: .cache.delete_request+key=$aggregated_key
+// ex: .cache.delete_key+key=$aggregated_key
 func CacheDeleteKeySubscope(parent tally.Scope, aggregatedKey string) tally.Scope {
 	return parent.SubScope(ScopeCacheDeleteKey).Tagged(map[string]string{TagName: aggregatedKey})
 }
