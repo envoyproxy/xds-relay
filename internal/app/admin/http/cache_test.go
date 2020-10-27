@@ -269,7 +269,7 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
 		gotResponse := <-ldsRespChannel
 		gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
 		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
+		assert.Equal(t, &resp, gotDiscoveryResponse)
 
 		cluster := &v2.Cluster{
 			Name: "cds resource",
@@ -287,7 +287,7 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
 		gotResponse = <-cdsRespChannel
 		gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
 		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
+		assert.Equal(t, &resp, gotDiscoveryResponse)
 
 		req, err := http.NewRequest("GET", url, nil)
 		assert.NoError(t, err)
@@ -374,7 +374,7 @@ func TestAdminServer_CacheDumpHandler_EntireCacheV3(t *testing.T) {
 		gotResponse := <-ldsRespChannel
 		gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
 		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
+		assert.Equal(t, &resp, gotDiscoveryResponse)
 
 		cluster := &v2.Cluster{
 			Name: "cds resource",
@@ -392,7 +392,7 @@ func TestAdminServer_CacheDumpHandler_EntireCacheV3(t *testing.T) {
 		gotResponse = <-cdsRespChannel
 		gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
 		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
+		assert.Equal(t, &resp, gotDiscoveryResponse)
 
 		req, err := http.NewRequest("GET", url, nil)
 		assert.NoError(t, err)
@@ -475,7 +475,7 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffix(t *testing.T) {
 		gotResponse := <-ldsRespChannel
 		gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
 		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
+		assert.Equal(t, &resp, gotDiscoveryResponse)
 
 		cluster := &v2.Cluster{
 			Name: "cds resource",
@@ -493,7 +493,7 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffix(t *testing.T) {
 		gotResponse = <-cdsRespChannel
 		gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
 		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
+		assert.Equal(t, &resp, gotDiscoveryResponse)
 
 		req, err := http.NewRequest("GET", url, nil)
 		assert.NoError(t, err)
@@ -578,7 +578,7 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffixV3(t *testing.T) {
 		gotResponse := <-ldsRespChannel
 		gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
 		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
+		assert.Equal(t, &resp, gotDiscoveryResponse)
 
 		cluster := &v2.Cluster{
 			Name: "cds resource",
@@ -596,7 +596,7 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffixV3(t *testing.T) {
 		gotResponse = <-cdsRespChannel
 		gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
 		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
+		assert.Equal(t, &resp, gotDiscoveryResponse)
 
 		req, err := http.NewRequest("GET", url, nil)
 		assert.NoError(t, err)
@@ -683,7 +683,7 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffix_NotFound(t *testing.T) {
 		gotResponse := <-ldsRespChannel
 		gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
 		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
+		assert.Equal(t, &resp, gotDiscoveryResponse)
 
 		cluster := &v2.Cluster{
 			Name: "cds resource",
@@ -701,7 +701,7 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffix_NotFound(t *testing.T) {
 		gotResponse = <-cdsRespChannel
 		gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
 		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
+		assert.Equal(t, &resp, gotDiscoveryResponse)
 
 		req, err := http.NewRequest("GET", url, nil)
 		assert.NoError(t, err)
