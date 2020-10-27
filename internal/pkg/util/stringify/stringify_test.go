@@ -19,7 +19,7 @@ func TestInterfaceToString(t *testing.T) {
 		TypeUrl:       "typeURL_A",
 		ResponseNonce: "nonce_A",
 	}
-	requestString, err := InterfaceToString(testRequest)
+	requestString, err := InterfaceToString(&testRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, `{
   "version_info": "version_A",

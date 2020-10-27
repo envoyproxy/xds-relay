@@ -76,11 +76,11 @@ func newMockOrchestrator(t *testing.T, mockScope tally.Scope, mapper mapper.Mapp
 	return orchestrator
 }
 
-func assertEqualResponse(t *testing.T, got gcp.Response, expected v2.DiscoveryResponse, req gcp.Request) {
+func assertEqualResponse(t *testing.T, got gcp.Response, expected *v2.DiscoveryResponse, req *gcp.Request) {
 	gotDiscoveryResponse, err := got.GetDiscoveryResponse()
 	assert.NoError(t, err)
-	assert.Equal(t, expected, *gotDiscoveryResponse)
-	assert.Equal(t, req, *got.GetRequest())
+	assert.Equal(t, expected, gotDiscoveryResponse)
+	assert.Equal(t, req, got.GetRequest())
 }
 
 func TestNew(t *testing.T) {
@@ -162,7 +162,7 @@ func TestGoldenPath(t *testing.T) {
 	upstreamResponseChannel <- transport.NewResponseV2(&req, &resp)
 
 	gotResponse := <-respChannel.GetChannel().V2
-	assertEqualResponse(t, gotResponse, resp, req)
+	assertEqualResponse(t, gotResponse, &resp, &req)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -256,7 +256,7 @@ func TestCachedResponse(t *testing.T) {
 	})
 
 	gotResponse := <-respChannel.GetChannel().V2
-	assertEqualResponse(t, gotResponse, mockResponse, req)
+	assertEqualResponse(t, gotResponse, &mockResponse, &req)
 
 	// Attempt pushing a more recent response from upstream.
 	resp := v2.DiscoveryResponse{
@@ -271,7 +271,7 @@ func TestCachedResponse(t *testing.T) {
 
 	upstreamResponseChannel <- transport.NewResponseV2(&req, &resp)
 	gotResponse = <-respChannel.GetChannel().V2
-	assertEqualResponse(t, gotResponse, resp, req)
+	assertEqualResponse(t, gotResponse, &resp, &req)
 	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
 	orchestrator.upstreamResponseMap.internal.Range(func(key, val interface{}) bool {
 		assert.Contains(t, "lds", key.(string))
@@ -384,9 +384,9 @@ func TestMultipleWatchersAndUpstreams(t *testing.T) {
 		return true
 	})
 
-	assertEqualResponse(t, gotResponseFromChannel1, upstreamResponseLDS, req1)
-	assertEqualResponse(t, gotResponseFromChannel2, upstreamResponseLDS, req1)
-	assertEqualResponse(t, gotResponseFromChannel3, upstreamResponseCDS, req3)
+	assertEqualResponse(t, gotResponseFromChannel1, &upstreamResponseLDS, &req1)
+	assertEqualResponse(t, gotResponseFromChannel2, &upstreamResponseLDS, &req1)
+	assertEqualResponse(t, gotResponseFromChannel3, &upstreamResponseCDS, &req3)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
