@@ -8,7 +8,6 @@ package orchestrator
 
 import (
 	"context"
-	"github.com/envoyproxy/xds-relay/pkg/marshallable"
 	"strings"
 	"sync"
 
@@ -22,6 +21,7 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/app/transport"
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
+	"github.com/envoyproxy/xds-relay/pkg/marshallable"
 )
 
 const (
