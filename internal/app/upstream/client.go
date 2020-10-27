@@ -144,7 +144,10 @@ func (m *client) OpenStream(request transport.Request, aggregatedKey string) (<-
 	// The reason is cancelling a context tied with the stream is straightforward to signal closure.
 	// Also, the shutdown function could potentially be called more than once by a caller.
 	// Closing channels is not idempotent while cancelling context is idempotent.
-	return response, func() { cancel() }
+	return response, func() {
+		m.logger.With("aggregated_key", aggregatedKey).Debug(ctx, "cancelling stream")
+		cancel()
+	}
 }
 
 func (m *client) handleStreamsWithRetry(
@@ -265,6 +268,8 @@ func send(
 			if !ok {
 				return
 			}
+			logger.With("aggregated_key", aggregatedKey,
+				"version", sig.version).Debug(ctx, "sending to upstream")
 			// Ref: https://github.com/grpc/grpc-go/issues/1229#issuecomment-302755717
 			// Call SendMsg in a timeout because it can block in some cases.
 			err := util.DoWithTimeout(ctx, func() error {
@@ -305,6 +310,8 @@ func recv(
 			return
 		default:
 			response <- resp
+			logger.With("aggregated_key", aggregatedKey,
+				"version", resp.GetPayloadVersion()).Debug(ctx, "Received from upstream")
 			signal <- &version{version: resp.GetPayloadVersion(), nonce: resp.GetNonce()}
 		}
 	}
