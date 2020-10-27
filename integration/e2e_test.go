@@ -47,7 +47,7 @@ const (
 	nUpdates                  = 4
 	keyerConfiguration        = "./testdata/keyer_configuration_e2e.yaml"
 	xdsRelayBootstrap         = "./testdata/bootstrap_configuration_e2e.yaml"
-	upstreamMessage           = "Hi, there!"
+	upstreamMessage           = "Hi, there!\n"
 )
 
 func TestMain(m *testing.M) {
@@ -284,12 +284,19 @@ func callLocalService(port uint, nListeners int) (int, int) {
 
 func runUpstream(upstreamPort uint) {
 	testLogger.Info(context.Background(), "upstream listening HTTP/1.1 on %d\n", upstreamPort)
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if _, err := w.Write([]byte(upstreamMessage)); err != nil {
-			testLogger.Info(context.Background(), err.Error())
+	server := &http.Server{Addr: fmt.Sprintf(":%d", upstreamPort), Handler: echo{}}
+	go func() {
+		if err := server.ListenAndServe(); err != nil {
+			testLogger.Error(context.Background(), "error: %s", err.Error())
 		}
-	})
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", upstreamPort), nil); err != nil {
-		testLogger.Info(context.Background(), err.Error())
+	}()
+}
+
+type echo struct{}
+
+func (h echo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/text")
+	if _, err := w.Write([]byte(upstreamMessage)); err != nil {
+		testLogger.Error(context.Background(), "error: %s", err.Error())
 	}
 }
