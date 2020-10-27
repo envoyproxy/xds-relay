@@ -171,18 +171,19 @@ func TestClientContextCancellationShouldCloseAllResponseChannels(t *testing.T) {
 		log.MockLogger,
 		stats.NewMockScope("mock"),
 	)
+
 	respCh1, _ := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{
 		TypeUrl: resource.ClusterType,
 		Node: &corev2.Node{
 			Id: nodeID,
 		},
-	}), "aggregated_key")
+	}, nil), "aggregated_key")
 	respCh2, _ := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{
 		TypeUrl: resource.ClusterType,
 		Node: &corev2.Node{
 			Id: nodeID,
 		},
-	}), "aggregated_key")
+	}, nil), "aggregated_key")
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -246,7 +247,7 @@ func setup(
 		Node: &corev2.Node{
 			Id: nodeID,
 		},
-	}), "aggregated_key")
+	}, nil), "aggregated_key")
 
 	select {
 	case <-cb.Signal:
