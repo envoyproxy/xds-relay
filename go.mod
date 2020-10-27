@@ -6,7 +6,7 @@ replace github.com/spf13/viper => github.com/spf13/viper v1.7.1
 
 require (
 	github.com/cactus/go-statsd-client/statsd v0.0.0-20200322202804-24fc78943200
-	github.com/envoyproxy/go-control-plane v0.9.7-0.20200915180230-8b41032bcc9c
+	github.com/envoyproxy/go-control-plane v0.9.7-0.20200731171414-17c10ec4569a
 	github.com/envoyproxy/protoc-gen-validate v0.3.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e
