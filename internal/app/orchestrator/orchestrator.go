@@ -8,6 +8,7 @@ package orchestrator
 
 import (
 	"context"
+	"github.com/envoyproxy/xds-relay/pkg/marshallable"
 	"strings"
 	"sync"
 
@@ -56,7 +57,7 @@ type Orchestrator interface {
 
 	GetReadOnlyCache() cache.ReadOnlyCache
 
-	GetDownstreamAggregatedKeys() (map[string]bool, error)
+	GetDownstreamAggregatedKeys() (map[string]bool, marshallable.Error)
 
 	CreateWatch(transport.Request) (transport.Watch, func())
 
@@ -248,12 +249,15 @@ func (o *orchestrator) GetCache() cache.Cache {
 }
 
 // GetDownstreamAggregatedKeys returns the aggregated keys for all requests stored in the downstream response map.
-func (o *orchestrator) GetDownstreamAggregatedKeys() (map[string]bool, error) {
+func (o *orchestrator) GetDownstreamAggregatedKeys() (map[string]bool, marshallable.Error) {
 	keys, err := o.downstreamResponseMap.getAggregatedKeys(&o.mapper)
 	if err != nil {
 		o.logger.With("error", err).Error(context.Background(), "Unable to get keys")
+		return keys, marshallable.Error{
+			Message: err.Error(),
+		}
 	}
-	return keys, err
+	return keys, marshallable.Error{}
 }
 
 // watchUpstream is intended to be called in a go routine, to receive incoming

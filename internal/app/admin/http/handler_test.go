@@ -238,8 +238,8 @@ func TestAdminServer_ClearCacheHandler(t *testing.T) {
 	assert.Equal(t, resp, *gotDiscoveryResponse)
 
 	// Assert cache has one entry before clearing
-	cacheKeys, err := orchestrator.GetDownstreamAggregatedKeys()
-	assert.Nil(t, err)
+	cacheKeys, marshallableError := orchestrator.GetDownstreamAggregatedKeys()
+	assert.Empty(t, marshallableError.Message)
 	assert.Equal(t, len(cacheKeys), 1)
 
 	req, err := http.NewRequest("POST", "/clear_cache/test_lds", nil)
@@ -252,8 +252,8 @@ func TestAdminServer_ClearCacheHandler(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 
 	// Assert cache has zero entries after clearing
-	cacheKeys, err = orchestrator.GetDownstreamAggregatedKeys()
-	assert.Nil(t, err)
+	cacheKeys, marshallableError = orchestrator.GetDownstreamAggregatedKeys()
+	assert.Empty(t, marshallableError.Message)
 	assert.Equal(t, len(cacheKeys), 0)
 
 	cancelWatch()

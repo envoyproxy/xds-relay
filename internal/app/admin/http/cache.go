@@ -108,12 +108,10 @@ func edsDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 
 func keyDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		allKeys, err := orchestrator.Orchestrator.GetDownstreamAggregatedKeys(*o)
-		if err != nil {
+		allKeys, marshallableError := orchestrator.Orchestrator.GetDownstreamAggregatedKeys(*o)
+		if marshallableError.Message != "" {
 			w.WriteHeader(http.StatusInternalServerError)
-			errMessage, _ := stringify.InterfaceToString(&marshallable.Error{
-				Message: fmt.Sprintf("error in getting cache keys: %s", err.Error()),
-			})
+			errMessage, _ := stringify.InterfaceToString(&marshallableError)
 			_, _ = w.Write([]byte(errMessage))
 			return
 		}
@@ -127,11 +125,9 @@ func keyDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 			Names: keys,
 		}
 		marshalledKeys, err := stringify.InterfaceToString(response)
-		if err != nil {
+		if marshallableError.Message != "" {
 			w.WriteHeader(http.StatusInternalServerError)
-			errMessage, _ := stringify.InterfaceToString(&marshallable.Error{
-				Message: fmt.Sprintf("error in marshalling keys: %s", err.Error()),
-			})
+			errMessage, _ := stringify.InterfaceToString(&err)
 			_, _ = w.Write([]byte(errMessage))
 			return
 		}
@@ -192,14 +188,11 @@ func getRelevantKeys(o *orchestrator.Orchestrator, key string, w http.ResponseWr
 	if hasWildcardSuffix(key) {
 		// Retrieve all keys
 		allKeys, err := orchestrator.Orchestrator.GetDownstreamAggregatedKeys(*o)
-		if err != nil {
+		if err.Message != "" {
 			w.WriteHeader(http.StatusInternalServerError)
-			marshallableError := marshallable.Error{
-				Message: fmt.Sprintf("error in getting cache keys: %s", err.Error()),
-			}
-			errMessage, _ := stringify.InterfaceToString(&marshallableError)
+			errMessage, _ := stringify.InterfaceToString(&err)
 			_, _ = w.Write([]byte(errMessage))
-			return nil, marshallableError
+			return nil, err
 		}
 		// Find keys that match prefix of wildcard
 		rootCacheKeyName := strings.TrimSuffix(key, "*")

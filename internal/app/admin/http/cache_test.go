@@ -779,8 +779,8 @@ func testAdminServerClearCacheHelper(t *testing.T, urls []string, expectedCacheC
 		assert.Equal(t, resp, *gotDiscoveryResponse)
 
 		// Assert cache has two entries before clearing
-		cacheKeys, err := orchestrator.GetDownstreamAggregatedKeys()
-		assert.Nil(t, err)
+		cacheKeys, marshallableError := orchestrator.GetDownstreamAggregatedKeys()
+		assert.Empty(t, marshallableError.Message)
 		assert.Equal(t, len(cacheKeys), 2)
 
 		req, err := http.NewRequest("POST", url, nil)
@@ -793,8 +793,8 @@ func testAdminServerClearCacheHelper(t *testing.T, urls []string, expectedCacheC
 		assert.Equal(t, http.StatusOK, rr.Code)
 
 		// Assert cache has expectedCacheCount entries after clearing
-		cacheKeys, err = orchestrator.GetDownstreamAggregatedKeys()
-		assert.Nil(t, err)
+		cacheKeys, marshallableError = orchestrator.GetDownstreamAggregatedKeys()
+		assert.Empty(t, marshallableError.Message)
 		assert.Equal(t, len(cacheKeys), expectedCacheCount)
 
 		cancelLDSWatch()
@@ -890,8 +890,8 @@ func testAdminServerClearCacheHelperV3(t *testing.T, urls []string) {
 		assert.Equal(t, resp, *gotDiscoveryResponse)
 
 		// Assert cache has two entries before clearing
-		cacheKeys, err := orchestrator.GetDownstreamAggregatedKeys()
-		assert.Nil(t, err)
+		cacheKeys, marshallableError := orchestrator.GetDownstreamAggregatedKeys()
+		assert.Empty(t, marshallableError.Message)
 		assert.Equal(t, len(cacheKeys), 2)
 
 		req, err := http.NewRequest("POST", url, nil)
@@ -904,8 +904,8 @@ func testAdminServerClearCacheHelperV3(t *testing.T, urls []string) {
 		assert.Equal(t, http.StatusOK, rr.Code)
 
 		// Assert cache has zero entries after clearing
-		cacheKeys, err = orchestrator.GetDownstreamAggregatedKeys()
-		assert.Nil(t, err)
+		cacheKeys, marshallableError = orchestrator.GetDownstreamAggregatedKeys()
+		assert.Empty(t, marshallableError.Message)
 		assert.Equal(t, len(cacheKeys), 0)
 		cancelLDSWatch()
 		cancelCDSWatch()
