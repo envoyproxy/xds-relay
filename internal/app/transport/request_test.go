@@ -125,8 +125,8 @@ func TestGetRaw(t *testing.T) {
 }
 
 func TestGetWatch(t *testing.T) {
-	ch2 := make(chan gcpv2.Response)
-	ch3 := make(chan gcpv3.Response)
+	ch2 := make(chan gcpv2.Response, 1)
+	ch3 := make(chan gcpv3.Response, 1)
 	requestv2 := NewRequestV2(&requestV2, ch2)
 	requestv3 := NewRequestV3(&requestV3, ch3)
 
