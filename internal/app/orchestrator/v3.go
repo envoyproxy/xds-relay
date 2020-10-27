@@ -24,13 +24,12 @@ func NewV3(o Orchestrator) *V3 {
 }
 
 // CreateWatch is the grpc backed xds handler
-func (v *V3) CreateWatch(r gcpv3.Request) (chan gcpv3.Response, func()) {
-	req := transport.NewRequestV3(&r)
-	w, f := v.orchestrator.CreateWatch(req)
-	return w.GetChannel().V3, f
+func (v *V3) CreateWatch(r *gcpv3.Request, resp chan<- gcpv3.Response) func() {
+	req := transport.NewRequestV3(r, resp)
+	return v.orchestrator.CreateWatch(req)
 }
 
 // Fetch implements the polling method of the config cache using a non-empty request.
-func (v *V3) Fetch(context.Context, discovery.DiscoveryRequest) (gcpv3.Response, error) {
+func (v *V3) Fetch(context.Context, *discovery.DiscoveryRequest) (gcpv3.Response, error) {
 	return nil, fmt.Errorf("Not implemented")
 }
