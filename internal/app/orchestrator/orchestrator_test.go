@@ -80,7 +80,7 @@ func assertEqualResponse(t *testing.T, got gcp.Response, expected *v2.DiscoveryR
 	gotDiscoveryResponse, err := got.GetDiscoveryResponse()
 	assert.NoError(t, err)
 	assert.Equal(t, expected, gotDiscoveryResponse)
-	assert.Equal(t, req, *got.GetRequest())
+	assert.Equal(t, req, got.GetRequest())
 }
 
 func TestNew(t *testing.T) {
@@ -209,8 +209,9 @@ func TestUnaggregatedKey(t *testing.T) {
 	testutils.AssertCounterValue(t, mockScope.Snapshot().Counters(),
 		"mock_orchestrator.watch.errors.unaggregated_key", 1)
 	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.responseChannels))
-	_, more := <-ch
-	assert.False(t, more)
+	r, more := <-ch
+	assert.Nil(t, r)
+	assert.True(t, more)
 }
 
 func TestCachedResponse(t *testing.T) {
@@ -433,8 +434,9 @@ func TestUpstreamFailure(t *testing.T) {
 	// close upstream channel. This happens when upstream client receives an error
 	close(upstreamResponseChannel)
 
-	_, more := <-respChannel
-	assert.False(t, more)
+	r, more := <-respChannel
+	assert.Nil(t, r)
+	assert.True(t, more)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
