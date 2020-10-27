@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -795,8 +794,6 @@ func testAdminServerClearCacheHelper(t *testing.T, urls []string, expectedCacheC
 
 		// Assert cache has expectedCacheCount entries after clearing
 		cacheKeys, err = orchestrator.GetDownstreamAggregatedKeys()
-		fmt.Println("hello")
-		fmt.Println(len(cacheKeys), expectedCacheCount)
 		assert.Nil(t, err)
 		assert.Equal(t, len(cacheKeys), expectedCacheCount)
 
