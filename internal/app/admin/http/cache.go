@@ -185,11 +185,11 @@ type marshallableCache struct {
 	Cache []marshallableResource
 }
 
-func getRelevantKeys(o *orchestrator.Orchestrator, inputKey string, w http.ResponseWriter) ([]string, marshallable.Error) {
+func getRelevantKeys(o *orchestrator.Orchestrator, key string, w http.ResponseWriter) ([]string, marshallable.Error) {
 	var relevantKeys []string
 	// If wildcard suffix provided, retrieve all cache keys that match the given prefix.
 	// If no key is provided, retrieve all keys.
-	if hasWildcardSuffix(inputKey) {
+	if hasWildcardSuffix(key) {
 		// Retrieve all keys
 		allKeys, err := orchestrator.Orchestrator.GetDownstreamAggregatedKeys(*o)
 		if err != nil {
@@ -202,7 +202,7 @@ func getRelevantKeys(o *orchestrator.Orchestrator, inputKey string, w http.Respo
 			return nil, marshallableError
 		}
 		// Find keys that match prefix of wildcard
-		rootCacheKeyName := strings.TrimSuffix(inputKey, "*")
+		rootCacheKeyName := strings.TrimSuffix(key, "*")
 		for potentialMatchKey := range allKeys {
 			if strings.HasPrefix(potentialMatchKey, rootCacheKeyName) {
 				relevantKeys = append(relevantKeys, potentialMatchKey)
@@ -210,7 +210,7 @@ func getRelevantKeys(o *orchestrator.Orchestrator, inputKey string, w http.Respo
 		}
 	} else {
 		// Otherwise return singular key.
-		relevantKeys = []string{inputKey}
+		relevantKeys = []string{key}
 	}
 	return relevantKeys, marshallable.Error{}
 }
@@ -239,7 +239,8 @@ func clearCacheEntries(keys []string, cache cache.Cache, o *orchestrator.Orchest
 	for _, key := range keys {
 		resource, err := cache.DeleteKey(key)
 		if err.Message != "" {
-			fmt.Fprintln(w, err.Message)
+			errMessage, _ := stringify.InterfaceToString(&err)
+			_, _ = w.Write([]byte(errMessage))
 		}
 		orchestrator.Orchestrator.DeleteAll(*o, key, resource)
 	}

@@ -5,7 +5,6 @@ package cache
 import (
 	"context"
 	"fmt"
-	"github.com/envoyproxy/xds-relay/pkg/marshallable"
 	"sync"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/app/metrics"
 	"github.com/envoyproxy/xds-relay/internal/app/transport"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
+	"github.com/envoyproxy/xds-relay/pkg/marshallable"
 )
 
 type Cache interface {
@@ -257,7 +257,7 @@ func (c *cache) DeleteKey(key string) (Resource, marshallable.Error) {
 	}
 	resource, ok := value.(Resource)
 	if !ok {
-		metrics.CacheDeleteRequestSubscope(c.scope, key).Counter(metrics.CacheDeleteError).Inc(1)
+		metrics.CacheDeleteRequestSubscope(c.scope, key).Counter(metrics.CacheDeleteKeyError).Inc(1)
 		return Resource{}, marshallable.Error{
 			Message: fmt.Sprintf("unable to cast cache value to type resource for key: %s", key),
 		}
