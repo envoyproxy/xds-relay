@@ -142,7 +142,7 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 	gotResponse := <-respChannel.GetChannel().V2
 	gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
 	assert.NoError(t, err)
-	assert.Equal(t, resp, *gotDiscoveryResponse)
+	assert.Equal(t, &resp, gotDiscoveryResponse)
 
 	req, err := http.NewRequest("GET", "/cache/test_lds", nil)
 	assert.NoError(t, err)
