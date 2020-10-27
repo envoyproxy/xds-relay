@@ -47,7 +47,7 @@ func (d *downstreamResponseMap) createChannel(req transport.Request) *responseCh
 	defer d.mu.Unlock()
 	if _, ok := d.responseChannels[req]; !ok {
 		d.responseChannels[req] = &responseChannel{
-			watch: req.CreateWatch(),
+			watch: req.GetWatch(),
 		}
 	}
 	return d.responseChannels[req]
@@ -63,7 +63,7 @@ func (d *downstreamResponseMap) get(req transport.Request) (*responseChannel, bo
 
 // delete removes the response channel and request entry from the map and
 // closes the corresponding channel.
-func (d *downstreamResponseMap) delete(req transport.Request) transport.Watch {
+func (d *downstreamResponseMap) delete(req transport.Request) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if responseChannel, ok := d.responseChannels[req]; ok {
@@ -71,9 +71,7 @@ func (d *downstreamResponseMap) delete(req transport.Request) transport.Watch {
 		responseChannel.wg.Wait()
 		responseChannel.watch.Close()
 		delete(d.responseChannels, req)
-		return responseChannel.watch
 	}
-	return nil
 }
 
 // deleteAll removes all response channels and request entries from the map and
