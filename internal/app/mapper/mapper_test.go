@@ -1108,14 +1108,14 @@ var _ = Describe("GetKey", func() {
 			mapper := New(&protoConfig, mockScope)
 			request := getDiscoveryRequest()
 			request.TypeUrl = typeurl
-			key, err := mapper.GetKey(transport.NewRequestV2(&request))
+			key, err := mapper.GetKey(transport.NewRequestV2(&request, nil))
 			Expect(mockScope.Snapshot().Counters()["mock.mapper.success+"].Value()).To(Equal(int64(1)))
 			Expect(key).To(Equal(assert))
 			Expect(err).Should(BeNil())
 		}, positiveTests...)
 
 	DescribeTable("should be able to return error",
-		func(match *MatchPredicate, result *ResultPredicate, request v2.DiscoveryRequest) {
+		func(match *MatchPredicate, result *ResultPredicate, request *v2.DiscoveryRequest) {
 			protoConfig := KeyerConfiguration{
 				Fragments: []*Fragment{
 					{
@@ -1130,7 +1130,7 @@ var _ = Describe("GetKey", func() {
 			}
 			mockScope := stats.NewMockScope("mock")
 			mapper := New(&protoConfig, mockScope)
-			key, err := mapper.GetKey(transport.NewRequestV2(&request))
+			key, err := mapper.GetKey(transport.NewRequestV2(request, nil))
 			Expect(mockScope.Snapshot().Counters()["mock.mapper.error+"].Value()).To(Equal(int64(1)))
 			Expect(key).To(Equal(""))
 			Expect(err).Should(Equal(fmt.Errorf("Cannot map the input to a key")))
@@ -1165,7 +1165,7 @@ var _ = Describe("GetKey", func() {
 			}
 			mapper := New(&protoConfig, stats.NewMockScope(""))
 			req := getDiscoveryRequest()
-			key, err := mapper.GetKey(transport.NewRequestV2(&req))
+			key, err := mapper.GetKey(transport.NewRequestV2(&req, nil))
 			Expect(expectedKey).To(Equal(key))
 			Expect(err).Should(BeNil())
 		},
@@ -1195,7 +1195,7 @@ var _ = Describe("GetKey", func() {
 			}
 			mapper := New(&protoConfig, stats.NewMockScope(""))
 			req := getDiscoveryRequest()
-			key, err := mapper.GetKey(transport.NewRequestV2(&req))
+			key, err := mapper.GetKey(transport.NewRequestV2(&req, nil))
 			Expect(key).To(Equal(""))
 			Expect(err).Should(Equal(fmt.Errorf("Cannot map the input to a key")))
 		},
@@ -1217,7 +1217,7 @@ var _ = Describe("GetKey", func() {
 			}
 			mapper := New(&protoConfig, stats.NewMockScope(""))
 			req := getDiscoveryRequest()
-			key, err := mapper.GetKey(transport.NewRequestV2(&req))
+			key, err := mapper.GetKey(transport.NewRequestV2(&req, nil))
 			Expect(key).To(Equal(""))
 			Expect(err.Error()).Should(Equal("error parsing regexp: invalid UTF-8: `\xbd\xb2`"))
 		},
@@ -1247,7 +1247,7 @@ var _ = Describe("GetKey", func() {
 			}
 			mapper := New(&protoConfig, stats.NewMockScope(""))
 			req := getDiscoveryRequest()
-			key, err := mapper.GetKey(transport.NewRequestV2(&req))
+			key, err := mapper.GetKey(transport.NewRequestV2(&req, nil))
 			Expect(key).To(Equal(""))
 			Expect(err.Error()).Should(Equal("error parsing regexp: invalid UTF-8: `\xbd\xb2`"))
 		},
@@ -1268,7 +1268,7 @@ var _ = Describe("GetKey", func() {
 				},
 			}
 			mapper := New(&protoConfig, stats.NewMockScope(""))
-			key, err := mapper.GetKey(transport.NewRequestV2(&request))
+			key, err := mapper.GetKey(transport.NewRequestV2(&request, nil))
 			Expect(key).To(Equal(""))
 			Expect(err).Should(Equal(fmt.Errorf(assert)))
 		},
@@ -1278,7 +1278,7 @@ var _ = Describe("GetKey", func() {
 		mapper := New(&KeyerConfiguration{}, stats.NewMockScope(""))
 		request := getDiscoveryRequest()
 		request.TypeUrl = ""
-		key, err := mapper.GetKey(transport.NewRequestV2(&request))
+		key, err := mapper.GetKey(transport.NewRequestV2(&request, nil))
 		Expect(key).To(Equal(""))
 		Expect(err).Should(Equal(fmt.Errorf("typeURL is empty")))
 	})
