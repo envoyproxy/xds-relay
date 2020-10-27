@@ -28,13 +28,13 @@ var (
 func Test_downstreamResponseMap_createWatch(t *testing.T) {
 	responseMap := newDownstreamResponseMap()
 	assert.Equal(t, 0, len(responseMap.watches))
-	responseMap.createWatch(transport.NewRequestV2(&mockRequest))
+	responseMap.createWatch(transport.NewRequestV2(&mockRequest, make(chan<- gcp.Response, 1)))
 	assert.Equal(t, 1, len(responseMap.watches))
 }
 
 func Test_downstreamResponseMap_get(t *testing.T) {
 	responseMap := newDownstreamResponseMap()
-	request := transport.NewRequestV2(&mockRequest)
+	request := transport.NewRequestV2(&mockRequest, make(chan<- gcp.Response, 1))
 	responseMap.createWatch(request)
 	assert.Equal(t, 1, len(responseMap.watches))
 	if _, ok := responseMap.get(request); !ok {
@@ -44,10 +44,10 @@ func Test_downstreamResponseMap_get(t *testing.T) {
 
 func Test_downstreamResponseMap_delete(t *testing.T) {
 	responseMap := newDownstreamResponseMap()
-	request := transport.NewRequestV2(&mockRequest)
+	request := transport.NewRequestV2(&mockRequest, make(chan<- gcp.Response, 1))
 	request2 := transport.NewRequestV2(&gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Cluster",
-	})
+	}, make(chan<- gcp.Response, 1))
 	responseMap.createWatch(request)
 	responseMap.createWatch(request2)
 	assert.Equal(t, 2, len(responseMap.watches))
@@ -68,13 +68,13 @@ func Test_downstreamResponseMap_delete(t *testing.T) {
 
 func Test_downstreamResponseMap_deleteAll(t *testing.T) {
 	responseMap := newDownstreamResponseMap()
-	request := transport.NewRequestV2(&mockRequest)
+	request := transport.NewRequestV2(&mockRequest, make(chan<- gcp.Response, 1))
 	request2 := transport.NewRequestV2(&gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Cluster",
-	})
+	}, make(chan<- gcp.Response, 1))
 	request3 := transport.NewRequestV2(&gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.RouteConfiguration",
-	})
+	}, make(chan<- gcp.Response, 1))
 	responseMap.createWatch(request)
 	responseMap.createWatch(request2)
 	responseMap.createWatch(request3)

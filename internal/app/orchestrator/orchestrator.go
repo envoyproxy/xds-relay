@@ -56,7 +56,7 @@ type Orchestrator interface {
 
 	GetDownstreamAggregatedKeys() (map[string]bool, error)
 
-	CreateWatch(transport.Request) (transport.Watch, func())
+	CreateWatch(transport.Request) func()
 }
 
 type orchestrator struct {
@@ -124,7 +124,7 @@ func New(
 //
 // Cancel is an optional function to release resources in the producer. If
 // provided, the consumer may call this function multiple times.
-func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func()) {
+func (o *orchestrator) CreateWatch(req transport.Request) func() {
 	ctx := context.Background()
 
 	// If this is the first time we're seeing the request from the
@@ -143,7 +143,8 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 
 		// TODO (https://github.com/envoyproxy/xds-relay/issues/56)
 		// Support unnaggregated keys.
-		return o.downstreamResponseMap.delete(req), nil
+		o.downstreamResponseMap.delete(req)
+		return nil
 	}
 
 	o.logger.With(
@@ -163,7 +164,8 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 		o.logger.With("error", err).With("aggregated_key", aggregatedKey).With(
 			"request", req.GetRaw().V2).Error(ctx, "failed to add watch")
 		metrics.OrchestratorWatchErrorsSubscope(o.scope, aggregatedKey).Counter(metrics.ErrorRegisterWatch).Inc(1)
-		return o.downstreamResponseMap.delete(req), nil
+		o.downstreamResponseMap.delete(req)
+		return nil
 	}
 	metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchCreated).Inc(1)
 
@@ -230,7 +232,7 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 		}
 	}
 
-	return watch, o.onCancelWatch(aggregatedKey, req)
+	return o.onCancelWatch(aggregatedKey, req)
 }
 
 // GetReadOnlyCache returns the request/response cache with only read-only methods exposed.
