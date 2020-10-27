@@ -393,9 +393,9 @@ func TestMultipleWatchersAndUpstreams(t *testing.T) {
 		return true
 	})
 
-	assertEqualResponse(t, gotResponseFromChannel1, &upstreamResponseLDS, &req1)
-	assertEqualResponse(t, gotResponseFromChannel2, &upstreamResponseLDS, &req1)
-	assertEqualResponse(t, gotResponseFromChannel3, &upstreamResponseCDS, &req3)
+	assertEqualResponse(t, gotResponseFromChannel1, upstreamResponseLDS, req1)
+	assertEqualResponse(t, gotResponseFromChannel2, upstreamResponseLDS, req1)
+	assertEqualResponse(t, gotResponseFromChannel3, upstreamResponseCDS, req3)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
