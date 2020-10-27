@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -699,7 +700,7 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffix_NotFound(t *testing.T) {
 	}
 }
 
-func testAdminServerClearCacheHelper(t *testing.T, urls []string) {
+func testAdminServerClearCacheHelper(t *testing.T, urls []string, expectedCacheCount int) {
 	for _, url := range urls {
 		ctx := context.Background()
 		mapper := mapper.NewMock(t)
@@ -792,10 +793,12 @@ func testAdminServerClearCacheHelper(t *testing.T, urls []string) {
 		handler.ServeHTTP(rr, req)
 		assert.Equal(t, http.StatusOK, rr.Code)
 
-		// Assert cache has zero entries after clearing
+		// Assert cache has expectedCacheCount entries after clearing
 		cacheKeys, err = orchestrator.GetDownstreamAggregatedKeys()
+		fmt.Println("hello")
+		fmt.Println(len(cacheKeys), expectedCacheCount)
 		assert.Nil(t, err)
-		assert.Equal(t, len(cacheKeys), 0)
+		assert.Equal(t, len(cacheKeys), expectedCacheCount)
 
 		cancelLDSWatch()
 		cancelCDSWatch()
@@ -803,11 +806,11 @@ func testAdminServerClearCacheHelper(t *testing.T, urls []string) {
 }
 
 func TestAdminServer_ClearCacheHandler_EntireCache(t *testing.T) {
-	testAdminServerClearCacheHelper(t, []string{"/clear_cache", "/clear_cache/", "/clear_cache/*"})
+	testAdminServerClearCacheHelper(t, []string{"/clear_cache", "/clear_cache/", "/clear_cache/*"}, 0)
 }
 
 func TestAdminServer_ClearCacheHandler_WildcardSuffix(t *testing.T) {
-	testAdminServerClearCacheHelper(t, []string{"/clear_cache/t*", "/clear_cache/tes*", "/clear_cache/test*"})
+	testAdminServerClearCacheHelper(t, []string{"/clear_cache/t*", "/clear_cache/tes*", "/clear_cache/test*"}, 0)
 }
 
 func testAdminServerClearCacheHelperV3(t *testing.T, urls []string) {
@@ -921,108 +924,7 @@ func TestAdminServer_ClearCacheHandler_WildcardSuffixV3(t *testing.T) {
 }
 
 func TestAdminServer_ClearCacheHandler_WildcardSuffix_NotFound(t *testing.T) {
-	wildcardKeys := []string{"b*", "tesa*", "t*est*"}
-	for _, key := range wildcardKeys {
-		url := "/clear_cache/" + key
-		ctx := context.Background()
-		mapper := mapper.NewMock(t)
-		upstreamResponseChannelLDS := make(chan *v2.DiscoveryResponse)
-		upstreamResponseChannelCDS := make(chan *v2.DiscoveryResponse)
-		mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
-		client := upstream.NewMock(
-			ctx,
-			upstream.CallOptions{Timeout: time.Second},
-			nil,
-			upstreamResponseChannelLDS,
-			nil,
-			nil,
-			upstreamResponseChannelCDS,
-			func(m interface{}) error { return nil },
-			stats.NewMockScope("mock"),
-		)
-		orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
-		assert.NotNil(t, orchestrator)
-
-		req1Node := corev2.Node{
-			Id:      "test-1",
-			Cluster: "test-prod",
-		}
-		gcpReq1 := gcp.Request{
-			TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
-			Node:    &req1Node,
-		}
-		ldsRespChannel, cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq1))
-		assert.NotNil(t, ldsRespChannel)
-
-		req2Node := corev2.Node{
-			Id:      "test-2",
-			Cluster: "test-prod",
-		}
-		gcpReq2 := gcp.Request{
-			TypeUrl: "type.googleapis.com/envoy.api.v2.Cluster",
-			Node:    &req2Node,
-		}
-		cdsRespChannel, cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq2))
-		assert.NotNil(t, cdsRespChannel)
-
-		listener := &v2.Listener{
-			Name: "lds resource",
-		}
-		listenerAny, err := ptypes.MarshalAny(listener)
-		assert.NoError(t, err)
-		resp := v2.DiscoveryResponse{
-			VersionInfo: "1",
-			TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
-			Resources: []*any.Any{
-				listenerAny,
-			},
-		}
-		upstreamResponseChannelLDS <- &resp
-		gotResponse := <-ldsRespChannel.GetChannel().V2
-		gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
-		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
-
-		cluster := &v2.Cluster{
-			Name: "cds resource",
-		}
-		clusterAny, err := ptypes.MarshalAny(cluster)
-		assert.NoError(t, err)
-		resp = v2.DiscoveryResponse{
-			VersionInfo: "2",
-			TypeUrl:     "type.googleapis.com/envoy.api.v2.Cluster",
-			Resources: []*any.Any{
-				clusterAny,
-			},
-		}
-		upstreamResponseChannelCDS <- &resp
-		gotResponse = <-cdsRespChannel.GetChannel().V2
-		gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
-		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
-
-		// Assert cache has two entries before clearing
-		cacheKeys, err := orchestrator.GetDownstreamAggregatedKeys()
-		assert.Nil(t, err)
-		assert.Equal(t, len(cacheKeys), 2)
-
-		req, err := http.NewRequest("POST", url, nil)
-		assert.NoError(t, err)
-
-		rr := httptest.NewRecorder()
-		handler := clearCacheHandler(&orchestrator)
-
-		handler.ServeHTTP(rr, req)
-		assert.Equal(t, http.StatusOK, rr.Code)
-
-		// Assert cache has two entries after clearing
-		cacheKeys, err = orchestrator.GetDownstreamAggregatedKeys()
-		assert.Nil(t, err)
-		assert.Equal(t, len(cacheKeys), 2)
-
-		cancelLDSWatch()
-		cancelCDSWatch()
-	}
+	testAdminServerClearCacheHelper(t, []string{"/clear_cache/b*", "/clear_cache/tesa*", "/clear_cache/t*est*"}, 2)
 }
 
 func verifyEdsLen(t *testing.T, rr *httptest.ResponseRecorder, len int) {

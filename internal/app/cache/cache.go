@@ -5,6 +5,7 @@ package cache
 import (
 	"context"
 	"fmt"
+	"github.com/envoyproxy/xds-relay/pkg/marshallable"
 	"sync"
 	"time"
 
@@ -30,7 +31,7 @@ type Cache interface {
 	DeleteRequest(key string, req transport.Request) error
 
 	// DeleteKey removes the given key from cache.
-	DeleteKey(key string) error
+	DeleteKey(key string) (Resource, marshallable.Error)
 
 	// GetReadOnlyCache returns a copy of the cache that only exposes read-only methods in its interface.
 	GetReadOnlyCache() ReadOnlyCache
@@ -243,18 +244,27 @@ func (c *cache) DeleteRequest(key string, req transport.Request) error {
 	return nil
 }
 
-func (c *cache) DeleteKey(key string) error {
+func (c *cache) DeleteKey(key string) (Resource, marshallable.Error) {
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
 	metrics.CacheDeleteKeySubscope(c.scope, key).Counter(metrics.CacheDeleteKeyAttempt).Inc(1)
-	_, found := c.cache.Get(key)
+	value, found := c.cache.Get(key)
 	if !found {
 		metrics.CacheDeleteKeySubscope(c.scope, key).Counter(metrics.CacheDeleteKeyError).Inc(1)
-		return fmt.Errorf("unable to delete entry for nonexistent key: %s", key)
+		return Resource{}, marshallable.Error{
+			Message: fmt.Sprintf("unable to delete entry for nonexistent key: %s", key),
+		}
+	}
+	resource, ok := value.(Resource)
+	if !ok {
+		metrics.CacheDeleteRequestSubscope(c.scope, key).Counter(metrics.CacheDeleteError).Inc(1)
+		return Resource{}, marshallable.Error{
+			Message: fmt.Sprintf("unable to cast cache value to type resource for key: %s", key),
+		}
 	}
 	c.cache.Remove(key)
 	metrics.CacheDeleteKeySubscope(c.scope, key).Counter(metrics.CacheDeleteKeySuccess).Inc(1)
-	return nil
+	return resource, marshallable.Error{}
 }
 
 func (r *Resource) isExpired(currentTime time.Time) bool {

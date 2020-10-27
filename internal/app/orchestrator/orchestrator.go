@@ -59,6 +59,8 @@ type Orchestrator interface {
 	GetDownstreamAggregatedKeys() (map[string]bool, error)
 
 	CreateWatch(transport.Request) (transport.Watch, func())
+
+	DeleteAll(key string, resource cache.Resource)
 }
 
 type orchestrator struct {
@@ -392,6 +394,11 @@ func (o *orchestrator) onCacheEvicted(key string, resource cache.Resource) {
 	metrics.OrchestratorCacheEvictSubscope(o.scope, key).Counter(
 		metrics.OrchestratorOnCacheEvictedRequestCount).Inc(int64(len(resource.Requests)))
 	o.logger.With("aggregated_key", key).Debug(context.Background(), "cache eviction called")
+	o.DeleteAll(key, resource)
+}
+
+// DeleteAll shuts down both the downstream watchers and the upstream stream.
+func (o *orchestrator) DeleteAll(key string, resource cache.Resource) {
 	o.downstreamResponseMap.deleteAll(resource.Requests)
 	o.upstreamResponseMap.delete(key)
 }
