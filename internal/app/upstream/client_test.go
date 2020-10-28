@@ -1,4 +1,4 @@
-package upstream_test
+package upstream
 
 import (
 	"context"
@@ -14,15 +14,13 @@ import (
 	"github.com/envoyproxy/go-control-plane/pkg/resource/v2"
 	resourcev3 "github.com/envoyproxy/go-control-plane/pkg/resource/v3"
 	"github.com/envoyproxy/xds-relay/internal/app/transport"
-	"github.com/envoyproxy/xds-relay/internal/app/upstream"
+	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 	"github.com/envoyproxy/xds-relay/internal/pkg/stats"
 	"github.com/stretchr/testify/assert"
 	"github.com/uber-go/tally"
 	"go.uber.org/goleak"
 	"google.golang.org/genproto/googleapis/rpc/status"
 )
-
-type CallOptions = upstream.CallOptions
 
 func TestMain(m *testing.M) {
 	defer goleak.VerifyTestMain(m)
@@ -160,9 +158,9 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServer(t *testing.T) {
 	responseChan := make(chan *v2.DiscoveryResponse)
 	wait := make(chan bool)
 	first := true
-	client := upstream.NewMock(
+	client := NewMock(
 		ctx,
-		CallOptions{Timeout: time.Nanosecond},
+		CallOptions{SendTimeout: time.Nanosecond},
 		nil,
 		responseChan,
 		responseChan,
@@ -201,9 +199,9 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServerV3(t *testing.T) {
 	responseChan := make(chan *discoveryv3.DiscoveryResponse)
 	wait := make(chan bool)
 	first := true
-	client := upstream.NewMockV3(
+	client := NewMockV3(
 		ctx,
-		CallOptions{Timeout: time.Nanosecond},
+		CallOptions{SendTimeout: time.Nanosecond},
 		nil,
 		responseChan,
 		responseChan,
@@ -242,9 +240,9 @@ func TestOpenStreamShouldClearNackFromRequestInTheFirstRequestToOriginServer(t *
 	responseChan := make(chan *v2.DiscoveryResponse)
 	wait := make(chan bool)
 	first := true
-	client := upstream.NewMock(
+	client := NewMock(
 		ctx,
-		CallOptions{Timeout: time.Nanosecond},
+		CallOptions{SendTimeout: time.Nanosecond},
 		nil,
 		responseChan,
 		responseChan,
@@ -285,9 +283,9 @@ func TestOpenStreamShouldClearNackFromRequestInTheFirstRequestToOriginServerV3(t
 	responseChan := make(chan *discoveryv3.DiscoveryResponse)
 	wait := make(chan bool)
 	first := true
-	client := upstream.NewMockV3(
+	client := NewMockV3(
 		ctx,
-		CallOptions{Timeout: time.Nanosecond},
+		CallOptions{SendTimeout: time.Nanosecond},
 		nil,
 		responseChan,
 		responseChan,
@@ -628,10 +626,26 @@ func TestOpenStreamShouldRetryWhenSendMsgBlocksV3(t *testing.T) {
 	blockUntilClean(respCh, func() {})
 }
 
-func createMockClient(ctx context.Context) upstream.Client {
-	return upstream.NewMock(
+func TestKeepaliveSettingsUnset(t *testing.T) {
+	params := getKeepaliveParams(context.Background(), log.MockLogger, CallOptions{})
+	assert.Equal(t, 5*time.Minute, params.Time)
+	assert.Equal(t, 0*time.Second, params.Timeout)
+	assert.True(t, params.PermitWithoutStream)
+}
+
+func TestKeepaliveSettingsSet(t *testing.T) {
+	params := getKeepaliveParams(context.Background(), log.MockLogger, CallOptions{
+		UpstreamKeepaliveTimeout: "10m",
+	})
+	assert.Equal(t, 10*time.Minute, params.Time)
+	assert.Equal(t, 0*time.Second, params.Timeout)
+	assert.True(t, params.PermitWithoutStream)
+}
+
+func createMockClient(ctx context.Context) Client {
+	return NewMock(
 		ctx,
-		CallOptions{Timeout: time.Nanosecond},
+		CallOptions{SendTimeout: time.Nanosecond},
 		nil,
 		make(chan *v2.DiscoveryResponse),
 		make(chan *v2.DiscoveryResponse),
@@ -641,10 +655,10 @@ func createMockClient(ctx context.Context) upstream.Client {
 		stats.NewMockScope("mock"))
 }
 
-func createMockClientWithError(ctx context.Context, scope tally.Scope) upstream.Client {
-	return upstream.NewMock(
+func createMockClientWithError(ctx context.Context, scope tally.Scope) Client {
+	return NewMock(
 		ctx,
-		CallOptions{Timeout: time.Nanosecond},
+		CallOptions{SendTimeout: time.Nanosecond},
 		[]error{fmt.Errorf("error")},
 		make(chan *v2.DiscoveryResponse),
 		make(chan *v2.DiscoveryResponse),
@@ -659,14 +673,14 @@ func createMockClientWithResponse(
 	t time.Duration,
 	r chan *v2.DiscoveryResponse,
 	sendCb func(m interface{}) error,
-	scope tally.Scope) upstream.Client {
-	return upstream.NewMock(ctx, CallOptions{Timeout: t}, nil, r, r, r, r, sendCb, scope)
+	scope tally.Scope) Client {
+	return NewMock(ctx, CallOptions{SendTimeout: t}, nil, r, r, r, r, sendCb, scope)
 }
 
-func createMockClientV3(ctx context.Context) upstream.Client {
-	return upstream.NewMockV3(
+func createMockClientV3(ctx context.Context) Client {
+	return NewMockV3(
 		ctx,
-		CallOptions{Timeout: time.Nanosecond},
+		CallOptions{SendTimeout: time.Nanosecond},
 		nil,
 		make(chan *discoveryv3.DiscoveryResponse),
 		make(chan *discoveryv3.DiscoveryResponse),
@@ -676,10 +690,10 @@ func createMockClientV3(ctx context.Context) upstream.Client {
 		stats.NewMockScope("mock"))
 }
 
-func createMockClientWithErrorV3(ctx context.Context, scope tally.Scope) upstream.Client {
-	return upstream.NewMockV3(
+func createMockClientWithErrorV3(ctx context.Context, scope tally.Scope) Client {
+	return NewMockV3(
 		ctx,
-		CallOptions{Timeout: time.Nanosecond},
+		CallOptions{SendTimeout: time.Nanosecond},
 		[]error{fmt.Errorf("error")},
 		make(chan *discoveryv3.DiscoveryResponse),
 		make(chan *discoveryv3.DiscoveryResponse),
@@ -694,8 +708,8 @@ func createMockClientWithResponseV3(
 	t time.Duration,
 	r chan *discoveryv3.DiscoveryResponse,
 	sendCb func(m interface{}) error,
-	scope tally.Scope) upstream.Client {
-	return upstream.NewMockV3(ctx, CallOptions{Timeout: t}, nil, r, r, r, r, sendCb, scope)
+	scope tally.Scope) Client {
+	return NewMockV3(ctx, CallOptions{SendTimeout: t}, nil, r, r, r, r, sendCb, scope)
 }
 
 func blockUntilClean(resp <-chan transport.Response, tearDown func()) {
