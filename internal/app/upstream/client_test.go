@@ -162,7 +162,7 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServer(t *testing.T) {
 	first := true
 	client := upstream.NewMock(
 		ctx,
-		CallOptions{Timeout: time.Nanosecond},
+		CallOptions{SendTimeout: time.Nanosecond},
 		nil,
 		responseChan,
 		responseChan,
@@ -203,7 +203,7 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServerV3(t *testing.T) {
 	first := true
 	client := upstream.NewMockV3(
 		ctx,
-		CallOptions{Timeout: time.Nanosecond},
+		CallOptions{SendTimeout: time.Nanosecond},
 		nil,
 		responseChan,
 		responseChan,
@@ -244,7 +244,7 @@ func TestOpenStreamShouldClearNackFromRequestInTheFirstRequestToOriginServer(t *
 	first := true
 	client := upstream.NewMock(
 		ctx,
-		CallOptions{Timeout: time.Nanosecond},
+		CallOptions{SendTimeout: time.Nanosecond},
 		nil,
 		responseChan,
 		responseChan,
@@ -287,7 +287,7 @@ func TestOpenStreamShouldClearNackFromRequestInTheFirstRequestToOriginServerV3(t
 	first := true
 	client := upstream.NewMockV3(
 		ctx,
-		CallOptions{Timeout: time.Nanosecond},
+		CallOptions{SendTimeout: time.Nanosecond},
 		nil,
 		responseChan,
 		responseChan,
@@ -631,7 +631,7 @@ func TestOpenStreamShouldRetryWhenSendMsgBlocksV3(t *testing.T) {
 func createMockClient(ctx context.Context) upstream.Client {
 	return upstream.NewMock(
 		ctx,
-		CallOptions{Timeout: time.Nanosecond},
+		CallOptions{SendTimeout: time.Nanosecond},
 		nil,
 		make(chan *v2.DiscoveryResponse),
 		make(chan *v2.DiscoveryResponse),
@@ -644,7 +644,7 @@ func createMockClient(ctx context.Context) upstream.Client {
 func createMockClientWithError(ctx context.Context, scope tally.Scope) upstream.Client {
 	return upstream.NewMock(
 		ctx,
-		CallOptions{Timeout: time.Nanosecond},
+		CallOptions{SendTimeout: time.Nanosecond},
 		[]error{fmt.Errorf("error")},
 		make(chan *v2.DiscoveryResponse),
 		make(chan *v2.DiscoveryResponse),
@@ -660,13 +660,13 @@ func createMockClientWithResponse(
 	r chan *v2.DiscoveryResponse,
 	sendCb func(m interface{}) error,
 	scope tally.Scope) upstream.Client {
-	return upstream.NewMock(ctx, CallOptions{Timeout: t}, nil, r, r, r, r, sendCb, scope)
+	return upstream.NewMock(ctx, CallOptions{SendTimeout: t}, nil, r, r, r, r, sendCb, scope)
 }
 
 func createMockClientV3(ctx context.Context) upstream.Client {
 	return upstream.NewMockV3(
 		ctx,
-		CallOptions{Timeout: time.Nanosecond},
+		CallOptions{SendTimeout: time.Nanosecond},
 		nil,
 		make(chan *discoveryv3.DiscoveryResponse),
 		make(chan *discoveryv3.DiscoveryResponse),
@@ -679,7 +679,7 @@ func createMockClientV3(ctx context.Context) upstream.Client {
 func createMockClientWithErrorV3(ctx context.Context, scope tally.Scope) upstream.Client {
 	return upstream.NewMockV3(
 		ctx,
-		CallOptions{Timeout: time.Nanosecond},
+		CallOptions{SendTimeout: time.Nanosecond},
 		[]error{fmt.Errorf("error")},
 		make(chan *discoveryv3.DiscoveryResponse),
 		make(chan *discoveryv3.DiscoveryResponse),
@@ -695,7 +695,7 @@ func createMockClientWithResponseV3(
 	r chan *discoveryv3.DiscoveryResponse,
 	sendCb func(m interface{}) error,
 	scope tally.Scope) upstream.Client {
-	return upstream.NewMockV3(ctx, CallOptions{Timeout: t}, nil, r, r, r, r, sendCb, scope)
+	return upstream.NewMockV3(ctx, CallOptions{SendTimeout: t}, nil, r, r, r, r, sendCb, scope)
 }
 
 func blockUntilClean(resp <-chan transport.Response, tearDown func()) {

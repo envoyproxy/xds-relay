@@ -73,7 +73,12 @@ type client struct {
 // CallOptions contains grpc client call options
 type CallOptions struct {
 	// Timeout is the time to wait on a blocking grpc SendMsg.
-	Timeout time.Duration
+	SendTimeout time.Duration
+
+	// Based on https://github.com/grpc/grpc-go/blob/v1.32.x/keepalive/keepalive.go#L27-L45
+	// The Default timeout is set to infinity
+	// If unset this defaults to infinity, else the string is parsed as a time.Duration
+	UpstreamKeepaliveTimeout string
 }
 
 type version struct {
@@ -97,14 +102,10 @@ func New(
 	namedLogger := logger.Named("upstream_client")
 	namedLogger.With("address", url).Info(ctx, "Initiating upstream connection")
 	subScope := scope.SubScope(metrics.ScopeUpstream)
-	// TODO: configure grpc options.https://github.com/envoyproxy/xds-relay/issues/55
 	conn, err := grpc.Dial(
 		url,
 		grpc.WithInsecure(),
-		grpc.WithKeepaliveParams(keepalive.ClientParameters{
-			Time:                time.Minute * 5,
-			PermitWithoutStream: true,
-		}),
+		grpc.WithKeepaliveParams(getKeepaliveParams(callOptions)),
 		grpc.WithStreamInterceptor(ErrorClientStreamInterceptor(namedLogger, subScope)))
 	if err != nil {
 		return nil, err
@@ -281,7 +282,7 @@ func send(
 			// Call SendMsg in a timeout because it can block in some cases.
 			err := util.DoWithTimeout(ctx, func() error {
 				return stream.SendMsg(sig.version, sig.nonce)
-			}, callOptions.Timeout)
+			}, callOptions.SendTimeout)
 			if err != nil {
 				handleError(ctx, logger, aggregatedKey, "Error in SendMsg", cancelFunc, err)
 				return
@@ -366,4 +367,20 @@ func updateConnectivityMetric(ctx context.Context, conn *grpc.ClientConn, scope 
 
 		scope.Gauge(metrics.UpstreamConnected).Update(float64(conn.GetState()))
 	}
+}
+
+func getKeepaliveParams(c CallOptions) keepalive.ClientParameters {
+	keepaliveClientParams := keepalive.ClientParameters{}
+	if c.UpstreamKeepaliveTimeout == "" {
+		return keepaliveClientParams
+	}
+
+	t, e := time.ParseDuration(c.UpstreamKeepaliveTimeout)
+	if e != nil {
+		return keepaliveClientParams
+	}
+
+	keepaliveClientParams.PermitWithoutStream = true
+	keepaliveClientParams.Time = t
+	return keepaliveClientParams
 }

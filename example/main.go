@@ -15,7 +15,6 @@ import (
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	xds "github.com/envoyproxy/go-control-plane/pkg/server/v2"
 	gcpresourcev2 "github.com/envoyproxy/go-control-plane/pkg/test/resource/v2"
-	"google.golang.org/grpc/channelz/service"
 )
 
 func generateTestSnapshotNewVersion(snapshotCache cache.SnapshotCache) {
@@ -64,7 +63,6 @@ func runServer(snapshotCache cache.SnapshotCache, port int) {
 	api.RegisterClusterDiscoveryServiceServer(grpcServer, server)
 	api.RegisterRouteDiscoveryServiceServer(grpcServer, server)
 	api.RegisterListenerDiscoveryServiceServer(grpcServer, server)
-	service.RegisterChannelzServiceToServer(grpcServer)
 
 	if err := grpcServer.Serve(listener); err != nil {
 		fmt.Println("something went wrong in the server")

@@ -4,7 +4,6 @@ package bootstrap;
 option go_package = "bootstrap/v1;bootstrapv1";
 
 import "google/protobuf/duration.proto";
-import "google/protobuf/wrappers.proto";
 import "validate/validate.proto";
 
 
@@ -35,10 +34,12 @@ message Server {
     SocketAddress address = 1 [(validate.rules).message.required = true];
 }
 
-// [#next-free-field: 2]
+// [#next-free-field: 3]
 message Upstream {
     // The address for the upstream cluster.
     SocketAddress address = 1 [(validate.rules).message.required = true];
+
+    string keep_alive_time = 2;
 }
 
 // [#next-free-field: 3]

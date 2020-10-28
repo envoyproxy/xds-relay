@@ -167,7 +167,7 @@ func TestClientContextCancellationShouldCloseAllResponseChannels(t *testing.T) {
 	client, err := upstream.New(
 		clientCtx,
 		strings.Join([]string{"127.0.0.1", strconv.Itoa(originServerPort)}, ":"),
-		upstream.CallOptions{Timeout: time.Minute},
+		upstream.CallOptions{SendTimeout: time.Minute},
 		log.MockLogger,
 		stats.NewMockScope("mock"),
 	)
@@ -232,7 +232,7 @@ func setup(
 	client, err := upstream.New(
 		xdsrelayCtx,
 		strings.Join([]string{"127.0.0.1", strconv.Itoa(originServerPort)}, ":"),
-		upstream.CallOptions{Timeout: time.Minute},
+		upstream.CallOptions{SendTimeout: time.Minute},
 		logger,
 		scope,
 	)

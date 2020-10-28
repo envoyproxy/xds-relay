@@ -90,12 +90,13 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	// Initialize upstream client.
 	upstreamPort := strconv.FormatUint(uint64(bootstrapConfig.OriginServer.Address.PortValue), 10)
 	upstreamAddress := net.JoinHostPort(bootstrapConfig.OriginServer.Address.Address, upstreamPort)
-	// TODO: configure timeout param from bootstrap config.
-	// https://github.com/envoyproxy/xds-relay/issues/55
 	upstreamClient, err := upstream.New(
 		ctx,
 		upstreamAddress,
-		upstream.CallOptions{Timeout: time.Minute},
+		upstream.CallOptions{
+			SendTimeout: time.Minute,
+			UpstreamKeepaliveTimeout: bootstrapConfig.OriginServer.KeepAliveTime
+		},
 		logger,
 		scope,
 	)
@@ -177,5 +178,6 @@ func registerEndpoints(ctx context.Context, g *grpc.Server, o orchestrator.Orche
 	endpointservice.RegisterEndpointDiscoveryServiceServer(g, gcpv3)
 	listenerservice.RegisterListenerDiscoveryServiceServer(g, gcpv3)
 
+	// Use https://github.com/grpc/grpc-experiments/tree/master/gdebug to debug grpc channel issues
 	service.RegisterChannelzServiceToServer(g)
 }
