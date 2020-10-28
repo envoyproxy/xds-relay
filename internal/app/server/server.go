@@ -15,6 +15,7 @@ import (
 	gcpv2 "github.com/envoyproxy/go-control-plane/pkg/server/v2"
 	gcpv3 "github.com/envoyproxy/go-control-plane/pkg/server/v3"
 	"github.com/envoyproxy/xds-relay/internal/app/metrics"
+	"google.golang.org/grpc/channelz/service"
 
 	clusterservice "github.com/envoyproxy/go-control-plane/envoy/service/cluster/v3"
 	endpointservice "github.com/envoyproxy/go-control-plane/envoy/service/endpoint/v3"
@@ -175,4 +176,6 @@ func registerEndpoints(ctx context.Context, g *grpc.Server, o orchestrator.Orche
 	clusterservice.RegisterClusterDiscoveryServiceServer(g, gcpv3)
 	endpointservice.RegisterEndpointDiscoveryServiceServer(g, gcpv3)
 	listenerservice.RegisterListenerDiscoveryServiceServer(g, gcpv3)
+
+	service.RegisterChannelzServiceToServer(g)
 }
