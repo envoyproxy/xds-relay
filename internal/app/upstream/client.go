@@ -102,8 +102,9 @@ func New(
 		url,
 		grpc.WithInsecure(),
 		grpc.WithKeepaliveParams(keepalive.ClientParameters{
+			Time:                time.Minute * 5,
 			PermitWithoutStream: true,
-		})
+		}),
 		grpc.WithStreamInterceptor(ErrorClientStreamInterceptor(namedLogger, subScope)))
 	if err != nil {
 		return nil, err
