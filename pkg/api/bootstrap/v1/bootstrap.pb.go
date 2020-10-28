@@ -234,6 +234,10 @@ type Upstream struct {
 	// grpc connection keep alive time backed by https://github.com/grpc/grpc-go/blob/v1.32.0/keepalive/keepalive.go#L34-L37
 	// If unset defaults to 5 minutes.
 	// Usage example: 2m to represent 2 minutes
+	// Reason for not using google.protobuf.Duration
+	// keepalive will be in minutes or possibly hours.
+	// From https://developers.google.com/protocol-buffers/docs/reference/java/com/google/protobuf/Duration
+	// Duration only lets us represent time in 's'
 	KeepAliveTime string `protobuf:"bytes,2,opt,name=keep_alive_time,json=keepAliveTime,proto3" json:"keep_alive_time,omitempty"`
 }
 
