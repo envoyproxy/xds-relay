@@ -628,16 +628,16 @@ func TestOpenStreamShouldRetryWhenSendMsgBlocksV3(t *testing.T) {
 
 func TestKeepaliveSettingsUnset(t *testing.T) {
 	params := getKeepaliveParams(context.Background(), log.MockLogger, CallOptions{})
-	assert.Equal(t, 0*time.Second, params.Time)
+	assert.Equal(t, 5*time.Minute, params.Time)
 	assert.Equal(t, 0*time.Second, params.Timeout)
 	assert.True(t, params.PermitWithoutStream)
 }
 
 func TestKeepaliveSettingsSet(t *testing.T) {
 	params := getKeepaliveParams(context.Background(), log.MockLogger, CallOptions{
-		UpstreamKeepaliveTimeout: "5m",
+		UpstreamKeepaliveTimeout: "10m",
 	})
-	assert.Equal(t, 5*time.Minute, params.Time)
+	assert.Equal(t, 10*time.Minute, params.Time)
 	assert.Equal(t, 0*time.Second, params.Timeout)
 	assert.True(t, params.PermitWithoutStream)
 }

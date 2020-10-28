@@ -372,6 +372,7 @@ func updateConnectivityMetric(ctx context.Context, conn *grpc.ClientConn, scope 
 func getKeepaliveParams(ctx context.Context, logger log.Logger, c CallOptions) keepalive.ClientParameters {
 	keepaliveClientParams := keepalive.ClientParameters{
 		PermitWithoutStream: true,
+		Time:                5 * time.Minute,
 	}
 
 	t, e := time.ParseDuration(c.UpstreamKeepaliveTimeout)
