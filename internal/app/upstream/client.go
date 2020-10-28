@@ -105,7 +105,7 @@ func New(
 	conn, err := grpc.Dial(
 		url,
 		grpc.WithInsecure(),
-		grpc.WithKeepaliveParams(getKeepaliveParams(callOptions)),
+		grpc.WithKeepaliveParams(getKeepaliveParams(ctx, logger, callOptions)),
 		grpc.WithStreamInterceptor(ErrorClientStreamInterceptor(namedLogger, subScope)))
 	if err != nil {
 		return nil, err
@@ -369,18 +369,17 @@ func updateConnectivityMetric(ctx context.Context, conn *grpc.ClientConn, scope 
 	}
 }
 
-func getKeepaliveParams(c CallOptions) keepalive.ClientParameters {
-	keepaliveClientParams := keepalive.ClientParameters{}
-	if c.UpstreamKeepaliveTimeout == "" {
-		return keepaliveClientParams
+func getKeepaliveParams(ctx context.Context, logger log.Logger, c CallOptions) keepalive.ClientParameters {
+	keepaliveClientParams := keepalive.ClientParameters{
+		PermitWithoutStream: true,
 	}
 
 	t, e := time.ParseDuration(c.UpstreamKeepaliveTimeout)
 	if e != nil {
+		logger.Warn(ctx, "Keepalive time parsing failed")
 		return keepaliveClientParams
 	}
 
-	keepaliveClientParams.PermitWithoutStream = true
 	keepaliveClientParams.Time = t
 	return keepaliveClientParams
 }
