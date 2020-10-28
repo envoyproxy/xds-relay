@@ -94,8 +94,8 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 		ctx,
 		upstreamAddress,
 		upstream.CallOptions{
-			SendTimeout: time.Minute,
-			UpstreamKeepaliveTimeout: bootstrapConfig.OriginServer.KeepAliveTime
+			SendTimeout:              time.Minute,
+			UpstreamKeepaliveTimeout: bootstrapConfig.OriginServer.KeepAliveTime,
 		},
 		logger,
 		scope,
