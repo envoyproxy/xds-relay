@@ -76,8 +76,7 @@ type CallOptions struct {
 	SendTimeout time.Duration
 
 	// Based on https://github.com/grpc/grpc-go/blob/v1.32.x/keepalive/keepalive.go#L27-L45
-	// The Default timeout is set to infinity
-	// If unset this defaults to infinity, else the string is parsed as a time.Duration
+	// If unset this defaults to 5 minutes
 	UpstreamKeepaliveTimeout string
 }
 
