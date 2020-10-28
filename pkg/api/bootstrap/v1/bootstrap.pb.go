@@ -230,8 +230,11 @@ type Upstream struct {
 	unknownFields protoimpl.UnknownFields
 
 	// The address for the upstream cluster.
-	Address       *SocketAddress `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
-	KeepAliveTime string         `protobuf:"bytes,2,opt,name=keep_alive_time,json=keepAliveTime,proto3" json:"keep_alive_time,omitempty"`
+	Address *SocketAddress `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
+	// grpc connection keep alive time backed by https://github.com/grpc/grpc-go/blob/v1.32.0/keepalive/keepalive.go#L34-L37
+	// If unset defaults to 5 minutes.
+	// Usage example: 2m to represent 2 minutes
+	KeepAliveTime string `protobuf:"bytes,2,opt,name=keep_alive_time,json=keepAliveTime,proto3" json:"keep_alive_time,omitempty"`
 }
 
 func (x *Upstream) Reset() {

@@ -39,6 +39,9 @@ message Upstream {
     // The address for the upstream cluster.
     SocketAddress address = 1 [(validate.rules).message.required = true];
 
+    // grpc connection keep alive time backed by https://github.com/grpc/grpc-go/blob/v1.32.0/keepalive/keepalive.go#L34-L37
+    // If unset defaults to 5 minutes.
+    // Usage example: 2m to represent 2 minutes
     string keep_alive_time = 2;
 }
 
