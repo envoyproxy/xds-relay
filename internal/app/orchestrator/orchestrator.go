@@ -197,7 +197,7 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 		// If we have a cached response and the version is different,
 		// immediately push the result to the response channel.
 		go func() {
-			err := responseChannel.addResponse(cached.Resp)
+			err := responseChannel.Send(cached.Resp)
 			if err != nil {
 				// Sanity check that the channel isn't blocked. This shouldn't
 				// ever happen since the channel is newly created. Regardless,
@@ -230,7 +230,7 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 		}
 	}
 
-	return responseChannel.watch, o.onCancelWatch(aggregatedKey, req)
+	return responseChannel, o.onCancelWatch(aggregatedKey, req)
 }
 
 // GetReadOnlyCache returns the request/response cache with only read-only methods exposed.
@@ -351,7 +351,7 @@ func (o *orchestrator) fanout(resp transport.Response, watchers map[transport.Re
 			defer wg.Done()
 			// TODO https://github.com/envoyproxy/xds-relay/issues/119
 			if channel, ok := o.downstreamResponseMap.get(watch); ok {
-				if err := channel.addResponse(resp); err != nil {
+				if err := channel.Send(resp); err != nil {
 					// If the channel is blocked, we simply drop subsequent
 					// requests and error. Alternative possibilities are
 					// discussed here:

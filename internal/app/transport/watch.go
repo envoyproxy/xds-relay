@@ -15,5 +15,5 @@ type ChannelVersion struct {
 type Watch interface {
 	Close()
 	GetChannel() *ChannelVersion
-	Send(Response) bool
+	Send(Response) error
 }

@@ -1,6 +1,9 @@
 package transport
 
 import (
+	"fmt"
+	"sync"
+
 	gcpv3 "github.com/envoyproxy/go-control-plane/pkg/cache/v3"
 )
 
@@ -8,7 +11,9 @@ var _ Watch = &watchV3{}
 
 // WatchV2 is the transport object that takes care of send responses to the xds clients
 type watchV3 struct {
-	out chan gcpv3.Response
+	out    chan gcpv3.Response
+	mu     sync.Mutex
+	closed bool
 }
 
 // newWatchV2 creates a new watch object
@@ -20,6 +25,9 @@ func newWatchV3() Watch {
 
 // Close closes the communication with the xds client
 func (w *watchV3) Close() {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.closed = true
 	close(w.out)
 }
 
@@ -29,11 +37,16 @@ func (w *watchV3) GetChannel() *ChannelVersion {
 }
 
 // Send sends the xds response over wire
-func (w *watchV3) Send(s Response) bool {
+func (w *watchV3) Send(s Response) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.closed {
+		return nil
+	}
 	select {
 	case w.out <- &gcpv3.PassthroughResponse{DiscoveryResponse: s.Get().V3, Request: s.GetRequest().V3}:
-		return true
+		return nil
 	default:
-		return false
+		return fmt.Errorf("channel is blocked")
 	}
 }
