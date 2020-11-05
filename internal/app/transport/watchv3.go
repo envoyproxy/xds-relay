@@ -12,7 +12,7 @@ var _ Watch = &watchV3{}
 // WatchV2 is the transport object that takes care of send responses to the xds clients
 type watchV3 struct {
 	out    chan gcpv3.Response
-	mu     sync.Mutex
+	mu     sync.RWMutex
 	closed bool
 }
 
@@ -38,8 +38,8 @@ func (w *watchV3) GetChannel() *ChannelVersion {
 
 // Send sends the xds response over wire
 func (w *watchV3) Send(s Response) error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
+	w.mu.RLock()
+	defer w.mu.RUnlock()
 	if w.closed {
 		return nil
 	}
