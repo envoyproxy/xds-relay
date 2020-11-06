@@ -129,7 +129,7 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 
 	// If this is the first time we're seeing the request from the
 	// downstream client, initialize a channel to feed future responses.
-	responseChannel := o.downstreamResponseMap.createWatch(req)
+	watch := o.downstreamResponseMap.createWatch(req)
 
 	aggregatedKey, err := o.mapper.GetKey(req)
 	if err != nil {
@@ -197,7 +197,7 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 		// If we have a cached response and the version is different,
 		// immediately push the result to the response channel.
 		go func() {
-			err := responseChannel.Send(cached.Resp)
+			err := watch.Send(cached.Resp)
 			if err != nil {
 				// Sanity check that the channel isn't blocked. This shouldn't
 				// ever happen since the channel is newly created. Regardless,
@@ -230,7 +230,7 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 		}
 	}
 
-	return responseChannel, o.onCancelWatch(aggregatedKey, req)
+	return watch, o.onCancelWatch(aggregatedKey, req)
 }
 
 // GetReadOnlyCache returns the request/response cache with only read-only methods exposed.
