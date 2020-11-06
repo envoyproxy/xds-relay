@@ -31,9 +31,9 @@ func newDownstreamResponseMap() downstreamResponseMap {
 	}
 }
 
-// createChannel initializes a new channel for a request if it doesn't already
+// createWatch initializes a new channel for a request if it doesn't already
 // exist.
-func (d *downstreamResponseMap) createChannel(req transport.Request) transport.Watch {
+func (d *downstreamResponseMap) createWatch(req transport.Request) transport.Watch {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if _, ok := d.watches[req]; !ok {

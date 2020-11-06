@@ -129,7 +129,7 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 
 	// If this is the first time we're seeing the request from the
 	// downstream client, initialize a channel to feed future responses.
-	responseChannel := o.downstreamResponseMap.createChannel(req)
+	responseChannel := o.downstreamResponseMap.createWatch(req)
 
 	aggregatedKey, err := o.mapper.GetKey(req)
 	if err != nil {
