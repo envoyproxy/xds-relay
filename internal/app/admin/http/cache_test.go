@@ -291,11 +291,13 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
 
 		body := dateRegex.ReplaceAllString(rr.Body.String(), "\"\"")
 		filecontentsCds, err := ioutil.ReadFile("testdata/entire_cachev2_cds.json")
-		assert.NoError(t, err)
 		filecontentsLds, err := ioutil.ReadFile("testdata/entire_cachev2_lds.json")
 		assert.NoError(t, err)
-		assert.Contains(t, body, string(filecontentsCds))
-		assert.Contains(t, body, string(filecontentsLds))
+		filecontentsCdsLds, err := json.Marshal(string(filecontentsLds))
+		assert.NoError(t, err)
+
+		assert.Contains(t, body, filecontentsCdsJSON[k])
+		assert.Contains(t, body, string(filecontentsCdsLds))
 
 		cancelLDSWatch()
 		cancelCDSWatch()
