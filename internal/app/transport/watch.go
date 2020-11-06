@@ -14,7 +14,7 @@ type ChannelVersion struct {
 // Watch interface abstracts v2 and v3 watches to the downstream sidecars.
 type Watch interface {
 	// Close is idempotent with Send.
-	// When Close and Send are called from separate goroutines they are guarenteed to not panic
+	// When Close and Send are called from separate goroutines they are guaranteed to not panic
 	Close()
 	GetChannel() *ChannelVersion
 	// Send is a mutex protected function to send responses to the downstream sidecars.
