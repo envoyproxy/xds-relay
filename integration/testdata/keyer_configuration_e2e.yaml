@@ -89,7 +89,7 @@ fragments:
             - "type.googleapis.com/envoy.api.v2.RouteConfiguration"
       result:
         string_fragment: "v2"
-- rules:
+  - rules:
     - match:
         request_type_match:
           types:
