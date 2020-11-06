@@ -98,4 +98,4 @@ fragments:
             - "type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment"
             - "type.googleapis.com/envoy.config.route.v3.RouteConfiguration"
       result:
-        string_fragment: "v2"
+        string_fragment: "v3"
