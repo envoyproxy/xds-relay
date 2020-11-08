@@ -30,7 +30,7 @@ type mockSimpleUpstreamClient struct {
 	responseChan <-chan transport.Response
 }
 
-func (m mockSimpleUpstreamClient) OpenStream(req transport.Request) (<-chan transport.Response, func()) {
+func (m mockSimpleUpstreamClient) OpenStream(req transport.Request, key string) (<-chan transport.Response, func()) {
 	return m.responseChan, func() {}
 }
 
@@ -43,7 +43,7 @@ type mockMultiStreamUpstreamClient struct {
 }
 
 func (m mockMultiStreamUpstreamClient) OpenStream(
-	req transport.Request,
+	req transport.Request, key string,
 ) (<-chan transport.Response, func()) {
 	aggregatedKey, err := m.mapper.GetKey(req)
 	assert.NoError(m.t, err)
@@ -76,11 +76,11 @@ func newMockOrchestrator(t *testing.T, mockScope tally.Scope, mapper mapper.Mapp
 	return orchestrator
 }
 
-func assertEqualResponse(t *testing.T, got gcp.Response, expected v2.DiscoveryResponse, req gcp.Request) {
+func assertEqualResponse(t *testing.T, got gcp.Response, expected *v2.DiscoveryResponse, req *gcp.Request) {
 	gotDiscoveryResponse, err := got.GetDiscoveryResponse()
 	assert.NoError(t, err)
-	assert.Equal(t, expected, *gotDiscoveryResponse)
-	assert.Equal(t, req, *got.GetRequest())
+	assert.Equal(t, expected, gotDiscoveryResponse)
+	assert.Equal(t, req, got.GetRequest())
 }
 
 func TestNew(t *testing.T) {
@@ -143,7 +143,7 @@ func TestGoldenPath(t *testing.T) {
 	assert.EqualValues(
 		t, 1, countersSnapshot[fmt.Sprintf("mock_orchestrator.watch.created+key=%v", aggregatedKey)].Value())
 	assert.NotNil(t, respChannel)
-	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.responseChannels))
+	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.watches))
 	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
 	orchestrator.upstreamResponseMap.internal.Range(func(key, val interface{}) bool {
 		assert.Equal(t, "lds", key.(string))
@@ -162,7 +162,7 @@ func TestGoldenPath(t *testing.T) {
 	upstreamResponseChannel <- transport.NewResponseV2(&req, &resp)
 
 	gotResponse := <-respChannel.GetChannel().V2
-	assertEqualResponse(t, gotResponse, resp, req)
+	assertEqualResponse(t, gotResponse, &resp, &req)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -176,7 +176,7 @@ func TestGoldenPath(t *testing.T) {
 		t, 1, countersSnapshot[fmt.Sprintf("mock_orchestrator.watch.fanout+key=%v", aggregatedKey)].Value())
 	assert.EqualValues(
 		t, 1, countersSnapshot[fmt.Sprintf("mock_orchestrator.watch.canceled+key=%v", aggregatedKey)].Value())
-	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.responseChannels))
+	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.watches))
 }
 
 func TestUnaggregatedKey(t *testing.T) {
@@ -203,9 +203,9 @@ func TestUnaggregatedKey(t *testing.T) {
 
 	respChannel, _ := orchestrator.CreateWatch(req)
 	testutils.AssertCounterValue(t, mockScope.Snapshot().Counters(),
-		fmt.Sprintf("mock_orchestrator.watch.errors.unaggregated_key"), 1)
+		"mock_orchestrator.watch.errors.unaggregated_key", 1)
 	assert.NotNil(t, respChannel)
-	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.responseChannels))
+	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.watches))
 	_, more := <-respChannel.GetChannel().V2
 	assert.False(t, more)
 }
@@ -248,7 +248,7 @@ func TestCachedResponse(t *testing.T) {
 
 	respChannel, cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&req))
 	assert.NotNil(t, respChannel)
-	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.responseChannels))
+	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.watches))
 	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
 	orchestrator.upstreamResponseMap.internal.Range(func(key, val interface{}) bool {
 		assert.Equal(t, "lds", key.(string))
@@ -256,7 +256,7 @@ func TestCachedResponse(t *testing.T) {
 	})
 
 	gotResponse := <-respChannel.GetChannel().V2
-	assertEqualResponse(t, gotResponse, mockResponse, req)
+	assertEqualResponse(t, gotResponse, &mockResponse, &req)
 
 	// Attempt pushing a more recent response from upstream.
 	resp := v2.DiscoveryResponse{
@@ -271,7 +271,7 @@ func TestCachedResponse(t *testing.T) {
 
 	upstreamResponseChannel <- transport.NewResponseV2(&req, &resp)
 	gotResponse = <-respChannel.GetChannel().V2
-	assertEqualResponse(t, gotResponse, resp, req)
+	assertEqualResponse(t, gotResponse, &resp, &req)
 	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
 	orchestrator.upstreamResponseMap.internal.Range(func(key, val interface{}) bool {
 		assert.Contains(t, "lds", key.(string))
@@ -287,7 +287,7 @@ func TestCachedResponse(t *testing.T) {
 
 	respChannel2, cancelWatch2 := orchestrator.CreateWatch(transport.NewRequestV2(&req2))
 	assert.NotNil(t, respChannel2)
-	assert.Equal(t, 2, len(orchestrator.downstreamResponseMap.responseChannels))
+	assert.Equal(t, 2, len(orchestrator.downstreamResponseMap.watches))
 	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
 	orchestrator.upstreamResponseMap.internal.Range(func(key, val interface{}) bool {
 		assert.Contains(t, "lds", key.(string))
@@ -302,9 +302,9 @@ func TestCachedResponse(t *testing.T) {
 	testutils.AssertSyncMapLen(t, 0, orchestrator.upstreamResponseMap.internal)
 
 	cancelWatch()
-	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.responseChannels))
+	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.watches))
 	cancelWatch2()
-	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.responseChannels))
+	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.watches))
 }
 
 func TestMultipleWatchersAndUpstreams(t *testing.T) {
@@ -377,16 +377,16 @@ func TestMultipleWatchersAndUpstreams(t *testing.T) {
 	gotResponseFromChannel2 := <-respChannel2.GetChannel().V2
 	gotResponseFromChannel3 := <-respChannel3.GetChannel().V2
 
-	assert.Equal(t, 3, len(orchestrator.downstreamResponseMap.responseChannels))
+	assert.Equal(t, 3, len(orchestrator.downstreamResponseMap.watches))
 	testutils.AssertSyncMapLen(t, 2, orchestrator.upstreamResponseMap.internal)
 	orchestrator.upstreamResponseMap.internal.Range(func(key, val interface{}) bool {
 		assert.Contains(t, []string{"lds", "cds"}, key.(string))
 		return true
 	})
 
-	assertEqualResponse(t, gotResponseFromChannel1, upstreamResponseLDS, req1)
-	assertEqualResponse(t, gotResponseFromChannel2, upstreamResponseLDS, req1)
-	assertEqualResponse(t, gotResponseFromChannel3, upstreamResponseCDS, req3)
+	assertEqualResponse(t, gotResponseFromChannel1, &upstreamResponseLDS, &req1)
+	assertEqualResponse(t, gotResponseFromChannel2, &upstreamResponseLDS, &req1)
+	assertEqualResponse(t, gotResponseFromChannel3, &upstreamResponseCDS, &req3)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -396,7 +396,7 @@ func TestMultipleWatchersAndUpstreams(t *testing.T) {
 	cancelWatch1()
 	cancelWatch2()
 	cancelWatch3()
-	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.responseChannels))
+	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.watches))
 }
 
 func TestUpstreamFailure(t *testing.T) {
@@ -483,7 +483,7 @@ func TestNACKRequest(t *testing.T) {
 
 	respChannel, cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&req))
 	assert.NotNil(t, respChannel)
-	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.responseChannels))
+	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.watches))
 	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
 	orchestrator.upstreamResponseMap.internal.Range(func(key, val interface{}) bool {
 		assert.Equal(t, "lds", key.(string))
@@ -518,7 +518,7 @@ func TestNACKRequest(t *testing.T) {
 	orchestrator.shutdown(ctx)
 	testutils.AssertSyncMapLen(t, 0, orchestrator.upstreamResponseMap.internal)
 
-	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.responseChannels))
+	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.watches))
 	cancelWatch()
-	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.responseChannels))
+	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.watches))
 }

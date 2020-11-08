@@ -15,6 +15,7 @@ import (
 	gcpv2 "github.com/envoyproxy/go-control-plane/pkg/server/v2"
 	gcpv3 "github.com/envoyproxy/go-control-plane/pkg/server/v3"
 	"github.com/envoyproxy/xds-relay/internal/app/metrics"
+	"google.golang.org/grpc/channelz/service"
 
 	clusterservice "github.com/envoyproxy/go-control-plane/envoy/service/cluster/v3"
 	endpointservice "github.com/envoyproxy/go-control-plane/envoy/service/endpoint/v3"
@@ -89,12 +90,13 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	// Initialize upstream client.
 	upstreamPort := strconv.FormatUint(uint64(bootstrapConfig.OriginServer.Address.PortValue), 10)
 	upstreamAddress := net.JoinHostPort(bootstrapConfig.OriginServer.Address.Address, upstreamPort)
-	// TODO: configure timeout param from bootstrap config.
-	// https://github.com/envoyproxy/xds-relay/issues/55
 	upstreamClient, err := upstream.New(
 		ctx,
 		upstreamAddress,
-		upstream.CallOptions{Timeout: time.Minute},
+		upstream.CallOptions{
+			SendTimeout:              time.Minute,
+			UpstreamKeepaliveTimeout: bootstrapConfig.OriginServer.KeepAliveTime,
+		},
 		logger,
 		scope,
 	)
@@ -175,4 +177,7 @@ func registerEndpoints(ctx context.Context, g *grpc.Server, o orchestrator.Orche
 	clusterservice.RegisterClusterDiscoveryServiceServer(g, gcpv3)
 	endpointservice.RegisterEndpointDiscoveryServiceServer(g, gcpv3)
 	listenerservice.RegisterListenerDiscoveryServiceServer(g, gcpv3)
+
+	// Use https://github.com/grpc/grpc-experiments/tree/master/gdebug to debug grpc channel issues
+	service.RegisterChannelzServiceToServer(g)
 }

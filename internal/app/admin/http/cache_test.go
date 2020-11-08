@@ -39,7 +39,7 @@ func TestAdminServer_EDSDumpHandler(t *testing.T) {
 	upstreamEdsResponseChannelV3 := make(chan *discoveryv3.DiscoveryResponse)
 	client := upstream.NewMockEDS(
 		ctx,
-		upstream.CallOptions{Timeout: time.Second},
+		upstream.CallOptions{SendTimeout: time.Second},
 		nil,
 		upstreamEdsResponseChannelV3,
 		upstreamEdsResponseChannel,
@@ -132,7 +132,7 @@ func TestAdminServer_EDSDumpHandler404(t *testing.T) {
 	upstreamEdsResponseChannel := make(chan *v2.DiscoveryResponse)
 	client := upstream.NewMock(
 		ctx,
-		upstream.CallOptions{Timeout: time.Second},
+		upstream.CallOptions{SendTimeout: time.Second},
 		nil,
 		nil,
 		nil,
@@ -154,7 +154,7 @@ func TestAdminServer_KeyDumpHandler(t *testing.T) {
 	upstreamCdsResponseChannel := make(chan *v2.DiscoveryResponse)
 	client := upstream.NewMock(
 		ctx,
-		upstream.CallOptions{Timeout: time.Second},
+		upstream.CallOptions{SendTimeout: time.Second},
 		nil,
 		upstreamLdsResponseChannel,
 		nil,
@@ -210,7 +210,7 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
 		mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
 		client := upstream.NewMock(
 			ctx,
-			upstream.CallOptions{Timeout: time.Second},
+			upstream.CallOptions{SendTimeout: time.Second},
 			nil,
 			upstreamResponseChannelLDS,
 			nil,
@@ -260,7 +260,7 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
 		gotResponse := <-ldsRespChannel.GetChannel().V2
 		gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
 		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
+		assert.Equal(t, &resp, gotDiscoveryResponse)
 
 		cluster := &v2.Cluster{
 			Name: "cds resource",
@@ -278,7 +278,7 @@ func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
 		gotResponse = <-cdsRespChannel.GetChannel().V2
 		gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
 		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
+		assert.Equal(t, &resp, gotDiscoveryResponse)
 
 		req, err := http.NewRequest("GET", url, nil)
 		assert.NoError(t, err)
@@ -311,7 +311,7 @@ func TestAdminServer_CacheDumpHandler_EntireCacheV3(t *testing.T) {
 		mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
 		client := upstream.NewMockV3(
 			ctx,
-			upstream.CallOptions{Timeout: time.Second},
+			upstream.CallOptions{SendTimeout: time.Second},
 			nil,
 			upstreamResponseChannelLDS,
 			nil,
@@ -361,7 +361,7 @@ func TestAdminServer_CacheDumpHandler_EntireCacheV3(t *testing.T) {
 		gotResponse := <-ldsRespChannel.GetChannel().V3
 		gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
 		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
+		assert.Equal(t, &resp, gotDiscoveryResponse)
 
 		cluster := &v2.Cluster{
 			Name: "cds resource",
@@ -379,7 +379,7 @@ func TestAdminServer_CacheDumpHandler_EntireCacheV3(t *testing.T) {
 		gotResponse = <-cdsRespChannel.GetChannel().V3
 		gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
 		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
+		assert.Equal(t, &resp, gotDiscoveryResponse)
 
 		req, err := http.NewRequest("GET", url, nil)
 		assert.NoError(t, err)
@@ -410,7 +410,7 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffix(t *testing.T) {
 		mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
 		client := upstream.NewMock(
 			ctx,
-			upstream.CallOptions{Timeout: time.Second},
+			upstream.CallOptions{SendTimeout: time.Second},
 			nil,
 			upstreamResponseChannelLDS,
 			nil,
@@ -460,7 +460,7 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffix(t *testing.T) {
 		gotResponse := <-ldsRespChannel.GetChannel().V2
 		gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
 		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
+		assert.Equal(t, &resp, gotDiscoveryResponse)
 
 		cluster := &v2.Cluster{
 			Name: "cds resource",
@@ -478,7 +478,7 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffix(t *testing.T) {
 		gotResponse = <-cdsRespChannel.GetChannel().V2
 		gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
 		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
+		assert.Equal(t, &resp, gotDiscoveryResponse)
 
 		req, err := http.NewRequest("GET", url, nil)
 		assert.NoError(t, err)
@@ -511,7 +511,7 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffixV3(t *testing.T) {
 		mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
 		client := upstream.NewMockV3(
 			ctx,
-			upstream.CallOptions{Timeout: time.Second},
+			upstream.CallOptions{SendTimeout: time.Second},
 			nil,
 			upstreamResponseChannelLDS,
 			nil,
@@ -561,7 +561,7 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffixV3(t *testing.T) {
 		gotResponse := <-ldsRespChannel.GetChannel().V3
 		gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
 		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
+		assert.Equal(t, &resp, gotDiscoveryResponse)
 
 		cluster := &v2.Cluster{
 			Name: "cds resource",
@@ -579,7 +579,7 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffixV3(t *testing.T) {
 		gotResponse = <-cdsRespChannel.GetChannel().V3
 		gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
 		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
+		assert.Equal(t, &resp, gotDiscoveryResponse)
 
 		req, err := http.NewRequest("GET", url, nil)
 		assert.NoError(t, err)
@@ -614,7 +614,7 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffix_NotFound(t *testing.T) {
 		mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
 		client := upstream.NewMock(
 			ctx,
-			upstream.CallOptions{Timeout: time.Second},
+			upstream.CallOptions{SendTimeout: time.Second},
 			nil,
 			upstreamResponseChannelLDS,
 			nil,
@@ -664,7 +664,7 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffix_NotFound(t *testing.T) {
 		gotResponse := <-ldsRespChannel.GetChannel().V2
 		gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
 		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
+		assert.Equal(t, &resp, gotDiscoveryResponse)
 
 		cluster := &v2.Cluster{
 			Name: "cds resource",
@@ -682,7 +682,7 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffix_NotFound(t *testing.T) {
 		gotResponse = <-cdsRespChannel.GetChannel().V2
 		gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
 		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
+		assert.Equal(t, &resp, gotDiscoveryResponse)
 
 		req, err := http.NewRequest("GET", url, nil)
 		assert.NoError(t, err)

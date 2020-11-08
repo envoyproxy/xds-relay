@@ -47,6 +47,7 @@ const (
 	nUpdates                  = 4
 	keyerConfiguration        = "./testdata/keyer_configuration_e2e.yaml"
 	xdsRelayBootstrap         = "./testdata/bootstrap_configuration_e2e.yaml"
+	upstreamMessage           = "Hi, there!\n"
 )
 
 func TestMain(m *testing.M) {
@@ -64,7 +65,7 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 
 	// We run a service that returns the string "Hi, there!" locally and expose it through envoy.
 	// This is the service that Envoy will make requests to.
-	go gcptest.RunHTTP(ctx, httpServicePort)
+	go runUpstream(ctx, httpServicePort)
 
 	// Mimic a management server using go-control-plane's snapshot cache.
 	configv2, configv3, signalv2, signalv3 := startSnapshotCache(ctx, managementServerPort)
@@ -259,8 +260,8 @@ func callLocalService(port uint, nListeners int) (int, int) {
 				ch <- err
 				return
 			}
-			if string(body) != gcptest.Hello {
-				ch <- fmt.Errorf("expected envoy response: %q, got: %q", gcptest.Hello, string(body))
+			if string(body) != upstreamMessage {
+				ch <- fmt.Errorf("expected envoy response: %q, got: %q", upstreamMessage, string(body))
 				return
 			}
 			ch <- nil
@@ -278,5 +279,24 @@ func callLocalService(port uint, nListeners int) (int, int) {
 		if ok+failed == nListeners {
 			return ok, failed
 		}
+	}
+}
+
+func runUpstream(ctx context.Context, upstreamPort uint) {
+	testLogger.Info(ctx, "upstream listening HTTP/1.1 on %d\n", upstreamPort)
+	server := &http.Server{Addr: fmt.Sprintf(":%d", upstreamPort), Handler: echo{}}
+	go func() {
+		if err := server.ListenAndServe(); err != nil {
+			testLogger.Error(ctx, "error: %s", err.Error())
+		}
+	}()
+}
+
+type echo struct{}
+
+func (h echo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/text")
+	if _, err := w.Write([]byte(upstreamMessage)); err != nil {
+		testLogger.Error(context.Background(), "error: %s", err.Error())
 	}
 }

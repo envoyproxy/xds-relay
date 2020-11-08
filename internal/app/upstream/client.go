@@ -20,6 +20,7 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/pkg/util"
 	"github.com/uber-go/tally"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 )
 
 // UnsupportedResourceError is a custom error for unsupported typeURL
@@ -49,7 +50,7 @@ type Client interface {
 	// The shutdown function represents the intent that a stream is supposed to be closed.
 	// All goroutines that depend on the ctx object should consider ctx.Done to be related to shutdown.
 	// All such scenarios need to exit cleanly and are not considered an erroneous situation.
-	OpenStream(transport.Request) (<-chan transport.Response, func())
+	OpenStream(transport.Request, string) (<-chan transport.Response, func())
 }
 
 type client struct {
@@ -72,7 +73,11 @@ type client struct {
 // CallOptions contains grpc client call options
 type CallOptions struct {
 	// Timeout is the time to wait on a blocking grpc SendMsg.
-	Timeout time.Duration
+	SendTimeout time.Duration
+
+	// Based on https://github.com/grpc/grpc-go/blob/v1.32.x/keepalive/keepalive.go#L27-L45
+	// If unset this defaults to 5 minutes
+	UpstreamKeepaliveTimeout string
 }
 
 type version struct {
@@ -96,8 +101,10 @@ func New(
 	namedLogger := logger.Named("upstream_client")
 	namedLogger.With("address", url).Info(ctx, "Initiating upstream connection")
 	subScope := scope.SubScope(metrics.ScopeUpstream)
-	// TODO: configure grpc options.https://github.com/envoyproxy/xds-relay/issues/55
-	conn, err := grpc.Dial(url, grpc.WithInsecure(),
+	conn, err := grpc.Dial(
+		url,
+		grpc.WithInsecure(),
+		grpc.WithKeepaliveParams(getKeepaliveParams(ctx, logger, callOptions)),
 		grpc.WithStreamInterceptor(ErrorClientStreamInterceptor(namedLogger, subScope)))
 	if err != nil {
 		return nil, err
@@ -134,23 +141,27 @@ func New(
 	}, nil
 }
 
-func (m *client) OpenStream(request transport.Request) (<-chan transport.Response, func()) {
+func (m *client) OpenStream(request transport.Request, aggregatedKey string) (<-chan transport.Response, func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 	response := make(chan transport.Response)
 
-	go m.handleStreamsWithRetry(ctx, request, response)
+	go m.handleStreamsWithRetry(ctx, request, response, aggregatedKey)
 
 	// We use context cancellation over using a separate channel for signalling stream shutdown.
 	// The reason is cancelling a context tied with the stream is straightforward to signal closure.
 	// Also, the shutdown function could potentially be called more than once by a caller.
 	// Closing channels is not idempotent while cancelling context is idempotent.
-	return response, func() { cancel() }
+	return response, func() {
+		m.logger.With("aggregated_key", aggregatedKey).Debug(ctx, "cancelling stream")
+		cancel()
+	}
 }
 
 func (m *client) handleStreamsWithRetry(
 	ctx context.Context,
 	request transport.Request,
-	respCh chan transport.Response) {
+	respCh chan transport.Response,
+	aggregatedKey string) {
 	var (
 		s      grpc.ClientStream
 		stream transport.Stream
@@ -164,6 +175,7 @@ func (m *client) handleStreamsWithRetry(
 			if !ok {
 				cancel()
 				close(respCh)
+				m.logger.With("aggregated_key", aggregatedKey).Info(ctx, "stream shutdown")
 				return
 			}
 		case <-ctx.Done():
@@ -172,6 +184,7 @@ func (m *client) handleStreamsWithRetry(
 			// The shutdown can be called by the caller in many cases, during app shutdown/ttl expiry, etc
 			cancel()
 			close(respCh)
+			m.logger.With("aggregated_key", aggregatedKey).Info(ctx, "context cancelled")
 			return
 		default:
 			switch request.GetTypeURL() {
@@ -208,20 +221,21 @@ func (m *client) handleStreamsWithRetry(
 				stream = transport.NewStreamV3(s, request, m.logger)
 				scope = m.scope.SubScope(metrics.ScopeUpstreamEDS)
 			default:
-				handleError(ctx, m.logger, "Unsupported Type Url", func() {}, fmt.Errorf(request.GetTypeURL()))
+				handleError(ctx, m.logger, aggregatedKey, "Unsupported Type Url", func() {}, fmt.Errorf(request.GetTypeURL()))
 				cancel()
 				close(respCh)
 				return
 			}
+			scope = scope.Tagged(map[string]string{metrics.TagName: aggregatedKey})
 			if err != nil {
-				m.logger.With("request_type", request.GetTypeURL()).Warn(ctx, "stream failed")
+				m.logger.With("request_type", request.GetTypeURL(), "aggregated_key", aggregatedKey).Warn(ctx, "stream failed")
 				scope.Counter(metrics.UpstreamStreamCreationFailure).Inc(1)
 				cancel()
 				continue
 			}
 
 			signal := make(chan *version, 1)
-			m.logger.With("request_type", request.GetTypeURL()).Info(ctx, "stream opened")
+			m.logger.With("request_type", request.GetTypeURL(), "aggregated_key", aggregatedKey).Info(ctx, "stream opened")
 			scope.Counter(metrics.UpstreamStreamOpened).Inc(1)
 			// The xds protocol https://www.envoyproxy.io/docs/envoy/latest/api-docs/xds_protocol#ack
 			// specifies that the first request be empty nonce and empty version.
@@ -230,10 +244,12 @@ func (m *client) handleStreamsWithRetry(
 			var wg sync.WaitGroup
 			wg.Add(2)
 
-			go send(childCtx, wg.Done, m.logger, cancel, stream, signal, m.callOptions)
-			go recv(childCtx, wg.Done, cancel, m.logger, respCh, stream, signal)
+			go send(childCtx, wg.Done, m.logger, cancel, stream, signal, m.callOptions, aggregatedKey)
+			go recv(childCtx, wg.Done, cancel, m.logger, respCh, stream, signal, aggregatedKey)
 
 			wg.Wait()
+			scope.Counter(metrics.UpstreamStreamRetry).Inc(1)
+			m.logger.With("aggregated_key", aggregatedKey).Info(ctx, "retrying")
 			close(signal)
 		}
 	}
@@ -250,7 +266,8 @@ func send(
 	cancelFunc context.CancelFunc,
 	stream transport.Stream,
 	signal chan *version,
-	callOptions CallOptions) {
+	callOptions CallOptions,
+	aggregatedKey string) {
 	defer complete()
 	for {
 		select {
@@ -258,13 +275,15 @@ func send(
 			if !ok {
 				return
 			}
+			logger.With("aggregated_key", aggregatedKey,
+				"version", sig.version).Debug(ctx, "sending to upstream")
 			// Ref: https://github.com/grpc/grpc-go/issues/1229#issuecomment-302755717
 			// Call SendMsg in a timeout because it can block in some cases.
 			err := util.DoWithTimeout(ctx, func() error {
 				return stream.SendMsg(sig.version, sig.nonce)
-			}, callOptions.Timeout)
+			}, callOptions.SendTimeout)
 			if err != nil {
-				handleError(ctx, logger, "Error in SendMsg", cancelFunc, err)
+				handleError(ctx, logger, aggregatedKey, "Error in SendMsg", cancelFunc, err)
 				return
 			}
 		case <-ctx.Done():
@@ -283,12 +302,13 @@ func recv(
 	logger log.Logger,
 	response chan transport.Response,
 	stream transport.Stream,
-	signal chan *version) {
+	signal chan *version,
+	aggregatedKey string) {
 	defer complete()
 	for {
 		resp, err := stream.RecvMsg()
 		if err != nil {
-			handleError(ctx, logger, "Error in RecvMsg", cancelFunc, err)
+			handleError(ctx, logger, aggregatedKey, "Error in RecvMsg", cancelFunc, err)
 			return
 		}
 
@@ -297,12 +317,15 @@ func recv(
 			return
 		default:
 			response <- resp
+			logger.With("aggregated_key", aggregatedKey,
+				"version", resp.GetPayloadVersion()).Debug(ctx, "Received from upstream")
 			signal <- &version{version: resp.GetPayloadVersion(), nonce: resp.GetNonce()}
 		}
 	}
 }
 
-func handleError(ctx context.Context, logger log.Logger, errMsg string, cancelFunc context.CancelFunc, err error) {
+func handleError(ctx context.Context, logger log.Logger, key string, errMsg string,
+	cancelFunc context.CancelFunc, err error) {
 	defer cancelFunc()
 	select {
 	case <-ctx.Done():
@@ -310,7 +333,7 @@ func handleError(ctx context.Context, logger log.Logger, errMsg string, cancelFu
 		// Context is cancelled only when shutdown is called or any of the send/recv goroutines error out.
 		// The shutdown can be called by the caller in many cases, during app shutdown/ttl expiry, etc
 	default:
-		logger.Error(ctx, "%s: %s", errMsg, err.Error())
+		logger.With("aggregated_key", key).Error(ctx, "%s: %s", errMsg, err.Error())
 	}
 }
 
@@ -343,4 +366,20 @@ func updateConnectivityMetric(ctx context.Context, conn *grpc.ClientConn, scope 
 
 		scope.Gauge(metrics.UpstreamConnected).Update(float64(conn.GetState()))
 	}
+}
+
+func getKeepaliveParams(ctx context.Context, logger log.Logger, c CallOptions) keepalive.ClientParameters {
+	keepaliveClientParams := keepalive.ClientParameters{
+		PermitWithoutStream: true,
+		Time:                5 * time.Minute,
+	}
+
+	t, e := time.ParseDuration(c.UpstreamKeepaliveTimeout)
+	if e != nil {
+		logger.Warn(ctx, "Keepalive time parsing failed")
+		return keepaliveClientParams
+	}
+
+	keepaliveClientParams.Time = t
+	return keepaliveClientParams
 }

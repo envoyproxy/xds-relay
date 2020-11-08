@@ -167,7 +167,7 @@ func TestClientContextCancellationShouldCloseAllResponseChannels(t *testing.T) {
 	client, err := upstream.New(
 		clientCtx,
 		strings.Join([]string{"127.0.0.1", strconv.Itoa(originServerPort)}, ":"),
-		upstream.CallOptions{Timeout: time.Minute},
+		upstream.CallOptions{SendTimeout: time.Minute},
 		log.MockLogger,
 		stats.NewMockScope("mock"),
 	)
@@ -176,13 +176,13 @@ func TestClientContextCancellationShouldCloseAllResponseChannels(t *testing.T) {
 		Node: &corev2.Node{
 			Id: nodeID,
 		},
-	}))
+	}), "aggregated_key")
 	respCh2, _ := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{
 		TypeUrl: resource.ClusterType,
 		Node: &corev2.Node{
 			Id: nodeID,
 		},
-	}))
+	}), "aggregated_key")
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -232,7 +232,7 @@ func setup(
 	client, err := upstream.New(
 		xdsrelayCtx,
 		strings.Join([]string{"127.0.0.1", strconv.Itoa(originServerPort)}, ":"),
-		upstream.CallOptions{Timeout: time.Minute},
+		upstream.CallOptions{SendTimeout: time.Minute},
 		logger,
 		scope,
 	)
@@ -246,7 +246,7 @@ func setup(
 		Node: &corev2.Node{
 			Id: nodeID,
 		},
-	}))
+	}), "aggregated_key")
 
 	select {
 	case <-cb.Signal:

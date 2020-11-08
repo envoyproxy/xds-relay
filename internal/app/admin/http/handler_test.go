@@ -103,7 +103,7 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 	mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
 	client := upstream.NewMock(
 		ctx,
-		upstream.CallOptions{Timeout: time.Second},
+		upstream.CallOptions{SendTimeout: time.Second},
 		nil,
 		upstreamResponseChannel,
 		nil,
@@ -142,7 +142,7 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 	gotResponse := <-respChannel.GetChannel().V2
 	gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
 	assert.NoError(t, err)
-	assert.Equal(t, resp, *gotDiscoveryResponse)
+	assert.Equal(t, &resp, gotDiscoveryResponse)
 
 	req, err := http.NewRequest("GET", "/cache/test_lds", nil)
 	assert.NoError(t, err)
@@ -166,7 +166,7 @@ func TestAdminServer_CacheDumpHandler_NotFound(t *testing.T) {
 	mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
 	client := upstream.NewMock(
 		ctx,
-		upstream.CallOptions{Timeout: time.Second},
+		upstream.CallOptions{SendTimeout: time.Second},
 		nil,
 		nil,
 		nil,

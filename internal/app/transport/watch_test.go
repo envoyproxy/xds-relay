@@ -31,14 +31,7 @@ var _ = Describe("TestWatch", func() {
 		var wg sync.WaitGroup
 		wg.Add(1)
 		go func() {
-			more := true
-			switch v {
-			case V2:
-				_, more = <-w.GetChannel().V2
-			case V3:
-				_, more = <-w.GetChannel().V3
-			}
-			Expect(more).To(BeFalse())
+			verifyChannelState(v, nil, false, w)
 			wg.Done()
 		}()
 		w.Close()
@@ -52,23 +45,13 @@ var _ = Describe("TestWatch", func() {
 		var wg sync.WaitGroup
 		wg.Add(2)
 		go func() {
-			var got interface{}
-			more := false
-			switch v {
-			case V2:
-				got, more = <-w.GetChannel().V2
-			case V3:
-				got, more = <-w.GetChannel().V3
-			}
-
-			Expect(more).To(BeTrue())
-			Expect(got).To(Equal(expected))
+			verifyChannelState(v, expected, true, w)
 			wg.Done()
 		}()
 
 		go func() {
-			ok := w.Send(r)
-			Expect(ok).To(BeTrue())
+			err := w.Send(r)
+			Expect(err).To(BeNil())
 			wg.Done()
 		}()
 		wg.Wait()
@@ -77,13 +60,13 @@ var _ = Describe("TestWatch", func() {
 			"V2",
 			newWatchV2(),
 			NewResponseV2(discoveryRequestv2, discoveryResponsev2),
-			cachev2.PassthroughResponse{DiscoveryResponse: discoveryResponsev2, Request: *discoveryRequestv2},
+			&cachev2.PassthroughResponse{DiscoveryResponse: discoveryResponsev2, Request: discoveryRequestv2},
 			V2),
 		Entry(
 			"V3",
 			newWatchV3(),
 			NewResponseV3(discoveryRequestv3, discoveryResponsev3),
-			cachev3.PassthroughResponse{DiscoveryResponse: discoveryResponsev3, Request: *discoveryRequestv3},
+			&cachev3.PassthroughResponse{DiscoveryResponse: discoveryResponsev3, Request: discoveryRequestv3},
 			V3),
 	}...)
 
@@ -102,12 +85,54 @@ var _ = Describe("TestWatch", func() {
 		Entry("V2", newWatchV2(), NewResponseV2(discoveryRequestv2, discoveryResponsev2)),
 		Entry("V3", newWatchV3(), NewResponseV3(discoveryRequestv3, discoveryResponsev3)),
 	}...)
+
+	DescribeTable("TestNoPanicOnSendAfterClose", func(w Watch, r Response, expected interface{}, v version) {
+		err := w.Send(r)
+		Expect(err).To(BeNil())
+		w.Close()
+		err = w.Send(r)
+		Expect(err).To(BeNil())
+
+		verifyChannelState(v, expected, true, w)
+		verifyChannelState(v, nil, false, w)
+	}, []TableEntry{
+		Entry(
+			"V2",
+			newWatchV2(),
+			NewResponseV2(discoveryRequestv2, discoveryResponsev2),
+			&cachev2.PassthroughResponse{DiscoveryResponse: discoveryResponsev2, Request: discoveryRequestv2},
+			V2),
+		Entry(
+			"V3",
+			newWatchV3(),
+			NewResponseV3(discoveryRequestv3, discoveryResponsev3),
+			&cachev3.PassthroughResponse{DiscoveryResponse: discoveryResponsev3, Request: discoveryRequestv3},
+			V3),
+	}...)
 })
 
 func sendWithCloseChannelOnFailure(w Watch, wg *sync.WaitGroup, r Response) {
-	ok := w.Send(r)
-	if !ok {
+	err := w.Send(r)
+	if err != nil {
 		w.Close()
 	}
 	wg.Done()
+}
+
+func verifyChannelState(v version, expectedResponse interface{}, expectedMore bool, w Watch) {
+	var got interface{}
+	more := false
+
+	switch v {
+	case V2:
+		got, more = <-w.GetChannel().V2
+	case V3:
+		got, more = <-w.GetChannel().V3
+	}
+	Expect(more).To(Equal(expectedMore))
+	if expectedResponse == nil {
+		Expect(got).To(BeNil())
+	} else {
+		Expect(got).To(Equal(expectedResponse))
+	}
 }
