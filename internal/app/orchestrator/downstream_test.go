@@ -25,18 +25,18 @@ var (
 	}
 )
 
-func Test_downstreamResponseMap_createChannel(t *testing.T) {
+func Test_downstreamResponseMap_createWatch(t *testing.T) {
 	responseMap := newDownstreamResponseMap()
-	assert.Equal(t, 0, len(responseMap.responseChannels))
-	responseMap.createChannel(transport.NewRequestV2(&mockRequest))
-	assert.Equal(t, 1, len(responseMap.responseChannels))
+	assert.Equal(t, 0, len(responseMap.watches))
+	responseMap.createWatch(transport.NewRequestV2(&mockRequest))
+	assert.Equal(t, 1, len(responseMap.watches))
 }
 
 func Test_downstreamResponseMap_get(t *testing.T) {
 	responseMap := newDownstreamResponseMap()
 	request := transport.NewRequestV2(&mockRequest)
-	responseMap.createChannel(request)
-	assert.Equal(t, 1, len(responseMap.responseChannels))
+	responseMap.createWatch(request)
+	assert.Equal(t, 1, len(responseMap.watches))
 	if _, ok := responseMap.get(request); !ok {
 		t.Error("request not found")
 	}
@@ -48,9 +48,9 @@ func Test_downstreamResponseMap_delete(t *testing.T) {
 	request2 := transport.NewRequestV2(&gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Cluster",
 	})
-	responseMap.createChannel(request)
-	responseMap.createChannel(request2)
-	assert.Equal(t, 2, len(responseMap.responseChannels))
+	responseMap.createWatch(request)
+	responseMap.createWatch(request2)
+	assert.Equal(t, 2, len(responseMap.watches))
 	if _, ok := responseMap.get(request); !ok {
 		t.Error("request not found")
 	}
@@ -58,12 +58,12 @@ func Test_downstreamResponseMap_delete(t *testing.T) {
 		t.Error("request not found")
 	}
 	responseMap.delete(request)
-	assert.Equal(t, 1, len(responseMap.responseChannels))
+	assert.Equal(t, 1, len(responseMap.watches))
 	if _, ok := responseMap.get(request); ok {
 		t.Error("request found, when should be deleted")
 	}
 	responseMap.delete(request2)
-	assert.Equal(t, 0, len(responseMap.responseChannels))
+	assert.Equal(t, 0, len(responseMap.watches))
 }
 
 func Test_downstreamResponseMap_deleteAll(t *testing.T) {
@@ -75,17 +75,17 @@ func Test_downstreamResponseMap_deleteAll(t *testing.T) {
 	request3 := transport.NewRequestV2(&gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.RouteConfiguration",
 	})
-	responseMap.createChannel(request)
-	responseMap.createChannel(request2)
-	responseMap.createChannel(request3)
-	assert.Equal(t, 3, len(responseMap.responseChannels))
+	responseMap.createWatch(request)
+	responseMap.createWatch(request2)
+	responseMap.createWatch(request3)
+	assert.Equal(t, 3, len(responseMap.watches))
 	responseMap.deleteAll(
 		map[transport.Request]bool{
 			request:  true,
 			request2: true,
 		},
 	)
-	assert.Equal(t, 1, len(responseMap.responseChannels))
+	assert.Equal(t, 1, len(responseMap.watches))
 	if _, ok := responseMap.get(request); ok {
 		t.Error("request found, when should be deleted")
 	}
