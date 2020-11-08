@@ -708,7 +708,7 @@ func testAdminServerClearCacheHelper(t *testing.T, urls []string, expectedCacheC
 		mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
 		client := upstream.NewMock(
 			ctx,
-			upstream.CallOptions{Timeout: time.Second},
+			upstream.CallOptions{SendTimeout: time.Second},
 			nil,
 			upstreamResponseChannelLDS,
 			nil,
@@ -819,7 +819,7 @@ func testAdminServerClearCacheHelperV3(t *testing.T, urls []string) {
 		mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
 		client := upstream.NewMockV3(
 			ctx,
-			upstream.CallOptions{Timeout: time.Second},
+			upstream.CallOptions{SendTimeout: time.Second},
 			nil,
 			upstreamResponseChannelLDS,
 			nil,

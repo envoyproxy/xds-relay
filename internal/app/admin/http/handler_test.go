@@ -196,7 +196,7 @@ func TestAdminServer_ClearCacheHandler(t *testing.T) {
 	mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
 	client := upstream.NewMock(
 		ctx,
-		upstream.CallOptions{Timeout: time.Second},
+		upstream.CallOptions{SendTimeout: time.Second},
 		nil,
 		upstreamResponseChannel,
 		nil,
@@ -266,7 +266,7 @@ func TestAdminServer_ClearCacheHandler_NotFound(t *testing.T) {
 	mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
 	client := upstream.NewMock(
 		ctx,
-		upstream.CallOptions{Timeout: time.Second},
+		upstream.CallOptions{SendTimeout: time.Second},
 		nil,
 		nil,
 		nil,
