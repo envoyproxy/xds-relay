@@ -3,10 +3,10 @@ package handler
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"regexp"
 	"testing"
 	"time"
 
@@ -28,8 +28,6 @@ import (
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/stretchr/testify/assert"
 )
-
-var dateRegex = regexp.MustCompile(`"....-..-..T..:..:.....*"`)
 
 func TestAdminServer_DefaultHandler(t *testing.T) {
 	req, err := http.NewRequest("GET", "/", nil)
@@ -152,10 +150,22 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
-	body := dateRegex.ReplaceAllString(rr.Body.String(), "\"\"")
-	filecontents, err := ioutil.ReadFile("testdata/lds_response.json")
+
+	var actualResponse map[string]interface{}
+	err = json.Unmarshal(rr.Body.Bytes(), &actualResponse)
 	assert.NoError(t, err)
-	assert.Equal(t, body, string(filecontents))
+
+	filecontentsLds, err := ioutil.ReadFile("testdata/entire_cachev2_lds.json")
+	assert.NoError(t, err)
+	var expectedLdsResponse map[string]interface{}
+	err = json.Unmarshal(filecontentsLds, &expectedLdsResponse)
+	assert.NoError(t, err)
+
+	actualCacheResponse := actualResponse["Cache"].([]interface{})
+	assert.Equal(t, len(actualCacheResponse), 1)
+
+	assert.Equal(t, expectedLdsResponse["Key"], actualCacheResponse[0].(map[string]interface{})["Key"])
+	assert.Equal(t, expectedLdsResponse["Resp"], actualCacheResponse[0].(map[string]interface{})["Resp"])
 	cancelWatch()
 }
 
