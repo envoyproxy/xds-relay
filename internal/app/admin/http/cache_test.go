@@ -559,7 +559,7 @@ func testAdminServerClearCacheHelper(t *testing.T, urls []string, expectedCacheC
 		gotResponse := <-ldsRespChannel.GetChannel().V2
 		gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
 		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
+		assert.Equal(t, &resp, gotDiscoveryResponse)
 
 		cluster := &v2.Cluster{
 			Name: "cds resource",
@@ -577,7 +577,7 @@ func testAdminServerClearCacheHelper(t *testing.T, urls []string, expectedCacheC
 		gotResponse = <-cdsRespChannel.GetChannel().V2
 		gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
 		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
+		assert.Equal(t, &resp, gotDiscoveryResponse)
 
 		// Assert cache has two entries before clearing
 		cacheKeys, err := orchestrator.GetDownstreamAggregatedKeys()
@@ -670,7 +670,7 @@ func testAdminServerClearCacheHelperV3(t *testing.T, urls []string) {
 		gotResponse := <-ldsRespChannel.GetChannel().V3
 		gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
 		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
+		assert.Equal(t, &resp, gotDiscoveryResponse)
 
 		cluster := &v2.Cluster{
 			Name: "cds resource",
@@ -688,7 +688,7 @@ func testAdminServerClearCacheHelperV3(t *testing.T, urls []string) {
 		gotResponse = <-cdsRespChannel.GetChannel().V3
 		gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
 		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
+		assert.Equal(t, &resp, gotDiscoveryResponse)
 
 		// Assert cache has two entries before clearing
 		cacheKeys, err := orchestrator.GetDownstreamAggregatedKeys()

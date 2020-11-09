@@ -245,7 +245,7 @@ func TestAdminServer_ClearCacheHandler(t *testing.T) {
 	gotResponse := <-respChannel.GetChannel().V2
 	gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
 	assert.NoError(t, err)
-	assert.Equal(t, resp, *gotDiscoveryResponse)
+	assert.Equal(t, &resp, gotDiscoveryResponse)
 
 	// Assert cache has one entry before clearing
 	cacheKeys, err := orchestrator.GetDownstreamAggregatedKeys()
