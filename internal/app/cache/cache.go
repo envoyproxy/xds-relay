@@ -14,7 +14,6 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/app/metrics"
 	"github.com/envoyproxy/xds-relay/internal/app/transport"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
-	"github.com/envoyproxy/xds-relay/pkg/marshallable"
 )
 
 type Cache interface {
@@ -31,7 +30,7 @@ type Cache interface {
 	DeleteRequest(key string, req transport.Request) error
 
 	// DeleteKey removes the given key from cache.
-	DeleteKey(key string) (Resource, marshallable.Error)
+	DeleteKey(key string) (Resource, error)
 
 	// GetReadOnlyCache returns a copy of the cache that only exposes read-only methods in its interface.
 	GetReadOnlyCache() ReadOnlyCache
@@ -244,27 +243,23 @@ func (c *cache) DeleteRequest(key string, req transport.Request) error {
 	return nil
 }
 
-func (c *cache) DeleteKey(key string) (Resource, marshallable.Error) {
+func (c *cache) DeleteKey(key string) (Resource, error) {
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
 	metrics.CacheDeleteKeySubscope(c.scope, key).Counter(metrics.CacheDeleteKeyAttempt).Inc(1)
 	value, found := c.cache.Get(key)
 	if !found {
 		metrics.CacheDeleteKeySubscope(c.scope, key).Counter(metrics.CacheDeleteKeyError).Inc(1)
-		return Resource{}, marshallable.Error{
-			Message: fmt.Sprintf("unable to delete entry for nonexistent key: %s", key),
-		}
+		return Resource{}, fmt.Errorf(fmt.Sprintf("unable to delete entry for nonexistent key: %s", key))
 	}
 	resource, ok := value.(Resource)
 	if !ok {
 		metrics.CacheDeleteRequestSubscope(c.scope, key).Counter(metrics.CacheDeleteKeyError).Inc(1)
-		return Resource{}, marshallable.Error{
-			Message: fmt.Sprintf("unable to cast cache value to type resource for key: %s", key),
-		}
+		return Resource{}, fmt.Errorf(fmt.Sprintf("unable to cast cache value to type resource for key: %s", key))
 	}
 	c.cache.Remove(key)
 	metrics.CacheDeleteKeySubscope(c.scope, key).Counter(metrics.CacheDeleteKeySuccess).Inc(1)
-	return resource, marshallable.Error{}
+	return resource, nil
 }
 
 func (r *Resource) isExpired(currentTime time.Time) bool {

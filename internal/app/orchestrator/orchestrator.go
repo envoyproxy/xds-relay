@@ -21,7 +21,6 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/app/transport"
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
-	"github.com/envoyproxy/xds-relay/pkg/marshallable"
 )
 
 const (
@@ -57,11 +56,11 @@ type Orchestrator interface {
 
 	GetReadOnlyCache() cache.ReadOnlyCache
 
-	GetDownstreamAggregatedKeys() (map[string]bool, marshallable.Error)
+	GetDownstreamAggregatedKeys() (map[string]bool, error)
 
 	CreateWatch(transport.Request) (transport.Watch, func())
 
-	DeleteAll(key string, resource cache.Resource)
+	ClearCacheEntries(keys []string, cache cache.Cache) []error
 }
 
 type orchestrator struct {
@@ -249,15 +248,23 @@ func (o *orchestrator) GetCache() cache.Cache {
 }
 
 // GetDownstreamAggregatedKeys returns the aggregated keys for all requests stored in the downstream response map.
-func (o *orchestrator) GetDownstreamAggregatedKeys() (map[string]bool, marshallable.Error) {
+func (o *orchestrator) GetDownstreamAggregatedKeys() (map[string]bool, error) {
 	keys, err := o.downstreamResponseMap.getAggregatedKeys(&o.mapper)
 	if err != nil {
 		o.logger.With("error", err).Error(context.Background(), "Unable to get keys")
-		return keys, marshallable.Error{
-			Message: err.Error(),
+	}
+	return keys, err
+}
+
+func (o *orchestrator) ClearCacheEntries(keys []string, cache cache.Cache) []error {
+	var errors []error
+	for _, key := range keys {
+		_, err := cache.DeleteKey(key)
+		if err != nil {
+			errors = append(errors, err)
 		}
 	}
-	return keys, marshallable.Error{}
+	return errors
 }
 
 // watchUpstream is intended to be called in a go routine, to receive incoming
@@ -398,11 +405,6 @@ func (o *orchestrator) onCacheEvicted(key string, resource cache.Resource) {
 	metrics.OrchestratorCacheEvictSubscope(o.scope, key).Counter(
 		metrics.OrchestratorOnCacheEvictedRequestCount).Inc(int64(len(resource.Requests)))
 	o.logger.With("aggregated_key", key).Debug(context.Background(), "cache eviction called")
-	o.DeleteAll(key, resource)
-}
-
-// DeleteAll shuts down both the downstream watchers and the upstream stream.
-func (o *orchestrator) DeleteAll(key string, resource cache.Resource) {
 	o.downstreamResponseMap.deleteAll(resource.Requests)
 	o.upstreamResponseMap.delete(key)
 }
