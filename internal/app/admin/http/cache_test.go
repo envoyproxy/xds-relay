@@ -527,12 +527,12 @@ func verifyCacheOutput(t *testing.T, rr *httptest.ResponseRecorder, cdsFile stri
 	var actualLdsResponse map[string]interface{}
 	var actualCdsResponse map[string]interface{}
 
-	if actualCacheResponse[0].(map[string]interface{})["Key"] == "test_lds" {
-		actualLdsResponse = actualCacheResponse[0].(map[string]interface{})
-		actualCdsResponse = actualCacheResponse[1].(map[string]interface{})
-	} else {
-		actualLdsResponse = actualCacheResponse[1].(map[string]interface{})
-		actualCdsResponse = actualCacheResponse[0].(map[string]interface{})
+	for _, c := range actualCacheResponse {
+		if c.(map[string]interface{})["Key"] == "test_lds" {
+			actualLdsResponse = c.(map[string]interface{})
+		} else {
+			actualCdsResponse = c.(map[string]interface{})
+		}
 	}
 
 	assert.Equal(t, expectedLdsResponse["Key"], actualLdsResponse["Key"])
