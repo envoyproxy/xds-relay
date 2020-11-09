@@ -52,15 +52,13 @@ type Orchestrator interface {
 	// open channels.
 	shutdown(ctx context.Context)
 
-	GetCache() cache.Cache
-
 	GetReadOnlyCache() cache.ReadOnlyCache
 
 	GetDownstreamAggregatedKeys() (map[string]bool, error)
 
 	CreateWatch(transport.Request) (transport.Watch, func())
 
-	ClearCacheEntries(keys []string, cache cache.Cache) []error
+	ClearCacheEntries(keys []string) []error
 }
 
 type orchestrator struct {
@@ -242,11 +240,6 @@ func (o *orchestrator) GetReadOnlyCache() cache.ReadOnlyCache {
 	return o.cache.GetReadOnlyCache()
 }
 
-// GetCache returns the request/response cache with all cache methods exposed.
-func (o *orchestrator) GetCache() cache.Cache {
-	return o.cache
-}
-
 // GetDownstreamAggregatedKeys returns the aggregated keys for all requests stored in the downstream response map.
 func (o *orchestrator) GetDownstreamAggregatedKeys() (map[string]bool, error) {
 	keys, err := o.downstreamResponseMap.getAggregatedKeys(&o.mapper)
@@ -256,10 +249,10 @@ func (o *orchestrator) GetDownstreamAggregatedKeys() (map[string]bool, error) {
 	return keys, err
 }
 
-func (o *orchestrator) ClearCacheEntries(keys []string, cache cache.Cache) []error {
+func (o *orchestrator) ClearCacheEntries(keys []string) []error {
 	var errors []error
 	for _, key := range keys {
-		_, err := cache.DeleteKey(key)
+		_, err := o.cache.DeleteKey(key)
 		if err != nil {
 			errors = append(errors, err)
 		}

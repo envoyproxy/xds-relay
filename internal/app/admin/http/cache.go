@@ -162,10 +162,9 @@ func clearCacheHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Method == "POST" {
 			cacheKey := getParam(req.URL.Path)
-			c := orchestrator.Orchestrator.GetCache(*o)
 			keysToClear, err := getRelevantKeys(o, cacheKey, w)
 			if err == nil {
-				clearCacheEntries(keysToClear, c, o, w)
+				clearCacheEntries(keysToClear, o, w)
 			}
 		} else {
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -234,8 +233,8 @@ func printCacheEntries(keys []string, cache cache.ReadOnlyCache, w http.Response
 	}
 }
 
-func clearCacheEntries(keys []string, cache cache.Cache, o *orchestrator.Orchestrator, w http.ResponseWriter) {
-	errors := orchestrator.Orchestrator.ClearCacheEntries(*o, keys, cache)
+func clearCacheEntries(keys []string, o *orchestrator.Orchestrator, w http.ResponseWriter) {
+	errors := orchestrator.Orchestrator.ClearCacheEntries(*o, keys)
 	for _, err := range errors {
 		errMessage, _ := stringify.InterfaceToString(&marshallable.Error{
 			Message: err.Error(),
