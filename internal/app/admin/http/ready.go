@@ -38,6 +38,7 @@ func readyHandler() http.HandlerFunc {
 			mu.Lock()
 			defer mu.Unlock()
 			ready = desired
+			w.WriteHeader(http.StatusOK)
 			return
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
