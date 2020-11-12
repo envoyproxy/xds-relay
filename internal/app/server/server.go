@@ -181,7 +181,8 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	}
 }
 
-func startServer(ctx context.Context, logger log.Logger, scope tally.Scope, listener net.Listener, server *grpc.Server) {
+func startServer(ctx context.Context, logger log.Logger, scope tally.Scope,
+	listener net.Listener, server *grpc.Server) {
 	logger.With("address", listener.Addr()).Info(ctx, "Initializing server")
 	scope.SubScope(metrics.ScopeServer).Counter(metrics.ServerAlive).Inc(1)
 	if err := server.Serve(listener); err != nil {
