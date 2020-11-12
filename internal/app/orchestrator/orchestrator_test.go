@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/envoyproxy/xds-relay/internal/pkg/stats"
-
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	v2_core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
@@ -16,6 +14,7 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/app/transport"
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
+	"github.com/envoyproxy/xds-relay/internal/pkg/stats"
 	"github.com/envoyproxy/xds-relay/internal/pkg/util/testutils"
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
@@ -23,6 +22,7 @@ import (
 	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/stretchr/testify/assert"
 	"github.com/uber-go/tally"
+	"go.uber.org/goleak"
 	"google.golang.org/genproto/googleapis/rpc/status"
 )
 
@@ -83,8 +83,13 @@ func assertEqualResponse(t *testing.T, got gcp.Response, expected *v2.DiscoveryR
 	assert.Equal(t, req, got.GetRequest())
 }
 
+func TestMain(m *testing.M) {
+	defer goleak.VerifyTestMain(m)
+}
+
 func TestNew(t *testing.T) {
 	// Trivial test to ensure orchestrator instantiates.
+	ctx, cancel := context.WithCancel(context.Background())
 	upstreamClient := upstream.NewMock(
 		context.Background(),
 		upstream.CallOptions{},
@@ -113,8 +118,9 @@ func TestNew(t *testing.T) {
 		MaxEntries: 10,
 	}
 
-	orchestrator := New(context.Background(), log.MockLogger, tally.NewTestScope("prefix",
+	orchestrator := New(ctx, log.MockLogger, tally.NewTestScope("prefix",
 		make(map[string]string)), requestMapper, upstreamClient, &cacheConfig)
+	cancel()
 	assert.NotNil(t, orchestrator)
 }
 
