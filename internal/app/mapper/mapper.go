@@ -35,9 +35,9 @@ type mapper struct {
 }
 
 const (
-	separator = "_"
-	edsTypeURLV2  = "type.googleapis.com/envoy.api.v2.ClusterLoadAssignmentr"
-	edsTypeURLV3  = "type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment"
+	edsTypeURLV2 = "type.googleapis.com/envoy.api.v2.ClusterLoadAssignmentr"
+	edsTypeURLV3 = "type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment"
+	separator    = "_"
 )
 
 // New constructs a concrete implementation for the Mapper interface
@@ -50,16 +50,16 @@ func New(config *aggregationv1.KeyerConfiguration, scope tally.Scope) Mapper {
 
 // GetKey converts a request into an aggregated key
 func (mapper *mapper) GetKey(request transport.Request) (string, error) {
-	typeUrl := request.GetTypeURL()
-	if typeUrl == "" {
+	typeURL := request.GetTypeURL()
+	if typeURL == "" {
 		mapper.scope.Counter(metrics.MapperErrorEmptyUrl).Inc(1)
 		return "", fmt.Errorf("typeURL is empty")
 	}
 
 	// A known issue (https://github.com/envoyproxy/envoy/issues/7529) causes envoy to generate
 	// EDS requests without resource_names, which could affect certain fragment rules.
-	if isEDS(typeUrl) && len(request.GetResourceNames()) == 0 {
-		mapper.scope.Counter(metrics.MapperErrorEmptyResourceNames).Inc(1)
+	if isEDS(typeURL) && len(request.GetResourceNames()) == 0 {
+		mapper.scope.Counter(metrics.MapperErrorEmptyResource).Inc(1)
 		return "", fmt.Errorf("resource names is empty")
 	}
 

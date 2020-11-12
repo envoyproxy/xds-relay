@@ -103,10 +103,10 @@ const (
 	// scope: .mapper.*
 	ScopeMapper = "mapper"
 
-	MapperSuccess = "success" // counter, # of successfully converted request to aggregated keys
-	MapperErrorEmptyUrl   = "error_typeurl"   // counter, # of errors from receiving request without typeURL
-	MapperErrorEmptyResourceNames   = "error_resource"   // counter, # of errors from receiving EDS request without resource names
-	MapperError   = "error"   // counter, # of errors when converting a request to an aggregated key
+	MapperSuccess            = "success"        // counter, # of successfully converted request to aggregated keys
+	MapperErrorEmptyUrl      = "error_typeurl"  // counter, # of errors from receiving request without typeURL
+	MapperErrorEmptyResource = "error_resource" // counter, # of errors from EDS requests without resource names
+	MapperError              = "error"          // counter, # of errors when converting a request to an aggregated key
 )
 
 // .upstream.error_interceptor
