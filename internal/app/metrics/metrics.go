@@ -104,6 +104,8 @@ const (
 	ScopeMapper = "mapper"
 
 	MapperSuccess = "success" // counter, # of successfully converted request to aggregated keys
+	MapperErrorEmptyUrl   = "error_typeurl"   // counter, # of errors from receiving request without typeURL
+	MapperErrorEmptyResourceNames   = "error_resource"   // counter, # of errors from receiving EDS request without resource names
 	MapperError   = "error"   // counter, # of errors when converting a request to an aggregated key
 )
 
