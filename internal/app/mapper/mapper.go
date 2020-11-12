@@ -52,7 +52,7 @@ func New(config *aggregationv1.KeyerConfiguration, scope tally.Scope) Mapper {
 func (mapper *mapper) GetKey(request transport.Request) (string, error) {
 	typeURL := request.GetTypeURL()
 	if typeURL == "" {
-		mapper.scope.Counter(metrics.MapperErrorEmptyUrl).Inc(1)
+		mapper.scope.Counter(metrics.MapperErrorEmptyURL).Inc(1)
 		return "", fmt.Errorf("typeURL is empty")
 	}
 
