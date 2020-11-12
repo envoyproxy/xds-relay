@@ -77,8 +77,3 @@ func (r *RequestV3) GetRaw() *RequestVersion {
 func (r *RequestV3) GetResponseNonce() string {
 	return r.r.GetResponseNonce()
 }
-
-// CreateWatch creates a versioned Watch
-func (r *RequestV3) CreateWatch() Watch {
-	return newWatchV3()
-}
