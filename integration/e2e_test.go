@@ -191,6 +191,27 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 		assert.Fail(t, fmt.Sprintf("%s is not expected error", err.Error()))
 		return
 	}
+
+	p, err := os.FindProcess(os.Getpid())
+	if err != nil {
+		assert.Fail(t, "error is not expected")
+	}
+	err = p.Signal(os.Kill)
+	if err != nil {
+		assert.Fail(t, "error is not expected")
+	}
+
+	<-time.After(time.Second * 30)
+	resp, err = http.Get("http://localhost:9991")
+	if err != nil && !strings.Contains(err.Error(), "connect: connection refused") {
+		assert.Fail(t, "not expected")
+	}
+
+	<-time.After(time.Second * 30)
+	resp, err = http.Get("http://localhost:6070/cache")
+	if err != nil && strings.Contains(err.Error(), "connect: connection refused") {
+		assert.Fail(t, "not expected")
+	}
 }
 
 func setSnapshot(
