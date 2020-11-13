@@ -143,7 +143,7 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 		assert.Fail(t, fmt.Sprintf("http://localhost:6070/cache returned %d", resp.StatusCode))
 		return
 	}
-	resp, err = http.Get("http://0:9991")
+	resp, err = http.Get("http://localhost:9991")
 	if err != nil && !strings.Contains(err.Error(), "connect: connection refused") {
 		assert.Fail(t, fmt.Sprintf("%s is not connection refused", err.Error()))
 		return
@@ -181,12 +181,12 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 		assert.Fail(t, fmt.Sprintf("http://localhost:6070/cache returned %d", resp.StatusCode))
 		return
 	}
-	resp, err = http.Get("http://0:9991")
+	resp, err = http.Get("http://localhost:9991")
 	if err == nil {
 		assert.Fail(t, "expected an error")
 		return
 	} else if err != nil && !strings.Contains(err.Error(), "malformed HTTP response") {
-		//actual error Get "http://0:9991": net/http: HTTP/1.x transport connection broken: malformed HTTP response "\x00\x00\x06\x04\x00\x00\x00\x00\x00\x00\x05\x00\x00@\x00"
+		//actual error Get "http://localhost:9991": net/http: HTTP/1.x transport connection broken: malformed HTTP response "\x00\x00\x06\x04\x00\x00\x00\x00\x00\x00\x05\x00\x00@\x00"
 		// The error indicates the server is listening on the port.
 		assert.Fail(t, fmt.Sprintf("%s is not expected error", err.Error()))
 		return
