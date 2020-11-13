@@ -38,13 +38,13 @@ func readyHandler(weboff chan<- bool) http.HandlerFunc {
 			mu.Lock()
 			defer mu.Unlock()
 			if ready != desired {
-				ready = desired
 				select {
 				case weboff <- desired:
 				default:
 					w.WriteHeader(http.StatusInternalServerError)
 					return
 				}
+				ready = desired
 			}
 
 			w.WriteHeader(http.StatusOK)

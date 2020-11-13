@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -73,7 +74,7 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 	// Start xds-relay server.
 	startXdsRelayServer(ctx, cancelFunc, xdsRelayBootstrap, keyerConfiguration)
 
-	for _, version := range []core.ApiVersion{core.ApiVersion_V2, core.ApiVersion_V3} {
+	for _, version := range []core.ApiVersion{core.ApiVersion_V2} {
 		t.Run(version.String(), func(t *testing.T) {
 			// Start envoy and return a bytes buffer containing the envoy logs.
 			var signal chan struct{}
@@ -103,6 +104,92 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 			err := stopEnvoy(ctx, pid)
 			assert.NoError(t, err)
 		})
+	}
+
+	resp, err := http.Get("http://0:6070/ready")
+	if err != nil {
+		assert.Fail(t, fmt.Sprintf("http://0:6070/ready should not fail %s", err.Error()))
+		return
+	} else if resp.StatusCode != http.StatusOK {
+		assert.Fail(t, "http://0:6070/ready should be 200")
+		return
+	}
+
+	resp, err = http.Post("http://0:6070/ready/false", "application/json", nil)
+	if err != nil {
+		assert.Fail(t, "http://0:6070/ready/false should not fail")
+		return
+	} else if resp.StatusCode != http.StatusOK {
+		assert.Fail(t, "http://0:6070/ready/false should be 200")
+		return
+	}
+	for {
+		<-time.After(time.Second * 30)
+		resp, err := http.Get("http://0:6070/ready")
+		if err != nil {
+			assert.Fail(t, fmt.Sprintf("http://0:6070/ready should not fail %s", err.Error()))
+			return
+		}
+		if resp.StatusCode != http.StatusOK {
+			break
+		}
+	}
+	resp, err = http.Get("http://0:6070/cache")
+	if err != nil {
+		assert.Fail(t, fmt.Sprintf("http://0:6070/cache %s", err.Error()))
+		return
+	}
+	if resp.StatusCode != http.StatusOK {
+		assert.Fail(t, fmt.Sprintf("http://0:6070/cache returned %d", resp.StatusCode))
+		return
+	}
+	resp, err = http.Get("http://0:9991")
+	if err != nil && !strings.Contains(err.Error(), "connect: connection refused") {
+		assert.Fail(t, fmt.Sprintf("%s is not connection refused", err.Error()))
+		return
+	} else if err == nil {
+		assert.Fail(t, "expected an error")
+		return
+	}
+
+	resp, err = http.Post("http://0:6070/ready/true", "application/json", nil)
+	if err != nil {
+		assert.Fail(t, "http://0:6070/ready/true should not fail")
+		return
+	} else if resp.StatusCode != http.StatusOK {
+		assert.Fail(t, "http://0:6070/ready/true should be 200")
+		return
+	}
+
+	for {
+		<-time.After(time.Second * 30)
+		resp, err := http.Get("http://0:6070/ready")
+		if err != nil {
+			assert.Fail(t, fmt.Sprintf("http://0:6070/ready should not fail %s", err.Error()))
+			return
+		}
+		if resp.StatusCode == http.StatusOK {
+			break
+		}
+	}
+	resp, err = http.Get("http://0:6070/cache")
+	if err != nil {
+		assert.Fail(t, fmt.Sprintf("http://0:6070/cache %s", err.Error()))
+		return
+	}
+	if resp.StatusCode != http.StatusOK {
+		assert.Fail(t, fmt.Sprintf("http://0:6070/cache returned %d", resp.StatusCode))
+		return
+	}
+	resp, err = http.Get("http://0:9991")
+	if err == nil {
+		assert.Fail(t, "expected an error")
+		return
+	} else if err != nil && !strings.Contains(err.Error(), "malformed HTTP response") {
+		//actual error Get "http://0:9991": net/http: HTTP/1.x transport connection broken: malformed HTTP response "\x00\x00\x06\x04\x00\x00\x00\x00\x00\x00\x05\x00\x00@\x00"
+		// The error indicates the server is listening on the port.
+		assert.Fail(t, fmt.Sprintf("%s is not expected error", err.Error()))
+		return
 	}
 }
 

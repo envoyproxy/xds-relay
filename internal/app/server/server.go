@@ -127,10 +127,6 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 
 	serverPort := strconv.FormatUint(uint64(bootstrapConfig.Server.Address.PortValue), 10)
 	serverAddress := net.JoinHostPort(bootstrapConfig.Server.Address.Address, serverPort)
-	listener, err := net.Listen("tcp", serverAddress) // #nosec
-	if err != nil {
-		logger.With("error", err).Fatal(ctx, "failed to bind server to listener")
-	}
 
 	if mode != "serve" {
 		return
@@ -150,13 +146,16 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 				logger.Info(ctx, "ignoring desired state(%t) = current state(%t)", state, currentState)
 				break
 			}
-
+			logger.Info(ctx, "working on desired state(%t), current state(%t)", state, currentState)
 			currentState = state
 			if currentState {
-				logger.Info(ctx, "working on desired state(%t), current state(%t)", state, currentState)
 				stopMutex.Lock()
 				server = grpc.NewServer()
 				registerEndpoints(ctx, server, orchestrator)
+				listener, err := net.Listen("tcp", serverAddress)
+				if err != nil {
+					logger.With("error", err).Fatal(ctx, "failed to bind server to listener")
+				}
 				go startServer(ctx, logger, scope, listener, server)
 				stopMutex.Unlock()
 			} else {
