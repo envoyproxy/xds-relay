@@ -75,7 +75,7 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 	// Start xds-relay server.
 	startXdsRelayServer(ctx, cancelFunc, xdsRelayBootstrap, keyerConfiguration)
 
-	for _, version := range []core.ApiVersion{core.ApiVersion_V2} {
+	for _, version := range []core.ApiVersion{core.ApiVersion_V2, core.ApiVersion_V3} {
 		t.Run(version.String(), func(t *testing.T) {
 			// Start envoy and return a bytes buffer containing the envoy logs.
 			var signal chan struct{}
