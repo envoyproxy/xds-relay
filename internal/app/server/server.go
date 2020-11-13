@@ -185,10 +185,6 @@ func startServer(ctx context.Context, logger log.Logger, scope tally.Scope,
 	logger.With("address", listener.Addr()).Info(ctx, "Initializing server")
 	scope.SubScope(metrics.ScopeServer).Counter(metrics.ServerAlive).Inc(1)
 	if err := server.Serve(listener); err != nil {
-		if err == grpc.ErrServerStopped {
-			logger.With("error", err).Fatal(ctx, "trying to start a stopped server")
-			return
-		}
 		logger.With("error", err).Fatal(ctx, "failed to initialize server")
 	}
 }
