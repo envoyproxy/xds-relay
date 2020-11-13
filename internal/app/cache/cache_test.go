@@ -15,7 +15,6 @@ import (
 	"github.com/onsi/gomega"
 	"github.com/stretchr/testify/assert"
 
-	gcpv2 "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 )
 
@@ -93,7 +92,7 @@ func TestAddRequestAndFetch(t *testing.T) {
 	assert.EqualError(t, err, "no value found for key: key_A")
 	assert.Nil(t, resource)
 
-	err = cache.AddRequest(testKeyA, transport.NewRequestV2(&testRequestA, make(chan<- gcpv2.Response, 1)))
+	err = cache.AddRequest(testKeyA, transport.NewRequestV2(&testRequestA))
 	assert.NoError(t, err)
 	countersSnapshot = mockScope.Snapshot().Counters()
 	assert.EqualValues(
@@ -133,11 +132,11 @@ func TestAddRequestAndSetResponse(t *testing.T) {
 	cache, err := NewCache(2, testOnEvict, time.Second*60, log.MockLogger, stats.NewMockScope("cache"))
 	assert.NoError(t, err)
 
-	reqA := transport.NewRequestV2(&testRequestA, make(chan<- gcpv2.Response, 1))
+	reqA := transport.NewRequestV2(&testRequestA)
 	err = cache.AddRequest(testKeyA, reqA)
 	assert.NoError(t, err)
 
-	reqB := transport.NewRequestV2(&testRequestB, make(chan<- gcpv2.Response, 1))
+	reqB := transport.NewRequestV2(&testRequestB)
 	err = cache.AddRequest(testKeyA, reqB)
 	assert.NoError(t, err)
 
@@ -167,7 +166,7 @@ func TestMaxEntries(t *testing.T) {
 		key:    testKeyA,
 		reason: "testOnEvict called",
 	}, func() {
-		err = cache.AddRequest(testKeyB, transport.NewRequestV2(&testRequestB, make(chan<- gcpv2.Response, 1)))
+		err = cache.AddRequest(testKeyB, transport.NewRequestV2(&testRequestB))
 		assert.NoError(t, err)
 	})
 
@@ -259,7 +258,7 @@ func TestDeleteRequest(t *testing.T) {
 	cache, err := NewCache(1, testOnEvict, time.Second*60, log.MockLogger, stats.NewMockScope("cache"))
 	assert.NoError(t, err)
 
-	reqA := transport.NewRequestV2(&testRequestA, make(chan<- gcpv2.Response, 1))
+	reqA := transport.NewRequestV2(&testRequestA)
 	err = cache.AddRequest(testKeyA, reqA)
 	assert.NoError(t, err)
 
@@ -273,6 +272,6 @@ func TestDeleteRequest(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(requests))
 
-	err = cache.DeleteRequest(testKeyB, transport.NewRequestV2(&testRequestB, make(chan<- gcpv2.Response, 1)))
+	err = cache.DeleteRequest(testKeyB, transport.NewRequestV2(&testRequestB))
 	assert.NoError(t, err)
 }

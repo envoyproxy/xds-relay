@@ -2,7 +2,6 @@ package transport
 
 import (
 	discoveryv3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
-	gcpv3 "github.com/envoyproxy/go-control-plane/pkg/cache/v3"
 	structpb "github.com/golang/protobuf/ptypes/struct"
 	status "google.golang.org/genproto/googleapis/rpc/status"
 )
@@ -10,17 +9,15 @@ import (
 var _ Request = &RequestV3{}
 
 // NewRequestV3 creates a Request objects which wraps v2.DiscoveryRequest
-func NewRequestV3(r *discoveryv3.DiscoveryRequest, resp chan<- gcpv3.Response) *RequestV3 {
+func NewRequestV3(r *discoveryv3.DiscoveryRequest) *RequestV3 {
 	return &RequestV3{
 		r: r,
-		w: newWatchV3(resp),
 	}
 }
 
 // RequestV3 is the v2.DiscoveryRequest impl of Request
 type RequestV3 struct {
 	r *discoveryv3.DiscoveryRequest
-	w Watch
 }
 
 // GetResourceNames gets the ResourceNames
@@ -79,9 +76,4 @@ func (r *RequestV3) GetRaw() *RequestVersion {
 // GetResponseNonce gets the error details
 func (r *RequestV3) GetResponseNonce() string {
 	return r.r.GetResponseNonce()
-}
-
-// GetWatch gets the error details
-func (r *RequestV3) GetWatch() Watch {
-	return r.w
 }

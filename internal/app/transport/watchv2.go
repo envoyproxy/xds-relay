@@ -16,8 +16,8 @@ type watchV2 struct {
 	closed bool
 }
 
-// newWatchV2 creates a new watch object
-func newWatchV2(resp chan<- gcpv2.Response) Watch {
+// NewWatchV2 creates a new watch object
+func NewWatchV2(resp chan<- gcpv2.Response) Watch {
 	return &watchV2{
 		out: resp,
 	}

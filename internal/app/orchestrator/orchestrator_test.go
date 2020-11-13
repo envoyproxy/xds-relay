@@ -136,11 +136,11 @@ func TestGoldenPath(t *testing.T) {
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
 	}
 	ch := make(chan gcp.Response, 1)
-	r := transport.NewRequestV2(req, ch)
+	r := transport.NewRequestV2(req)
 	aggregatedKey, err := mapper.GetKey(r)
 	assert.NoError(t, err)
 
-	cancelWatch := orchestrator.CreateWatch(r)
+	cancelWatch := orchestrator.CreateWatch(r, transport.NewWatchV2(ch))
 	countersSnapshot := mockScope.Snapshot().Counters()
 	assert.EqualValues(
 		t, 1, countersSnapshot[fmt.Sprintf("mock_orchestrator.watch.created+key=%v", aggregatedKey)].Value())
@@ -199,13 +199,12 @@ func TestUnaggregatedKey(t *testing.T) {
 		&gcp.Request{
 			TypeUrl: "type.googleapis.com/envoy.api.v2.UnsupportedType",
 		},
-		ch,
 	)
 	// assert this request will not map to an aggregated key.
 	_, err := mapper.GetKey(req)
 	assert.Error(t, err)
 
-	_ = orchestrator.CreateWatch(req)
+	_ = orchestrator.CreateWatch(req, transport.NewWatchV2(ch))
 	testutils.AssertCounterValue(t, mockScope.Snapshot().Counters(),
 		"mock_orchestrator.watch.errors.unaggregated_key", 1)
 	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.watches))
@@ -235,7 +234,7 @@ func TestCachedResponse(t *testing.T) {
 		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
 	}
 
-	aggregatedKey, err := mapper.GetKey(transport.NewRequestV2(req, make(chan<- gcp.Response, 1)))
+	aggregatedKey, err := mapper.GetKey(transport.NewRequestV2(req))
 	assert.NoError(t, err)
 	mockResponse := &v2.DiscoveryResponse{
 		VersionInfo: "1",
@@ -251,7 +250,7 @@ func TestCachedResponse(t *testing.T) {
 	assert.Equal(t, 0, len(watchers))
 
 	ch := make(chan gcp.Response, 1)
-	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(req, ch))
+	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(req), transport.NewWatchV2(ch))
 	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.watches))
 	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
 	orchestrator.upstreamResponseMap.internal.Range(func(key, val interface{}) bool {
@@ -290,7 +289,7 @@ func TestCachedResponse(t *testing.T) {
 	}
 
 	ch2 := make(chan<- gcp.Response, 1)
-	cancelWatch2 := orchestrator.CreateWatch(transport.NewRequestV2(&req2, ch2))
+	cancelWatch2 := orchestrator.CreateWatch(transport.NewRequestV2(&req2), transport.NewWatchV2(ch2))
 	assert.Equal(t, 2, len(orchestrator.downstreamResponseMap.watches))
 	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
 	orchestrator.upstreamResponseMap.internal.Range(func(key, val interface{}) bool {
@@ -349,15 +348,15 @@ func TestMultipleWatchersAndUpstreams(t *testing.T) {
 	}
 
 	respChannel1 := make(chan gcp.Response, 1)
-	cancelWatch1 := orchestrator.CreateWatch(transport.NewRequestV2(req1, respChannel1))
+	cancelWatch1 := orchestrator.CreateWatch(transport.NewRequestV2(req1), transport.NewWatchV2(respChannel1))
 	assert.NotNil(t, respChannel1)
 
 	respChannel2 := make(chan gcp.Response, 1)
-	cancelWatch2 := orchestrator.CreateWatch(transport.NewRequestV2(req2, respChannel2))
+	cancelWatch2 := orchestrator.CreateWatch(transport.NewRequestV2(req2), transport.NewWatchV2(respChannel2))
 	assert.NotNil(t, respChannel2)
 
 	respChannel3 := make(chan gcp.Response, 1)
-	cancelWatch3 := orchestrator.CreateWatch(transport.NewRequestV2(req3, respChannel3))
+	cancelWatch3 := orchestrator.CreateWatch(transport.NewRequestV2(req3), transport.NewWatchV2(respChannel3))
 	assert.NotNil(t, respChannel3)
 
 	upstreamResponseLDS := &v2.DiscoveryResponse{
@@ -425,11 +424,11 @@ func TestUpstreamFailure(t *testing.T) {
 	req := gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
 	}
-	aggregatedKey, err := mapper.GetKey(transport.NewRequestV2(&req, make(chan<- gcp.Response)))
+	aggregatedKey, err := mapper.GetKey(transport.NewRequestV2(&req))
 	assert.NoError(t, err)
 
 	respChannel := make(chan gcp.Response, 1)
-	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&req, respChannel))
+	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&req), transport.NewWatchV2(respChannel))
 
 	// close upstream channel. This happens when upstream client receives an error
 	close(upstreamResponseChannel)
@@ -477,7 +476,7 @@ func TestNACKRequest(t *testing.T) {
 		},
 	}
 
-	aggregatedKey, err := mapper.GetKey(transport.NewRequestV2(&req, make(chan<- gcp.Response)))
+	aggregatedKey, err := mapper.GetKey(transport.NewRequestV2(&req))
 	assert.NoError(t, err)
 	mockResponse := v2.DiscoveryResponse{
 		VersionInfo: "1",
@@ -493,7 +492,7 @@ func TestNACKRequest(t *testing.T) {
 	assert.Equal(t, 0, len(watchers))
 
 	respChannel := make(chan gcp.Response, 1)
-	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&req, respChannel))
+	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&req), transport.NewWatchV2(respChannel))
 	assert.NotNil(t, respChannel)
 	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.watches))
 	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)

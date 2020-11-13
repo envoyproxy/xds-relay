@@ -17,7 +17,7 @@ func TestSendSuccessfulV2(t *testing.T) {
 	var wg sync.WaitGroup
 	ch := make(chan gcp.Response, 1)
 	wg.Add(2)
-	w := newWatchV2(ch)
+	w := NewWatchV2(ch)
 	expected := &cachev2.PassthroughResponse{DiscoveryResponse: discoveryResponsev2, Request: discoveryRequestv2}
 
 	go func() {
@@ -38,7 +38,7 @@ func TestSendSuccessfulV2(t *testing.T) {
 func TestSendFalseWhenBlockedV2(t *testing.T) {
 	ch := make(chan gcp.Response, 1)
 	defer close(ch)
-	w := newWatchV2(ch)
+	w := NewWatchV2(ch)
 	err := w.Send(NewResponseV2(discoveryRequestv2, discoveryResponsev2))
 	assert.NoError(t, err)
 	err = w.Send(NewResponseV2(discoveryRequestv2, discoveryResponsev2))
@@ -48,7 +48,7 @@ func TestSendFalseWhenBlockedV2(t *testing.T) {
 func TestCloseSendsNilV2(t *testing.T) {
 	ch := make(chan gcp.Response, 1)
 	defer close(ch)
-	newWatchV2(ch).Close()
+	NewWatchV2(ch).Close()
 	resp, ok := <-ch
 	assert.True(t, ok)
 	assert.Nil(t, resp)
@@ -57,7 +57,7 @@ func TestCloseSendsNilV2(t *testing.T) {
 func TestSendAfterCloseV2(t *testing.T) {
 	ch := make(chan gcp.Response, 1)
 	defer close(ch)
-	w := newWatchV2(ch)
+	w := NewWatchV2(ch)
 	err := w.Send(NewResponseV2(discoveryRequestv2, discoveryResponsev2))
 	assert.NoError(t, err)
 	<-ch

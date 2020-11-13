@@ -28,14 +28,14 @@ var (
 func Test_downstreamResponseMap_createWatch(t *testing.T) {
 	responseMap := newDownstreamResponseMap()
 	assert.Equal(t, 0, len(responseMap.watches))
-	responseMap.createWatch(transport.NewRequestV2(&mockRequest, make(chan<- gcp.Response, 1)))
+	responseMap.createWatch(transport.NewRequestV2(&mockRequest), transport.NewWatchV2(make(chan<- gcp.Response, 1)))
 	assert.Equal(t, 1, len(responseMap.watches))
 }
 
 func Test_downstreamResponseMap_get(t *testing.T) {
 	responseMap := newDownstreamResponseMap()
-	request := transport.NewRequestV2(&mockRequest, make(chan<- gcp.Response, 1))
-	responseMap.createWatch(request)
+	request := transport.NewRequestV2(&mockRequest)
+	responseMap.createWatch(request, transport.NewWatchV2(make(chan<- gcp.Response, 1)))
 	assert.Equal(t, 1, len(responseMap.watches))
 	if _, ok := responseMap.get(request); !ok {
 		t.Error("request not found")
@@ -44,12 +44,12 @@ func Test_downstreamResponseMap_get(t *testing.T) {
 
 func Test_downstreamResponseMap_delete(t *testing.T) {
 	responseMap := newDownstreamResponseMap()
-	request := transport.NewRequestV2(&mockRequest, make(chan<- gcp.Response, 1))
+	request := transport.NewRequestV2(&mockRequest)
 	request2 := transport.NewRequestV2(&gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Cluster",
-	}, make(chan<- gcp.Response, 1))
-	responseMap.createWatch(request)
-	responseMap.createWatch(request2)
+	})
+	responseMap.createWatch(request, transport.NewWatchV2(make(chan<- gcp.Response, 1)))
+	responseMap.createWatch(request2, transport.NewWatchV2(make(chan<- gcp.Response, 1)))
 	assert.Equal(t, 2, len(responseMap.watches))
 	if _, ok := responseMap.get(request); !ok {
 		t.Error("request not found")
@@ -68,16 +68,16 @@ func Test_downstreamResponseMap_delete(t *testing.T) {
 
 func Test_downstreamResponseMap_deleteAll(t *testing.T) {
 	responseMap := newDownstreamResponseMap()
-	request := transport.NewRequestV2(&mockRequest, make(chan<- gcp.Response, 1))
+	request := transport.NewRequestV2(&mockRequest)
 	request2 := transport.NewRequestV2(&gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Cluster",
-	}, make(chan<- gcp.Response, 1))
+	})
 	request3 := transport.NewRequestV2(&gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.RouteConfiguration",
-	}, make(chan<- gcp.Response, 1))
-	responseMap.createWatch(request)
-	responseMap.createWatch(request2)
-	responseMap.createWatch(request3)
+	})
+	responseMap.createWatch(request, transport.NewWatchV2(make(chan<- gcp.Response, 1)))
+	responseMap.createWatch(request2, transport.NewWatchV2(make(chan<- gcp.Response, 1)))
+	responseMap.createWatch(request3, transport.NewWatchV2(make(chan<- gcp.Response, 1)))
 	assert.Equal(t, 3, len(responseMap.watches))
 	responseMap.deleteAll(
 		map[transport.Request]bool{

@@ -2,7 +2,6 @@ package transport
 
 import (
 	discoveryv2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	gcpv2 "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	structpb "github.com/golang/protobuf/ptypes/struct"
 	status "google.golang.org/genproto/googleapis/rpc/status"
 )
@@ -10,17 +9,15 @@ import (
 var _ Request = &RequestV2{}
 
 // NewRequestV2 creates a Request objects which wraps v2.DiscoveryRequest
-func NewRequestV2(r *discoveryv2.DiscoveryRequest, resp chan<- gcpv2.Response) *RequestV2 {
+func NewRequestV2(r *discoveryv2.DiscoveryRequest) *RequestV2 {
 	return &RequestV2{
 		r: r,
-		w: newWatchV2(resp),
 	}
 }
 
 // RequestV2 is the v2.DiscoveryRequest impl of Request
 type RequestV2 struct {
 	r *discoveryv2.DiscoveryRequest
-	w Watch
 }
 
 // GetResourceNames gets the ResourceNames
@@ -79,9 +76,4 @@ func (r *RequestV2) GetRaw() *RequestVersion {
 // GetResponseNonce gets the error details
 func (r *RequestV2) GetResponseNonce() string {
 	return r.r.GetResponseNonce()
-}
-
-// GetWatch gets the error details
-func (r *RequestV2) GetWatch() Watch {
-	return r.w
 }

@@ -122,7 +122,7 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 		Node:    &reqNode,
 	}
 	respChannel := make(chan gcp.Response, 1)
-	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq, respChannel))
+	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq), transport.NewWatchV2(respChannel))
 	assert.NotNil(t, respChannel)
 
 	listener := &v2.Listener{

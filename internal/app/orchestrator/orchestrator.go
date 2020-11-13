@@ -56,7 +56,7 @@ type Orchestrator interface {
 
 	GetDownstreamAggregatedKeys() (map[string]bool, error)
 
-	CreateWatch(transport.Request) func()
+	CreateWatch(transport.Request, transport.Watch) func()
 }
 
 type orchestrator struct {
@@ -124,12 +124,12 @@ func New(
 //
 // Cancel is an optional function to release resources in the producer. If
 // provided, the consumer may call this function multiple times.
-func (o *orchestrator) CreateWatch(req transport.Request) func() {
+func (o *orchestrator) CreateWatch(req transport.Request, w transport.Watch) func() {
 	ctx := context.Background()
 
 	// If this is the first time we're seeing the request from the
 	// downstream client, initialize a channel to feed future responses.
-	watch := o.downstreamResponseMap.createWatch(req)
+	watch := o.downstreamResponseMap.createWatch(req, w)
 
 	aggregatedKey, err := o.mapper.GetKey(req)
 	if err != nil {

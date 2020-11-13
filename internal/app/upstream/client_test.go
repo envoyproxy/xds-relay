@@ -31,7 +31,7 @@ func TestOpenStreamShouldReturnErrorForInvalidTypeUrl(t *testing.T) {
 	defer cancel()
 	client := createMockClient(ctx)
 
-	respCh, done := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{}, nil), "aggregated_key")
+	respCh, done := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{}), "aggregated_key")
 	defer done()
 	_, ok := <-respCh
 	assert.False(t, ok)
@@ -42,7 +42,7 @@ func TestOpenStreamShouldReturnErrorForInvalidTypeUrlV3(t *testing.T) {
 	defer cancel()
 	client := createMockClientV3(ctx)
 
-	respCh, done := client.OpenStream(transport.NewRequestV3(&discoveryv3.DiscoveryRequest{}, nil), "aggregated_key")
+	respCh, done := client.OpenStream(transport.NewRequestV3(&discoveryv3.DiscoveryRequest{}), "aggregated_key")
 	defer done()
 	_, ok := <-respCh
 	assert.False(t, ok)
@@ -66,7 +66,7 @@ func TestOpenStreamShouldRetryOnStreamCreationFailure(t *testing.T) {
 				transport.NewRequestV2(&v2.DiscoveryRequest{
 					TypeUrl: url,
 					Node:    &core.Node{},
-				}, nil), "aggregated_key")
+				}), "aggregated_key")
 			assert.NotNil(t, respCh)
 			for {
 				if v, ok := scope.Snapshot().Counters()[stats[0]]; ok && v.Value() == 1 {
@@ -102,7 +102,7 @@ func TestOpenStreamShouldRetryOnStreamCreationFailureV3(t *testing.T) {
 				transport.NewRequestV3(&discoveryv3.DiscoveryRequest{
 					TypeUrl: url,
 					Node:    &corev3.Node{},
-				}, nil), "aggregated_key")
+				}), "aggregated_key")
 			assert.NotNil(t, respCh)
 			for {
 				if v, ok := scope.Snapshot().Counters()[stats[0]]; ok && v.Value() == 1 {
@@ -128,7 +128,7 @@ func TestOpenStreamShouldReturnNonEmptyResponseChannel(t *testing.T) {
 		transport.NewRequestV2(&v2.DiscoveryRequest{
 			TypeUrl: resource.ListenerType,
 			Node:    &core.Node{},
-		}, nil), "aggregated_key")
+		}), "aggregated_key")
 	assert.NotNil(t, respCh)
 
 	done()
@@ -144,7 +144,7 @@ func TestOpenStreamShouldReturnNonEmptyResponseChannelV3(t *testing.T) {
 		transport.NewRequestV3(&discoveryv3.DiscoveryRequest{
 			TypeUrl: resourcev3.ListenerType,
 			Node:    &corev3.Node{},
-		}, nil), "aggregated_key")
+		}), "aggregated_key")
 	assert.NotNil(t, respCh)
 
 	done()
@@ -182,7 +182,7 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServer(t *testing.T) {
 		transport.NewRequestV2(&v2.DiscoveryRequest{
 			TypeUrl: resource.ListenerType,
 			Node:    node,
-		}, nil), "aggregated_key")
+		}), "aggregated_key")
 	<-wait
 	assert.NotNil(t, message)
 	assert.Equal(t, message.GetNode(), node)
@@ -223,7 +223,7 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServerV3(t *testing.T) {
 		transport.NewRequestV3(&discoveryv3.DiscoveryRequest{
 			TypeUrl: resourcev3.ListenerType,
 			Node:    node,
-		}, nil), "aggregated_key")
+		}), "aggregated_key")
 	<-wait
 	assert.NotNil(t, message)
 	assert.Equal(t, message.GetNode(), node)
@@ -265,7 +265,7 @@ func TestOpenStreamShouldClearNackFromRequestInTheFirstRequestToOriginServer(t *
 			TypeUrl:     resource.ListenerType,
 			Node:        node,
 			ErrorDetail: &status.Status{Message: "message", Code: 1},
-		}, nil), "aggregated_key")
+		}), "aggregated_key")
 	<-wait
 	assert.NotNil(t, message)
 	assert.Equal(t, message.GetNode(), node)
@@ -308,7 +308,7 @@ func TestOpenStreamShouldClearNackFromRequestInTheFirstRequestToOriginServerV3(t
 			TypeUrl:     resourcev3.ListenerType,
 			Node:        node,
 			ErrorDetail: &status.Status{Message: "message", Code: 1},
-		}, nil), "aggregated_key")
+		}), "aggregated_key")
 	<-wait
 	assert.NotNil(t, message)
 	assert.Equal(t, message.GetNode(), node)
@@ -345,7 +345,7 @@ func TestOpenStreamShouldRetryIfSendFails(t *testing.T) {
 		transport.NewRequestV2(&v2.DiscoveryRequest{
 			TypeUrl: resource.ListenerType,
 			Node:    &core.Node{},
-		}, nil), "aggregated_key")
+		}), "aggregated_key")
 	defer done()
 	_, more := <-resp
 	assert.True(t, more)
@@ -383,7 +383,7 @@ func TestOpenStreamShouldRetryIfSendFailsV3(t *testing.T) {
 		transport.NewRequestV3(&discoveryv3.DiscoveryRequest{
 			TypeUrl: resourcev3.ListenerType,
 			Node:    &corev3.Node{},
-		}, nil), "aggregated_key")
+		}), "aggregated_key")
 	_, more := <-resp
 	assert.True(t, more)
 	assert.Equal(t, int64(1), scope.Snapshot().Counters()["mock.lds.stream_retry+key=aggregated_key"].Value())
@@ -413,7 +413,7 @@ func TestOpenStreamShouldSendTheResponseOnTheChannel(t *testing.T) {
 		transport.NewRequestV2(&v2.DiscoveryRequest{
 			TypeUrl: resource.ListenerType,
 			Node:    &core.Node{},
-		}, nil), "aggregated_key")
+		}), "aggregated_key")
 	assert.NotNil(t, resp)
 	val := <-resp
 	assert.Equal(t, val.Get().V2, response)
@@ -443,7 +443,7 @@ func TestOpenStreamShouldSendTheResponseOnTheChannelV3(t *testing.T) {
 		transport.NewRequestV3(&discoveryv3.DiscoveryRequest{
 			TypeUrl: resourcev3.ListenerType,
 			Node:    &corev3.Node{},
-		}, nil), "aggregated_key")
+		}), "aggregated_key")
 	assert.NotNil(t, resp)
 	val := <-resp
 	assert.Equal(t, val.Get().V3, response)
@@ -491,7 +491,7 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonce(t *testing
 		transport.NewRequestV2(&v2.DiscoveryRequest{
 			TypeUrl: resource.ListenerType,
 			Node:    &core.Node{},
-		}, nil), "aggregated_key")
+		}), "aggregated_key")
 	defer done()
 	assert.NotNil(t, resp)
 	for i := 0; i < 5; i++ {
@@ -542,7 +542,7 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonceV3(t *testi
 		transport.NewRequestV3(&discoveryv3.DiscoveryRequest{
 			TypeUrl: resourcev3.ListenerType,
 			Node:    &corev3.Node{},
-		}, nil), "aggregated_key")
+		}), "aggregated_key")
 	assert.NotNil(t, resp)
 	for i := 0; i < 5; i++ {
 		val := <-resp
@@ -581,7 +581,7 @@ func TestOpenStreamShouldRetryWhenSendMsgBlocks(t *testing.T) {
 	respCh, done := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{
 		TypeUrl: resource.ListenerType,
 		Node:    &core.Node{},
-	}, nil), "aggregated_key")
+	}), "aggregated_key")
 	resp, ok := <-respCh
 	assert.True(t, ok)
 	assert.Equal(t, resp.Get().V2.VersionInfo, response2.VersionInfo)
@@ -616,7 +616,7 @@ func TestOpenStreamShouldRetryWhenSendMsgBlocksV3(t *testing.T) {
 	respCh, done := client.OpenStream(transport.NewRequestV3(&discoveryv3.DiscoveryRequest{
 		TypeUrl: resourcev3.ListenerType,
 		Node:    &corev3.Node{},
-	}, nil), "aggregated_key")
+	}), "aggregated_key")
 	resp, ok := <-respCh
 	assert.True(t, ok)
 	assert.Equal(t, response2.VersionInfo, resp.Get().V3.VersionInfo)
