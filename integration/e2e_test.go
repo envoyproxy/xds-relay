@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -190,6 +191,26 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 		// The error indicates the server is listening on the port.
 		assert.Fail(t, fmt.Sprintf("%s is not expected error", err.Error()))
 		return
+	}
+
+	err = syscall.Kill(syscall.Getpid(), syscall.SIGINT)
+	if err != nil {
+		assert.Fail(t, fmt.Sprintf("error not ex[ected %s", err.Error()))
+		return
+	}
+
+	for {
+		resp, err = http.Get("http://localhost:9991")
+		if err != nil && strings.Contains(err.Error(), "connect: connection refused") {
+			break
+		}
+	}
+
+	for {
+		resp, err = http.Get("http://localhost:6070/cache")
+		if err != nil && strings.Contains(err.Error(), "connect: connection refused") {
+			break
+		}
 	}
 }
 
