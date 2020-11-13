@@ -106,41 +106,41 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 		})
 	}
 
-	resp, err := http.Get("http://0:6070/ready")
+	resp, err := http.Get("http://localhost:6070/ready")
 	if err != nil {
-		assert.Fail(t, fmt.Sprintf("http://0:6070/ready should not fail %s", err.Error()))
+		assert.Fail(t, fmt.Sprintf("http://localhost:6070/ready should not fail %s", err.Error()))
 		return
 	} else if resp.StatusCode != http.StatusOK {
-		assert.Fail(t, "http://0:6070/ready should be 200")
+		assert.Fail(t, "http://localhost:6070/ready should be 200")
 		return
 	}
 
-	resp, err = http.Post("http://0:6070/ready/false", "application/json", nil)
+	resp, err = http.Post("http://localhost:6070/ready/false", "application/json", nil)
 	if err != nil {
-		assert.Fail(t, "http://0:6070/ready/false should not fail")
+		assert.Fail(t, "http://localhost:6070/ready/false should not fail")
 		return
 	} else if resp.StatusCode != http.StatusOK {
-		assert.Fail(t, "http://0:6070/ready/false should be 200")
+		assert.Fail(t, "http://localhost:6070/ready/false should be 200")
 		return
 	}
 	for {
 		<-time.After(time.Second * 30)
-		resp, err := http.Get("http://0:6070/ready")
+		resp, err := http.Get("http://localhost:6070/ready")
 		if err != nil {
-			assert.Fail(t, fmt.Sprintf("http://0:6070/ready should not fail %s", err.Error()))
+			assert.Fail(t, fmt.Sprintf("http://localhost:6070/ready should not fail %s", err.Error()))
 			return
 		}
 		if resp.StatusCode != http.StatusOK {
 			break
 		}
 	}
-	resp, err = http.Get("http://0:6070/cache")
+	resp, err = http.Get("http://localhost:6070/cache")
 	if err != nil {
-		assert.Fail(t, fmt.Sprintf("http://0:6070/cache %s", err.Error()))
+		assert.Fail(t, fmt.Sprintf("http://localhost:6070/cache %s", err.Error()))
 		return
 	}
 	if resp.StatusCode != http.StatusOK {
-		assert.Fail(t, fmt.Sprintf("http://0:6070/cache returned %d", resp.StatusCode))
+		assert.Fail(t, fmt.Sprintf("http://localhost:6070/cache returned %d", resp.StatusCode))
 		return
 	}
 	resp, err = http.Get("http://0:9991")
@@ -152,33 +152,33 @@ func TestSnapshotCacheSingleEnvoyAndXdsRelayServer(t *testing.T) {
 		return
 	}
 
-	resp, err = http.Post("http://0:6070/ready/true", "application/json", nil)
+	resp, err = http.Post("http://localhost:6070/ready/true", "application/json", nil)
 	if err != nil {
-		assert.Fail(t, "http://0:6070/ready/true should not fail")
+		assert.Fail(t, "http://localhost:6070/ready/true should not fail")
 		return
 	} else if resp.StatusCode != http.StatusOK {
-		assert.Fail(t, "http://0:6070/ready/true should be 200")
+		assert.Fail(t, "http://localhost:6070/ready/true should be 200")
 		return
 	}
 
 	for {
 		<-time.After(time.Second * 30)
-		resp, err := http.Get("http://0:6070/ready")
+		resp, err := http.Get("http://localhost:6070/ready")
 		if err != nil {
-			assert.Fail(t, fmt.Sprintf("http://0:6070/ready should not fail %s", err.Error()))
+			assert.Fail(t, fmt.Sprintf("http://localhost:6070/ready should not fail %s", err.Error()))
 			return
 		}
 		if resp.StatusCode == http.StatusOK {
 			break
 		}
 	}
-	resp, err = http.Get("http://0:6070/cache")
+	resp, err = http.Get("http://localhost:6070/cache")
 	if err != nil {
-		assert.Fail(t, fmt.Sprintf("http://0:6070/cache %s", err.Error()))
+		assert.Fail(t, fmt.Sprintf("http://localhost:6070/cache %s", err.Error()))
 		return
 	}
 	if resp.StatusCode != http.StatusOK {
-		assert.Fail(t, fmt.Sprintf("http://0:6070/cache returned %d", resp.StatusCode))
+		assert.Fail(t, fmt.Sprintf("http://localhost:6070/cache returned %d", resp.StatusCode))
 		return
 	}
 	resp, err = http.Get("http://0:9991")
