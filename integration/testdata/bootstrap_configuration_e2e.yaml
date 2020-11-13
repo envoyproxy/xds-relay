@@ -5,7 +5,7 @@ origin_server:
 logging:
   level: DEBUG
 cache:
-  ttl: 600s
+  ttl: 60s
   max_entries: 10
 admin:
   address: {address: "127.0.0.1", port_value: 6070}
