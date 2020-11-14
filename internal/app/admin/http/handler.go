@@ -32,7 +32,7 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 			"/",
 			"admin home page",
 			func(http.ResponseWriter, *http.Request) {},
-			true,
+			false,
 		},
 		{
 			"/ready",
