@@ -10,7 +10,7 @@ import (
 	"github.com/envoyproxy/xds-relay/pkg/marshallable"
 )
 
-func readyHandler() http.HandlerFunc {
+func readyHandler(weboff chan<- bool) http.HandlerFunc {
 	ready := true
 	var mu sync.Mutex
 	return func(w http.ResponseWriter, req *http.Request) {
@@ -37,7 +37,16 @@ func readyHandler() http.HandlerFunc {
 			}
 			mu.Lock()
 			defer mu.Unlock()
-			ready = desired
+			if ready != desired {
+				select {
+				case weboff <- desired:
+				default:
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				ready = desired
+			}
+
 			w.WriteHeader(http.StatusOK)
 			return
 		default:
