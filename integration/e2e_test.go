@@ -227,6 +227,10 @@ func verifyEndpoint(t *testing.T, url string, method string, expectStatus int) e
 		resp, err = http.Post(url, "application/json", nil)
 	}
 
+	if resp != nil && resp.Body != nil {
+		resp.Body.Close()
+	}
+
 	if err != nil {
 		return err
 	}
