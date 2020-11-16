@@ -79,3 +79,23 @@ fragments:
           resource_names_fragment:
             element: 0
             action: { exact: true }
+  - rules:
+    - match:
+        request_type_match:
+          types:
+            - "type.googleapis.com/envoy.api.v2.Listener"
+            - "type.googleapis.com/envoy.api.v2.Cluster"
+            - "type.googleapis.com/envoy.api.v2.ClusterLoadAssignment"
+            - "type.googleapis.com/envoy.api.v2.RouteConfiguration"
+      result:
+        string_fragment: "v2"
+  - rules:
+    - match:
+        request_type_match:
+          types:
+            - "type.googleapis.com/envoy.config.listener.v3.Listener"
+            - "type.googleapis.com/envoy.config.cluster.v3.Cluster"
+            - "type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment"
+            - "type.googleapis.com/envoy.config.route.v3.RouteConfiguration"
+      result:
+        string_fragment: "v3"

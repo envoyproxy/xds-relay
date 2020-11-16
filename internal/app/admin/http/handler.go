@@ -34,6 +34,12 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 			true,
 		},
 		{
+			"/ready",
+			"ready endpoint. usage: GET /ready POST /ready/true or ready/false",
+			readyHandler(),
+			true,
+		},
+		{
 			"/cache",
 			"print cache entry for a given key. Omitting the key outputs all cache entries. usage: `/cache/<key>`",
 			cacheDumpHandler(orchestrator),
