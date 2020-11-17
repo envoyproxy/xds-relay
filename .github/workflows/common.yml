@@ -6,9 +6,6 @@ on:
   pull_request:
     branches:
       - master
-env:
-  PACKAGEPATH: ${{ github.workspace }}/go/src/github.com/${{ github.repository }}
-  GOLANGCI_LINT_VERSION: v1.23.7
 jobs:
   tests:
     strategy:
@@ -17,6 +14,8 @@ jobs:
         platform: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.platform }}
     steps:
+      - run: echo "PACKAGEPATH=${{ github.workspace }}/go/src/github.com/${{ github.repository }}" >> $GITHUB_ENV
+      - run: echo "GOLANGCI_LINT_VERSION=v1.23.7" >> $GITHUB_ENV
       - name: Checkout code
         uses: actions/checkout@v2
         with:

@@ -6,14 +6,13 @@ on:
   pull_request:
     branches:
       - master
-env:
-  PACKAGEPATH: ${{ github.workspace }}/go/src/github.com/${{ github.repository }}
 jobs:
   tests:
     # e2e tests depend on docker. Docker is not available on macos github actions
     # https://github.community/t/why-is-docker-not-installed-on-macos/17017
     runs-on: ubuntu-latest
     steps:
+      - run: echo "PACKAGEPATH=${{ github.workspace }}/go/src/github.com/${{ github.repository }}" >> $GITHUB_ENV
       - name: Checkout code
         uses: actions/checkout@v2
         with:
