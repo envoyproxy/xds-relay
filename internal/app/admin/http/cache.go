@@ -160,16 +160,16 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 
 func clearCacheHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		if req.Method == "POST" {
+		if req.Method == http.MethodPost {
 			cacheKey := getParam(req.URL.Path)
 			keysToClear, err := getRelevantKeys(o, cacheKey, w)
 			if err == nil {
 				clearCacheEntries(keysToClear, o, w)
 			}
-		} else {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			fmt.Fprintf(w, "Only POST is supported\n")
+			return
 		}
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		_, _ = w.Write([]byte("Only POST is supported\n"))
 	}
 }
 
@@ -234,10 +234,14 @@ func printCacheEntries(keys []string, cache cache.ReadOnlyCache, w http.Response
 }
 
 func clearCacheEntries(keys []string, o *orchestrator.Orchestrator, w http.ResponseWriter) {
-	errors := orchestrator.Orchestrator.ClearCacheEntries(*o, keys)
-	for _, err := range errors {
+	errors := (*o).ClearCacheEntries(keys)
+	if len(errors) > 0 {
+		var aggregatedError string
+		for _, err := range errors {
+			aggregatedError += err.Error()
+		}
 		errMessage, _ := stringify.InterfaceToString(&marshallable.Error{
-			Message: err.Error(),
+			Message: aggregatedError,
 		})
 		_, _ = w.Write([]byte(errMessage))
 	}
