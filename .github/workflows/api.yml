@@ -12,6 +12,9 @@ on:
     paths:
       - 'api/**'
       - .github/workflows/api.yml
+env:
+  PACKAGEPATH: ${{ github.workspace }}/go/src/github.com/${{ github.repository }}
+  ACTIONS_ALLOW_UNSECURE_COMMANDS: true
 jobs:
   protobuf-generate:
     strategy:
@@ -21,7 +24,6 @@ jobs:
     runs-on: ${{ matrix.platform }}
     name: protobuf compile check
     steps:
-      - run: echo "PACKAGEPATH=${{ github.workspace }}/go/src/github.com/${{ github.repository }}" >> $GITHUB_ENV
       - uses: actions/checkout@v2
         with:
           path: ${{ env.PACKAGEPATH }}
