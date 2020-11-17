@@ -8,6 +8,7 @@ on:
       - master
 env:
   PACKAGEPATH: ${{ github.workspace }}/go/src/github.com/${{ github.repository }}
+  ACTIONS_ALLOW_UNSECURE_COMMANDS: true
 jobs:
   tests:
     # e2e tests depend on docker. Docker is not available on macos github actions
