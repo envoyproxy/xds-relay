@@ -25,6 +25,7 @@ type Handler struct {
 
 func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 	orchestrator *orchestrator.Orchestrator,
+	weboff chan bool,
 	logger log.Logger) []Handler {
 	handlers := []Handler{
 		{
@@ -36,7 +37,7 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 		{
 			"/ready",
 			"ready endpoint. usage: GET /ready POST /ready/true or ready/false",
-			readyHandler(),
+			readyHandler(weboff),
 			true,
 		},
 		{
@@ -108,8 +109,9 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 
 func RegisterHandlers(bootstrapConfig *bootstrapv1.Bootstrap,
 	orchestrator *orchestrator.Orchestrator,
+	weboff chan bool,
 	logger log.Logger) {
-	for _, handler := range getHandlers(bootstrapConfig, orchestrator, logger) {
+	for _, handler := range getHandlers(bootstrapConfig, orchestrator, weboff, logger) {
 		http.Handle(handler.pattern, handler.handler)
 		if !strings.HasSuffix(handler.pattern, "/") && handler.redirect {
 			http.Handle(handler.pattern+"/", handler.handler)

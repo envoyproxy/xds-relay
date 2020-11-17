@@ -6,6 +6,8 @@ on:
   pull_request:
     branches:
       - master
+env:
+  ACTIONS_ALLOW_UNSECURE_COMMANDS: true
 jobs:
   tests:
     strategy:

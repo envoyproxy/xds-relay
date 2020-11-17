@@ -121,3 +121,12 @@ func TestGetRaw(t *testing.T) {
 	assert.Equal(t, requestv2.GetRaw().V2, &requestV2)
 	assert.Equal(t, requestv3.GetRaw().V3, &requestV3)
 }
+
+func TestCreateWatch(t *testing.T) {
+	requestv2 := NewRequestV2(&requestV2)
+	requestv3 := NewRequestV3(&requestV3)
+	assert.NotNil(t, requestv2.CreateWatch().GetChannel().V2)
+	assert.NotNil(t, requestv2.CreateWatch().GetChannel().V2)
+	assert.Nil(t, requestv2.CreateWatch().GetChannel().V3)
+	assert.Nil(t, requestv3.CreateWatch().GetChannel().V2)
+}
