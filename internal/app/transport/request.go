@@ -32,4 +32,5 @@ type Request interface {
 	GetLocality() *Locality
 	GetResponseNonce() string
 	GetRaw() *RequestVersion
+	CreateWatch() Watch
 }

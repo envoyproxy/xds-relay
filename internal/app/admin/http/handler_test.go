@@ -121,8 +121,7 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
 		Node:    &reqNode,
 	}
-	respChannel := make(chan gcp.Response, 1)
-	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq), transport.NewWatchV2(respChannel))
+	respChannel, cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq))
 	assert.NotNil(t, respChannel)
 
 	listener := &v2.Listener{
@@ -138,7 +137,7 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 		},
 	}
 	upstreamResponseChannel <- &resp
-	gotResponse := <-respChannel
+	gotResponse := <-respChannel.GetChannel().V2
 	gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
 	assert.NoError(t, err)
 	assert.Equal(t, &resp, gotDiscoveryResponse)

@@ -11,15 +11,15 @@ var _ Watch = &watchV3{}
 
 // WatchV2 is the transport object that takes care of send responses to the xds clients
 type watchV3 struct {
-	out    chan<- gcpv3.Response
+	out    chan gcpv3.Response
 	mu     sync.RWMutex
 	closed bool
 }
 
-// NewWatchV3 creates a new watch object
-func NewWatchV3(resp chan<- gcpv3.Response) Watch {
+// newWatchV2 creates a new watch object
+func newWatchV3() Watch {
 	return &watchV3{
-		out: resp,
+		out: make(chan gcpv3.Response, 1),
 	}
 }
 
@@ -28,7 +28,12 @@ func (w *watchV3) Close() {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.closed = true
-	w.out <- nil
+	close(w.out)
+}
+
+// GetChannelV2 gets the v2 channel used for communication with the xds client
+func (w *watchV3) GetChannel() *ChannelVersion {
+	return &ChannelVersion{V3: w.out}
 }
 
 // Send sends the xds response over wire
