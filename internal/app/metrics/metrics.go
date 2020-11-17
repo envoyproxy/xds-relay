@@ -39,9 +39,6 @@ const (
 	ErrorChannelFull             = "channel_full" // counter, # of response fanout failures due to blocked channels
 	ErrorUpstreamFailure         = "upstream"     // counter, # of errors as a result of a problem upstream
 	ErrorCacheMiss               = "cache_miss"   // counter, # of errors due to a fanout attempt with no cached response
-
-	// scope: .orchestrator.watch.errors.*
-	ErrorUnaggregatedKey = "unaggregated_key" // counter, # of request that would not map to an aggregated key
 )
 
 // .upstream
@@ -103,10 +100,8 @@ const (
 	// scope: .mapper.*
 	ScopeMapper = "mapper"
 
-	MapperSuccess            = "success"        // counter, # of successfully converted request to aggregated keys
-	MapperErrorEmptyURL      = "error_typeurl"  // counter, # of errors from receiving request without typeURL
-	MapperErrorEmptyResource = "error_resource" // counter, # of errors from EDS requests without resource names
-	MapperError              = "error"          // counter, # of errors when converting a request to an aggregated key
+	MapperSuccess = "success" // counter, # of successfully converted request to aggregated keys
+	MapperError   = "error"   // counter, # of errors when converting a request to an aggregated key
 )
 
 // .upstream.error_interceptor
@@ -137,13 +132,6 @@ func OrchestratorWatchErrorsSubscope(parent tally.Scope, aggregatedKey string) t
 // ex: .orchestrator.cache_evict+key=$aggregated_key.
 func OrchestratorCacheEvictSubscope(parent tally.Scope, aggregatedKey string) tally.Scope {
 	return parent.SubScope(ScopeOrchestratorCacheEvict).Tagged(map[string]string{TagName: aggregatedKey})
-}
-
-// OrchestratorUnaggregatedWatchErrorsSubscope gets the orchestor watch subscope independent of
-// aggregated keys.
-// ex: .orchestrator.$aggregated_key.watch
-func OrchestratorUnaggregatedWatchErrorsSubscope(parent tally.Scope) tally.Scope {
-	return parent.SubScope(ScopeOrchestratorWatch).SubScope(ScopeOrchestratorWatchErrors)
 }
 
 // CacheFetchSubscope gets the cache fetch subscope and adds the aggregated key as a point tag.
