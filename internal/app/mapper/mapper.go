@@ -2,11 +2,11 @@ package mapper
 
 import (
 	"fmt"
-	v2 "github.com/envoyproxy/go-control-plane/pkg/resource/v2"
-	v3 "github.com/envoyproxy/go-control-plane/pkg/resource/v3"
 	"regexp"
 	"strings"
 
+	v2 "github.com/envoyproxy/go-control-plane/pkg/resource/v2"
+	v3 "github.com/envoyproxy/go-control-plane/pkg/resource/v3"
 	"github.com/envoyproxy/xds-relay/internal/app/metrics"
 	"github.com/envoyproxy/xds-relay/internal/app/transport"
 
@@ -37,7 +37,7 @@ type mapper struct {
 }
 
 const (
-	separator    = "_"
+	separator = "_"
 )
 
 // New constructs a concrete implementation for the Mapper interface
