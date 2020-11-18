@@ -116,7 +116,7 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	adminServer := &http.Server{
 		Addr: adminAddress,
 	}
-	handler.RegisterHandlers(bootstrapConfig, &orchestrator, logger)
+	handler.RegisterHandlers(bootstrapConfig, orchestrator, logger)
 
 	// Start server.
 	server := grpc.NewServer()

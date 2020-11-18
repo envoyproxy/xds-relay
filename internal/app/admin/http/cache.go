@@ -29,7 +29,7 @@ import (
 	resource3 "github.com/envoyproxy/go-control-plane/pkg/resource/v3"
 )
 
-func edsDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
+func edsDumpHandler(o orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		edsKey := filepath.Base(req.URL.Path)
 		if edsKey == "" {
@@ -40,7 +40,7 @@ func edsDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 			_, _ = w.Write([]byte(s))
 		}
 
-		c := orchestrator.Orchestrator.GetReadOnlyCache(*o)
+		c := o.GetReadOnlyCache()
 		resp, err := c.FetchReadOnly(edsKey)
 		if err != nil {
 			w.WriteHeader(http.StatusNotFound)
@@ -106,9 +106,9 @@ func edsDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	}
 }
 
-func keyDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
+func keyDumpHandler(o orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		allKeys, err := orchestrator.Orchestrator.GetDownstreamAggregatedKeys(*o)
+		allKeys, err := o.GetDownstreamAggregatedKeys()
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			errMessage, _ := stringify.InterfaceToString(&marshallable.Error{
@@ -147,17 +147,17 @@ func keyDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	}
 }
 
-func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
+func cacheDumpHandler(o orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		cacheKey := getParam(req.URL.Path)
-		c := orchestrator.Orchestrator.GetReadOnlyCache(*o)
+		c := o.GetReadOnlyCache()
 		var keysToPrint []string
 
 		// If wildcard suffix provided, output all cache entries that match given prefix.
 		// If no key is provided, output the entire cache.
 		if hasWildcardSuffix(cacheKey) {
 			// Retrieve all keys
-			allKeys, err := orchestrator.Orchestrator.GetDownstreamAggregatedKeys(*o)
+			allKeys, err := o.GetDownstreamAggregatedKeys()
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				fmt.Fprintf(w, "error in getting cache keys: %s", err.Error())
@@ -176,6 +176,40 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 			keysToPrint = []string{cacheKey}
 		}
 		printCacheEntries(keysToPrint, c, w)
+	}
+}
+
+func streamDumpHandler(o orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		key := filepath.Base(req.URL.Path)
+		version, err := o.GetStream(key)
+		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
+			errMessage, _ := stringify.InterfaceToString(&marshallable.Error{
+				Message: err.Error(),
+			})
+			_, _ = w.Write([]byte(errMessage))
+			return
+		}
+		marshalledResponse, err := stringify.InterfaceToString(&marshallable.Stream{
+			Key:     key,
+			Version: version,
+		})
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			errMessage, _ := stringify.InterfaceToString(&marshallable.Error{
+				Message: fmt.Sprintf("error in marshalling: %s", err.Error()),
+			})
+			_, _ = w.Write([]byte(errMessage))
+			return
+		}
+		_, e := w.Write([]byte(marshalledResponse))
+		if e != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
 	}
 }
 

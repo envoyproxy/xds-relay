@@ -51,6 +51,8 @@ type Client interface {
 	// All goroutines that depend on the ctx object should consider ctx.Done to be related to shutdown.
 	// All such scenarios need to exit cleanly and are not considered an erroneous situation.
 	OpenStream(transport.Request, string) (<-chan transport.Response, func())
+
+	GetStream(string) (string, error)
 }
 
 type client struct {
@@ -68,6 +70,9 @@ type client struct {
 	scope  tally.Scope
 
 	shutdown <-chan struct{}
+
+	// allStreams is used as a debug tool to inspect the latest state of streams
+	allStreams map[string]string
 }
 
 // CallOptions contains grpc client call options
@@ -138,7 +143,16 @@ func New(
 		logger:      namedLogger,
 		scope:       subScope,
 		shutdown:    shutdownSignal,
+		allStreams:  make(map[string]string, 1),
 	}, nil
+}
+
+func (m *client) GetStream(key string) (string, error) {
+	if v, ok := m.allStreams[key]; ok {
+		return v, nil
+	}
+
+	return "", fmt.Errorf("stream %s is not found", key)
 }
 
 func (m *client) OpenStream(request transport.Request, aggregatedKey string) (<-chan transport.Response, func()) {
@@ -168,6 +182,7 @@ func (m *client) handleStreamsWithRetry(
 		err    error
 		scope  tally.Scope
 	)
+	defer delete(m.allStreams, aggregatedKey)
 	for {
 		childCtx, cancel := context.WithCancel(ctx)
 		select {
@@ -237,6 +252,7 @@ func (m *client) handleStreamsWithRetry(
 			signal := make(chan *version, 1)
 			m.logger.With("request_type", request.GetTypeURL(), "aggregated_key", aggregatedKey).Info(ctx, "stream opened")
 			scope.Counter(metrics.UpstreamStreamOpened).Inc(1)
+			m.allStreams[aggregatedKey] = ""
 			// The xds protocol https://www.envoyproxy.io/docs/envoy/latest/api-docs/xds_protocol#ack
 			// specifies that the first request be empty nonce and empty version.
 			// The origin server will respond with the latest version.
@@ -245,12 +261,13 @@ func (m *client) handleStreamsWithRetry(
 			wg.Add(2)
 
 			go send(childCtx, wg.Done, m.logger, cancel, stream, signal, m.callOptions, aggregatedKey)
-			go recv(childCtx, wg.Done, cancel, m.logger, respCh, stream, signal, aggregatedKey)
+			go recv(childCtx, wg.Done, cancel, m.logger, respCh, stream, signal, aggregatedKey, m.allStreams)
 
 			wg.Wait()
 			scope.Counter(metrics.UpstreamStreamRetry).Inc(1)
 			m.logger.With("aggregated_key", aggregatedKey).Info(ctx, "retrying")
 			close(signal)
+			delete(m.allStreams, aggregatedKey)
 		}
 	}
 }
@@ -303,7 +320,8 @@ func recv(
 	response chan transport.Response,
 	stream transport.Stream,
 	signal chan *version,
-	aggregatedKey string) {
+	aggregatedKey string,
+	allStreams map[string]string) {
 	defer complete()
 	for {
 		resp, err := stream.RecvMsg()
@@ -317,9 +335,11 @@ func recv(
 			return
 		default:
 			response <- resp
+			respVersion := resp.GetPayloadVersion()
 			logger.With("aggregated_key", aggregatedKey,
-				"version", resp.GetPayloadVersion()).Debug(ctx, "Received from upstream")
-			signal <- &version{version: resp.GetPayloadVersion(), nonce: resp.GetNonce()}
+				"version", respVersion).Debug(ctx, "Received from upstream")
+			allStreams[aggregatedKey] = respVersion
+			signal <- &version{version: respVersion, nonce: resp.GetNonce()}
 		}
 	}
 }

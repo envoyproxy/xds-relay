@@ -24,7 +24,7 @@ type Handler struct {
 }
 
 func getHandlers(bootstrap *bootstrapv1.Bootstrap,
-	orchestrator *orchestrator.Orchestrator,
+	orchestrator orchestrator.Orchestrator,
 	logger log.Logger) []Handler {
 	handlers := []Handler{
 		{
@@ -55,6 +55,12 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 			"/cache/keys",
 			"print all keys",
 			keyDumpHandler(orchestrator),
+			true,
+		},
+		{
+			"/cache/stream/key",
+			"print all live streams to the upstream control plane",
+			streamDumpHandler(orchestrator),
 			true,
 		},
 		{
@@ -101,7 +107,7 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 }
 
 func RegisterHandlers(bootstrapConfig *bootstrapv1.Bootstrap,
-	orchestrator *orchestrator.Orchestrator,
+	orchestrator orchestrator.Orchestrator,
 	logger log.Logger) {
 	for _, handler := range getHandlers(bootstrapConfig, orchestrator, logger) {
 		http.Handle(handler.pattern, handler.handler)

@@ -56,6 +56,8 @@ type Orchestrator interface {
 
 	GetDownstreamAggregatedKeys() (map[string]bool, error)
 
+	GetStream(string) (string, error)
+
 	CreateWatch(transport.Request) (transport.Watch, func())
 }
 
@@ -245,6 +247,10 @@ func (o *orchestrator) GetDownstreamAggregatedKeys() (map[string]bool, error) {
 		o.logger.With("error", err).Error(context.Background(), "Unable to get keys")
 	}
 	return keys, err
+}
+
+func (o *orchestrator) GetStream(key string) (string, error) {
+	return o.upstreamClient.GetStream(key)
 }
 
 // watchUpstream is intended to be called in a go routine, to receive incoming
