@@ -3,10 +3,10 @@ package handler
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"regexp"
 	"testing"
 	"time"
 
@@ -14,6 +14,7 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
 
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
+	"github.com/envoyproxy/xds-relay/internal/pkg/stats"
 
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
 	"github.com/envoyproxy/xds-relay/internal/app/orchestrator"
@@ -22,18 +23,11 @@ import (
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	corev2 "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
-	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
-	discoveryv3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
-	gcpv3 "github.com/envoyproxy/go-control-plane/pkg/cache/v3"
-	resourcev2 "github.com/envoyproxy/go-control-plane/pkg/resource/v2"
-	resourcev3 "github.com/envoyproxy/go-control-plane/pkg/resource/v3"
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/stretchr/testify/assert"
 )
-
-var dateRegex = regexp.MustCompile(`"....-..-..T..:..:.....*"`)
 
 func TestAdminServer_DefaultHandler(t *testing.T) {
 	req, err := http.NewRequest("GET", "/", nil)
@@ -44,6 +38,7 @@ func TestAdminServer_DefaultHandler(t *testing.T) {
 		"/foo",
 		"does nothing",
 		http.HandlerFunc(nil),
+		true,
 	}})
 
 	handler.ServeHTTP(rr, req)
@@ -60,6 +55,7 @@ func TestAdminServer_DefaultHandler_NotFound(t *testing.T) {
 		"/foo",
 		"does nothing",
 		http.HandlerFunc(nil),
+		true,
 	}})
 
 	handler.ServeHTTP(rr, req)
@@ -105,13 +101,14 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 	mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
 	client := upstream.NewMock(
 		ctx,
-		upstream.CallOptions{Timeout: time.Second},
+		upstream.CallOptions{SendTimeout: time.Second},
 		nil,
 		upstreamResponseChannel,
 		nil,
 		nil,
 		nil,
 		func(m interface{}) error { return nil },
+		stats.NewMockScope("mock"),
 	)
 	orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
 	assert.NotNil(t, orchestrator)
@@ -143,7 +140,7 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 	gotResponse := <-respChannel.GetChannel().V2
 	gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
 	assert.NoError(t, err)
-	assert.Equal(t, resp, *gotDiscoveryResponse)
+	assert.Equal(t, &resp, gotDiscoveryResponse)
 
 	req, err := http.NewRequest("GET", "/cache/test_lds", nil)
 	assert.NoError(t, err)
@@ -153,10 +150,22 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
-	body := dateRegex.ReplaceAllString(rr.Body.String(), "\"\"")
-	filecontents, err := ioutil.ReadFile("testdata/lds_response.json")
+
+	var actualResponse map[string]interface{}
+	err = json.Unmarshal(rr.Body.Bytes(), &actualResponse)
 	assert.NoError(t, err)
-	assert.Equal(t, body, string(filecontents))
+
+	filecontentsLds, err := ioutil.ReadFile("testdata/entire_cachev2_lds.json")
+	assert.NoError(t, err)
+	var expectedLdsResponse map[string]interface{}
+	err = json.Unmarshal(filecontentsLds, &expectedLdsResponse)
+	assert.NoError(t, err)
+
+	actualCacheResponse := actualResponse["Cache"].([]interface{})
+	assert.Equal(t, len(actualCacheResponse), 1)
+
+	assert.Equal(t, expectedLdsResponse["Key"], actualCacheResponse[0].(map[string]interface{})["Key"])
+	assert.Equal(t, expectedLdsResponse["Resp"], actualCacheResponse[0].(map[string]interface{})["Resp"])
 	cancelWatch()
 }
 
@@ -167,13 +176,14 @@ func TestAdminServer_CacheDumpHandler_NotFound(t *testing.T) {
 	mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
 	client := upstream.NewMock(
 		ctx,
-		upstream.CallOptions{Timeout: time.Second},
+		upstream.CallOptions{SendTimeout: time.Second},
 		nil,
 		nil,
 		nil,
 		nil,
 		upstreamResponseChannel,
 		func(m interface{}) error { return nil },
+		stats.NewMockScope("mock"),
 	)
 	orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
 	assert.NotNil(t, orchestrator)
@@ -187,499 +197,6 @@ func TestAdminServer_CacheDumpHandler_NotFound(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.Equal(t, "", rr.Body.String())
-}
-
-func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
-	for _, url := range []string{"/cache", "/cache/", "/cache/*"} {
-		ctx := context.Background()
-		mapper := mapper.NewMock(t)
-		upstreamResponseChannelLDS := make(chan *v2.DiscoveryResponse)
-		upstreamResponseChannelCDS := make(chan *v2.DiscoveryResponse)
-		mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
-		client := upstream.NewMock(
-			ctx,
-			upstream.CallOptions{Timeout: time.Second},
-			nil,
-			upstreamResponseChannelLDS,
-			nil,
-			nil,
-			upstreamResponseChannelCDS,
-			func(m interface{}) error { return nil },
-		)
-		orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
-		assert.NotNil(t, orchestrator)
-
-		req1Node := corev2.Node{
-			Id:      "test-1",
-			Cluster: "test-prod",
-		}
-		gcpReq1 := gcp.Request{
-			TypeUrl: resourcev2.ListenerType,
-			Node:    &req1Node,
-		}
-		ldsRespChannel, cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq1))
-		assert.NotNil(t, ldsRespChannel)
-
-		req2Node := corev2.Node{
-			Id:      "test-2",
-			Cluster: "test-prod",
-		}
-		gcpReq2 := gcp.Request{
-			TypeUrl: resourcev2.ClusterType,
-			Node:    &req2Node,
-		}
-		cdsRespChannel, cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq2))
-		assert.NotNil(t, cdsRespChannel)
-
-		listener := &v2.Listener{
-			Name: "lds resource",
-		}
-		listenerAny, err := ptypes.MarshalAny(listener)
-		assert.NoError(t, err)
-		resp := v2.DiscoveryResponse{
-			VersionInfo: "1",
-			TypeUrl:     resourcev2.ListenerType,
-			Resources: []*any.Any{
-				listenerAny,
-			},
-		}
-		upstreamResponseChannelLDS <- &resp
-		gotResponse := <-ldsRespChannel.GetChannel().V2
-		gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
-		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
-
-		cluster := &v2.Cluster{
-			Name: "cds resource",
-		}
-		clusterAny, err := ptypes.MarshalAny(cluster)
-		assert.NoError(t, err)
-		resp = v2.DiscoveryResponse{
-			VersionInfo: "2",
-			TypeUrl:     resourcev2.ClusterType,
-			Resources: []*any.Any{
-				clusterAny,
-			},
-		}
-		upstreamResponseChannelCDS <- &resp
-		gotResponse = <-cdsRespChannel.GetChannel().V2
-		gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
-		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
-
-		req, err := http.NewRequest("GET", url, nil)
-		assert.NoError(t, err)
-
-		rr := httptest.NewRecorder()
-		handler := cacheDumpHandler(&orchestrator)
-
-		handler.ServeHTTP(rr, req)
-		assert.Equal(t, http.StatusOK, rr.Code)
-
-		body := dateRegex.ReplaceAllString(rr.Body.String(), "\"\"")
-		filecontentsCds, err := ioutil.ReadFile("testdata/entire_cachev2_cds.json")
-		assert.NoError(t, err)
-		filecontentsLds, err := ioutil.ReadFile("testdata/entire_cachev2_lds.json")
-		assert.NoError(t, err)
-		assert.Contains(t, body, string(filecontentsCds))
-		assert.Contains(t, body, string(filecontentsLds))
-
-		cancelLDSWatch()
-		cancelCDSWatch()
-	}
-}
-
-func TestAdminServer_CacheDumpHandler_EntireCacheV3(t *testing.T) {
-	for _, url := range []string{"/cache", "/cache/", "/cache/*"} {
-		ctx := context.Background()
-		mapper := mapper.NewMock(t)
-		upstreamResponseChannelLDS := make(chan *discoveryv3.DiscoveryResponse)
-		upstreamResponseChannelCDS := make(chan *discoveryv3.DiscoveryResponse)
-		mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
-		client := upstream.NewMockV3(
-			ctx,
-			upstream.CallOptions{Timeout: time.Second},
-			nil,
-			upstreamResponseChannelLDS,
-			nil,
-			nil,
-			upstreamResponseChannelCDS,
-			func(m interface{}) error { return nil },
-		)
-		orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
-		assert.NotNil(t, orchestrator)
-
-		req1Node := envoy_config_core_v3.Node{
-			Id:      "test-1",
-			Cluster: "test-prod",
-		}
-		gcpReq1 := gcpv3.Request{
-			TypeUrl: resourcev3.ListenerType,
-			Node:    &req1Node,
-		}
-		ldsRespChannel, cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV3(&gcpReq1))
-		assert.NotNil(t, ldsRespChannel)
-
-		req2Node := envoy_config_core_v3.Node{
-			Id:      "test-2",
-			Cluster: "test-prod",
-		}
-		gcpReq2 := gcpv3.Request{
-			TypeUrl: resourcev3.ClusterType,
-			Node:    &req2Node,
-		}
-		cdsRespChannel, cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV3(&gcpReq2))
-		assert.NotNil(t, cdsRespChannel)
-
-		listener := &v2.Listener{
-			Name: "lds resource",
-		}
-		listenerAny, err := ptypes.MarshalAny(listener)
-		assert.NoError(t, err)
-		resp := discoveryv3.DiscoveryResponse{
-			VersionInfo: "1",
-			TypeUrl:     resourcev3.ListenerType,
-			Resources: []*any.Any{
-				listenerAny,
-			},
-		}
-		upstreamResponseChannelLDS <- &resp
-		gotResponse := <-ldsRespChannel.GetChannel().V3
-		gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
-		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
-
-		cluster := &v2.Cluster{
-			Name: "cds resource",
-		}
-		clusterAny, err := ptypes.MarshalAny(cluster)
-		assert.NoError(t, err)
-		resp = discoveryv3.DiscoveryResponse{
-			VersionInfo: "2",
-			TypeUrl:     resourcev3.ClusterType,
-			Resources: []*any.Any{
-				clusterAny,
-			},
-		}
-		upstreamResponseChannelCDS <- &resp
-		gotResponse = <-cdsRespChannel.GetChannel().V3
-		gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
-		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
-
-		req, err := http.NewRequest("GET", url, nil)
-		assert.NoError(t, err)
-
-		rr := httptest.NewRecorder()
-		handler := cacheDumpHandler(&orchestrator)
-
-		handler.ServeHTTP(rr, req)
-		assert.Equal(t, http.StatusOK, rr.Code)
-		body := dateRegex.ReplaceAllString(rr.Body.String(), "\"\"")
-		filecontentsCds, err := ioutil.ReadFile("testdata/entire_cachev3_cds.json")
-		assert.NoError(t, err)
-		filecontentsLds, err := ioutil.ReadFile("testdata/entire_cachev3_lds.json")
-		assert.NoError(t, err)
-		assert.Contains(t, body, string(filecontentsCds))
-		assert.Contains(t, body, string(filecontentsLds))
-		cancelLDSWatch()
-		cancelCDSWatch()
-	}
-}
-
-func TestAdminServer_CacheDumpHandler_WildcardSuffix(t *testing.T) {
-	for _, url := range []string{"/cache/t*", "/cache/tes*", "/cache/test*"} {
-		ctx := context.Background()
-		mapper := mapper.NewMock(t)
-		upstreamResponseChannelLDS := make(chan *v2.DiscoveryResponse)
-		upstreamResponseChannelCDS := make(chan *v2.DiscoveryResponse)
-		mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
-		client := upstream.NewMock(
-			ctx,
-			upstream.CallOptions{Timeout: time.Second},
-			nil,
-			upstreamResponseChannelLDS,
-			nil,
-			nil,
-			upstreamResponseChannelCDS,
-			func(m interface{}) error { return nil },
-		)
-		orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
-		assert.NotNil(t, orchestrator)
-
-		req1Node := corev2.Node{
-			Id:      "test-1",
-			Cluster: "test-prod",
-		}
-		gcpReq1 := gcp.Request{
-			TypeUrl: resourcev2.ListenerType,
-			Node:    &req1Node,
-		}
-		ldsRespChannel, cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq1))
-		assert.NotNil(t, ldsRespChannel)
-
-		req2Node := corev2.Node{
-			Id:      "test-2",
-			Cluster: "test-prod",
-		}
-		gcpReq2 := gcp.Request{
-			TypeUrl: resourcev2.ClusterType,
-			Node:    &req2Node,
-		}
-		cdsRespChannel, cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq2))
-		assert.NotNil(t, cdsRespChannel)
-
-		listener := &v2.Listener{
-			Name: "lds resource",
-		}
-		listenerAny, err := ptypes.MarshalAny(listener)
-		assert.NoError(t, err)
-		resp := v2.DiscoveryResponse{
-			VersionInfo: "1",
-			TypeUrl:     resourcev2.ListenerType,
-			Resources: []*any.Any{
-				listenerAny,
-			},
-		}
-		upstreamResponseChannelLDS <- &resp
-		gotResponse := <-ldsRespChannel.GetChannel().V2
-		gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
-		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
-
-		cluster := &v2.Cluster{
-			Name: "cds resource",
-		}
-		clusterAny, err := ptypes.MarshalAny(cluster)
-		assert.NoError(t, err)
-		resp = v2.DiscoveryResponse{
-			VersionInfo: "2",
-			TypeUrl:     resourcev2.ClusterType,
-			Resources: []*any.Any{
-				clusterAny,
-			},
-		}
-		upstreamResponseChannelCDS <- &resp
-		gotResponse = <-cdsRespChannel.GetChannel().V2
-		gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
-		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
-
-		req, err := http.NewRequest("GET", url, nil)
-		assert.NoError(t, err)
-
-		rr := httptest.NewRecorder()
-		handler := cacheDumpHandler(&orchestrator)
-
-		handler.ServeHTTP(rr, req)
-		assert.Equal(t, http.StatusOK, rr.Code)
-
-		body := dateRegex.ReplaceAllString(rr.Body.String(), "\"\"")
-		filecontentsCds, err := ioutil.ReadFile("testdata/entire_cachev2_cds.json")
-		assert.NoError(t, err)
-		filecontentsLds, err := ioutil.ReadFile("testdata/entire_cachev2_lds.json")
-		assert.NoError(t, err)
-		assert.Contains(t, body, string(filecontentsCds))
-		assert.Contains(t, body, string(filecontentsLds))
-
-		cancelLDSWatch()
-		cancelCDSWatch()
-	}
-}
-
-func TestAdminServer_CacheDumpHandler_WildcardSuffixV3(t *testing.T) {
-	for _, url := range []string{"/cache/t*", "/cache/tes*", "/cache/test*"} {
-		ctx := context.Background()
-		mapper := mapper.NewMock(t)
-		upstreamResponseChannelLDS := make(chan *discoveryv3.DiscoveryResponse)
-		upstreamResponseChannelCDS := make(chan *discoveryv3.DiscoveryResponse)
-		mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
-		client := upstream.NewMockV3(
-			ctx,
-			upstream.CallOptions{Timeout: time.Second},
-			nil,
-			upstreamResponseChannelLDS,
-			nil,
-			nil,
-			upstreamResponseChannelCDS,
-			func(m interface{}) error { return nil },
-		)
-		orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
-		assert.NotNil(t, orchestrator)
-
-		req1Node := envoy_config_core_v3.Node{
-			Id:      "test-1",
-			Cluster: "test-prod",
-		}
-		gcpReq1 := gcpv3.Request{
-			TypeUrl: resourcev3.ListenerType,
-			Node:    &req1Node,
-		}
-		ldsRespChannel, cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV3(&gcpReq1))
-		assert.NotNil(t, ldsRespChannel)
-
-		req2Node := envoy_config_core_v3.Node{
-			Id:      "test-2",
-			Cluster: "test-prod",
-		}
-		gcpReq2 := gcpv3.Request{
-			TypeUrl: resourcev3.ClusterType,
-			Node:    &req2Node,
-		}
-		cdsRespChannel, cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV3(&gcpReq2))
-		assert.NotNil(t, cdsRespChannel)
-
-		listener := &v2.Listener{
-			Name: "lds resource",
-		}
-		listenerAny, err := ptypes.MarshalAny(listener)
-		assert.NoError(t, err)
-		resp := discoveryv3.DiscoveryResponse{
-			VersionInfo: "1",
-			TypeUrl:     resourcev3.ListenerType,
-			Resources: []*any.Any{
-				listenerAny,
-			},
-		}
-		upstreamResponseChannelLDS <- &resp
-		gotResponse := <-ldsRespChannel.GetChannel().V3
-		gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
-		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
-
-		cluster := &v2.Cluster{
-			Name: "cds resource",
-		}
-		clusterAny, err := ptypes.MarshalAny(cluster)
-		assert.NoError(t, err)
-		resp = discoveryv3.DiscoveryResponse{
-			VersionInfo: "2",
-			TypeUrl:     resourcev3.ClusterType,
-			Resources: []*any.Any{
-				clusterAny,
-			},
-		}
-		upstreamResponseChannelCDS <- &resp
-		gotResponse = <-cdsRespChannel.GetChannel().V3
-		gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
-		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
-
-		req, err := http.NewRequest("GET", url, nil)
-		assert.NoError(t, err)
-
-		rr := httptest.NewRecorder()
-		handler := cacheDumpHandler(&orchestrator)
-
-		handler.ServeHTTP(rr, req)
-		assert.Equal(t, http.StatusOK, rr.Code)
-
-		body := dateRegex.ReplaceAllString(rr.Body.String(), "\"\"")
-		filecontentsCds, err := ioutil.ReadFile("testdata/entire_cachev3_cds.json")
-		assert.NoError(t, err)
-		filecontentsLds, err := ioutil.ReadFile("testdata/entire_cachev3_lds.json")
-		assert.NoError(t, err)
-		assert.Contains(t, body, string(filecontentsCds))
-		assert.Contains(t, body, string(filecontentsLds))
-
-		cancelLDSWatch()
-		cancelCDSWatch()
-	}
-}
-
-func TestAdminServer_CacheDumpHandler_WildcardSuffix_NotFound(t *testing.T) {
-	wildcardKeys := []string{"b*", "tesa*", "t*est*"}
-	for _, key := range wildcardKeys {
-		url := "/cache/" + key
-		ctx := context.Background()
-		mapper := mapper.NewMock(t)
-		upstreamResponseChannelLDS := make(chan *v2.DiscoveryResponse)
-		upstreamResponseChannelCDS := make(chan *v2.DiscoveryResponse)
-		mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
-		client := upstream.NewMock(
-			ctx,
-			upstream.CallOptions{Timeout: time.Second},
-			nil,
-			upstreamResponseChannelLDS,
-			nil,
-			nil,
-			upstreamResponseChannelCDS,
-			func(m interface{}) error { return nil },
-		)
-		orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
-		assert.NotNil(t, orchestrator)
-
-		req1Node := corev2.Node{
-			Id:      "test-1",
-			Cluster: "test-prod",
-		}
-		gcpReq1 := gcp.Request{
-			TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
-			Node:    &req1Node,
-		}
-		ldsRespChannel, cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq1))
-		assert.NotNil(t, ldsRespChannel)
-
-		req2Node := corev2.Node{
-			Id:      "test-2",
-			Cluster: "test-prod",
-		}
-		gcpReq2 := gcp.Request{
-			TypeUrl: "type.googleapis.com/envoy.api.v2.Cluster",
-			Node:    &req2Node,
-		}
-		cdsRespChannel, cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq2))
-		assert.NotNil(t, cdsRespChannel)
-
-		listener := &v2.Listener{
-			Name: "lds resource",
-		}
-		listenerAny, err := ptypes.MarshalAny(listener)
-		assert.NoError(t, err)
-		resp := v2.DiscoveryResponse{
-			VersionInfo: "1",
-			TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
-			Resources: []*any.Any{
-				listenerAny,
-			},
-		}
-		upstreamResponseChannelLDS <- &resp
-		gotResponse := <-ldsRespChannel.GetChannel().V2
-		gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
-		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
-
-		cluster := &v2.Cluster{
-			Name: "cds resource",
-		}
-		clusterAny, err := ptypes.MarshalAny(cluster)
-		assert.NoError(t, err)
-		resp = v2.DiscoveryResponse{
-			VersionInfo: "2",
-			TypeUrl:     "type.googleapis.com/envoy.api.v2.Cluster",
-			Resources: []*any.Any{
-				clusterAny,
-			},
-		}
-		upstreamResponseChannelCDS <- &resp
-		gotResponse = <-cdsRespChannel.GetChannel().V2
-		gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
-		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
-
-		req, err := http.NewRequest("GET", url, nil)
-		assert.NoError(t, err)
-
-		rr := httptest.NewRecorder()
-		handler := cacheDumpHandler(&orchestrator)
-
-		handler.ServeHTTP(rr, req)
-		assert.Equal(t, http.StatusOK, rr.Code)
-		assert.Equal(t, "", rr.Body.String())
-
-		cancelLDSWatch()
-		cancelCDSWatch()
-	}
 }
 
 func TestGetParam(t *testing.T) {

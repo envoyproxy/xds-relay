@@ -14,6 +14,7 @@ on:
       - .github/workflows/api.yml
 env:
   PACKAGEPATH: ${{ github.workspace }}/go/src/github.com/${{ github.repository }}
+  ACTIONS_ALLOW_UNSECURE_COMMANDS: true
 jobs:
   protobuf-generate:
     strategy:

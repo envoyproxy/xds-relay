@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
 
@@ -15,6 +16,8 @@ import (
 	gcpv2 "github.com/envoyproxy/go-control-plane/pkg/server/v2"
 	gcpv3 "github.com/envoyproxy/go-control-plane/pkg/server/v3"
 	"github.com/envoyproxy/xds-relay/internal/app/metrics"
+	"github.com/uber-go/tally"
+	"google.golang.org/grpc/channelz/service"
 
 	clusterservice "github.com/envoyproxy/go-control-plane/envoy/service/cluster/v3"
 	endpointservice "github.com/envoyproxy/go-control-plane/envoy/service/endpoint/v3"
@@ -89,12 +92,13 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	// Initialize upstream client.
 	upstreamPort := strconv.FormatUint(uint64(bootstrapConfig.OriginServer.Address.PortValue), 10)
 	upstreamAddress := net.JoinHostPort(bootstrapConfig.OriginServer.Address.Address, upstreamPort)
-	// TODO: configure timeout param from bootstrap config.
-	// https://github.com/envoyproxy/xds-relay/issues/55
 	upstreamClient, err := upstream.New(
 		ctx,
 		upstreamAddress,
-		upstream.CallOptions{Timeout: time.Minute},
+		upstream.CallOptions{
+			SendTimeout:              time.Minute,
+			UpstreamKeepaliveTimeout: bootstrapConfig.OriginServer.KeepAliveTime,
+		},
 		logger,
 		scope,
 	)
@@ -114,17 +118,15 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	adminServer := &http.Server{
 		Addr: adminAddress,
 	}
-	handler.RegisterHandlers(bootstrapConfig, &orchestrator, logger)
 
-	// Start server.
-	server := grpc.NewServer()
-	registerEndpoints(ctx, server, orchestrator)
+	weboff := make(chan bool, 1)
+	weboff <- true
+	handler.RegisterHandlers(bootstrapConfig, &orchestrator, weboff, logger)
+
+	defer close(weboff)
+
 	serverPort := strconv.FormatUint(uint64(bootstrapConfig.Server.Address.PortValue), 10)
 	serverAddress := net.JoinHostPort(bootstrapConfig.Server.Address.Address, serverPort)
-	listener, err := net.Listen("tcp", serverAddress) // #nosec
-	if err != nil {
-		logger.With("error", err).Fatal(ctx, "failed to bind server to listener")
-	}
 
 	if mode != "serve" {
 		return
@@ -132,35 +134,59 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 
 	go RunAdminServer(ctx, adminServer, logger)
 
-	registerShutdownHandler(ctx, cancel, server.GracefulStop, adminServer.Shutdown, logger)
-	logger.With("address", listener.Addr()).Info(ctx, "Initializing server")
-	scope.SubScope(metrics.ScopeServer).Counter(metrics.ServerAlive).Inc(1)
-
-	if err := server.Serve(listener); err != nil {
-		logger.With("error", err).Fatal(ctx, "failed to initialize server")
+	currentState := false
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	var server *grpc.Server
+	var stopMutex sync.Mutex
+	for {
+		select {
+		case state := <-weboff:
+			if state == currentState {
+				logger.Info(ctx, "ignoring desired state(%t) = current state(%t)", state, currentState)
+				break
+			}
+			logger.Info(ctx, "working on desired state(%t), current state(%t)", state, currentState)
+			currentState = state
+			if currentState {
+				stopMutex.Lock()
+				server = grpc.NewServer()
+				registerEndpoints(ctx, server, orchestrator)
+				listener, err := net.Listen("tcp", serverAddress)
+				if err != nil {
+					logger.With("error", err).Fatal(ctx, "failed to bind server to listener")
+				}
+				go startServer(ctx, logger, scope, listener, server)
+				stopMutex.Unlock()
+			} else {
+				stopMutex.Lock()
+				server.GracefulStop()
+				stopMutex.Unlock()
+			}
+		case sig := <-sigs:
+			logger.Info(ctx, "received interrupt signal:", sig.String())
+			logger.Info(ctx, "initiating admin server shutdown")
+			if shutdownErr := adminServer.Shutdown(ctx); shutdownErr != nil {
+				logger.With("error", shutdownErr).Error(ctx, "admin shutdown error: ", shutdownErr.Error())
+			}
+			logger.Info(ctx, "initiating grpc graceful stop")
+			cancel()
+			stopMutex.Lock()
+			server.GracefulStop()
+			stopMutex.Unlock()
+			_ = logger.Sync()
+			return
+		}
 	}
 }
 
-func registerShutdownHandler(
-	ctx context.Context,
-	cancel context.CancelFunc,
-	gracefulStop func(),
-	adminShutdown func(context.Context) error,
-	logger log.Logger) {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		sig := <-sigs
-		logger.Info(ctx, "received interrupt signal:", sig.String())
-		logger.Info(ctx, "initiating admin server shutdown")
-		if shutdownErr := adminShutdown(ctx); shutdownErr != nil {
-			logger.With("error", shutdownErr).Error(ctx, "admin shutdown error: ", shutdownErr.Error())
-		}
-		logger.Info(ctx, "initiating grpc graceful stop")
-		cancel()
-		gracefulStop()
-		_ = logger.Sync()
-	}()
+func startServer(ctx context.Context, logger log.Logger, scope tally.Scope,
+	listener net.Listener, server *grpc.Server) {
+	logger.With("address", listener.Addr()).Info(ctx, "Initializing server")
+	scope.SubScope(metrics.ScopeServer).Counter(metrics.ServerAlive).Inc(1)
+	if err := server.Serve(listener); err != nil {
+		logger.With("error", err).Fatal(ctx, "failed to initialize server")
+	}
 }
 
 func registerEndpoints(ctx context.Context, g *grpc.Server, o orchestrator.Orchestrator) {
@@ -175,4 +201,7 @@ func registerEndpoints(ctx context.Context, g *grpc.Server, o orchestrator.Orche
 	clusterservice.RegisterClusterDiscoveryServiceServer(g, gcpv3)
 	endpointservice.RegisterEndpointDiscoveryServiceServer(g, gcpv3)
 	listenerservice.RegisterListenerDiscoveryServiceServer(g, gcpv3)
+
+	// Use https://github.com/grpc/grpc-experiments/tree/master/gdebug to debug grpc channel issues
+	service.RegisterChannelzServiceToServer(g)
 }

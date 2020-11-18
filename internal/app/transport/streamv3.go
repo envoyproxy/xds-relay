@@ -28,6 +28,7 @@ func NewStreamV3(clientStream grpc.ClientStream, req Request, l log.Logger) Stre
 func (s *streamv3) SendMsg(version string, nonce string) error {
 	msg := s.initialRequest.GetRaw().V3
 	msg.VersionInfo = version
+	msg.ErrorDetail = nil
 	msg.ResponseNonce = nonce
 	s.logger.With(
 		"request_type", msg.GetTypeUrl(),

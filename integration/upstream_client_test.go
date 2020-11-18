@@ -46,7 +46,7 @@ func TestXdsClientGetsIncrementalResponsesFromUpstreamServer(t *testing.T) {
 	snapshotsv2, configv2 := createSnapshotCache(updates, log.MockLogger)
 	cb := gcptestv2.Callbacks{Signal: make(chan struct{})}
 	scope := stats.NewMockScope("mock")
-	respCh, _, err := setup(ctx, log.MockLogger, scope, snapshotsv2, configv2, &cb)
+	respCh, _, err := setup(ctx, false, log.MockLogger, scope, snapshotsv2, configv2, &cb)
 	if err != nil {
 		assert.Fail(t, "Setup failed: %s", err.Error())
 		return
@@ -57,6 +57,9 @@ func TestXdsClientGetsIncrementalResponsesFromUpstreamServer(t *testing.T) {
 	version := 0
 	go func() {
 		for {
+			if version == 2 {
+				return
+			}
 			select {
 			case r, more := <-respCh:
 				if !more {
@@ -92,7 +95,7 @@ func TestXdsClientShutdownShouldCloseTheResponseChannel(t *testing.T) {
 
 	snapshotsv2, configv2 := createSnapshotCache(updates, log.MockLogger)
 	cb := gcptestv2.Callbacks{Signal: make(chan struct{})}
-	respCh, shutdown, err := setup(ctx, log.MockLogger, stats.NewMockScope("mock"), snapshotsv2, configv2, &cb)
+	respCh, shutdown, err := setup(ctx, false, log.MockLogger, stats.NewMockScope("mock"), snapshotsv2, configv2, &cb)
 	if err != nil {
 		assert.Fail(t, "Setup failed: %s", err.Error())
 		return
@@ -120,7 +123,7 @@ func TestServerShutdownShouldCloseResponseChannel(t *testing.T) {
 	snapshotsv2, configv2 := createSnapshotCache(updates, log.MockLogger)
 	cb := gcptestv2.Callbacks{Signal: make(chan struct{})}
 	scope := stats.NewMockScope("mock")
-	respCh, _, err := setup(serverCtx, log.MockLogger, scope, snapshotsv2, configv2, &cb)
+	respCh, _, err := setup(serverCtx, true, log.MockLogger, scope, snapshotsv2, configv2, &cb)
 	if err != nil {
 		assert.Fail(t, "Setup failed: %s", err.Error())
 		cancel()
@@ -154,7 +157,7 @@ func TestClientContextCancellationShouldCloseAllResponseChannels(t *testing.T) {
 	snapshotsv2, configv2 := createSnapshotCache(updates, log.MockLogger)
 	cb := gcptestv2.Callbacks{Signal: make(chan struct{})}
 	scope := stats.NewMockScope("mock")
-	_, _, err := setup(serverCtx, log.MockLogger, scope, snapshotsv2, configv2, &cb)
+	_, _, err := setup(serverCtx, false, log.MockLogger, scope, snapshotsv2, configv2, &cb)
 	if err != nil {
 		assert.Fail(t, "Setup failed: %s", err.Error())
 		return
@@ -164,22 +167,22 @@ func TestClientContextCancellationShouldCloseAllResponseChannels(t *testing.T) {
 	client, err := upstream.New(
 		clientCtx,
 		strings.Join([]string{"127.0.0.1", strconv.Itoa(originServerPort)}, ":"),
-		upstream.CallOptions{Timeout: time.Minute},
+		upstream.CallOptions{SendTimeout: time.Minute},
 		log.MockLogger,
 		stats.NewMockScope("mock"),
 	)
-	respCh1, _, _ := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{
+	respCh1, _ := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{
 		TypeUrl: resource.ClusterType,
 		Node: &corev2.Node{
 			Id: nodeID,
 		},
-	}))
-	respCh2, _, _ := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{
+	}), "aggregated_key")
+	respCh2, _ := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{
 		TypeUrl: resource.ClusterType,
 		Node: &corev2.Node{
 			Id: nodeID,
 		},
-	}))
+	}), "aggregated_key")
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -210,6 +213,7 @@ func TestClientContextCancellationShouldCloseAllResponseChannels(t *testing.T) {
 
 func setup(
 	ctx context.Context,
+	useServerCtx bool,
 	logger log.Logger,
 	scope tally.Scope,
 	snapshotv2 resourcev2.TestSnapshot,
@@ -221,10 +225,14 @@ func setup(
 	// Start the origin server
 	go gcptest.RunManagementServer(ctx, srv2, srv3, originServerPort)
 
+	xdsrelayCtx := context.Background()
+	if useServerCtx {
+		xdsrelayCtx = ctx
+	}
 	client, err := upstream.New(
-		context.Background(),
+		xdsrelayCtx,
 		strings.Join([]string{"127.0.0.1", strconv.Itoa(originServerPort)}, ":"),
-		upstream.CallOptions{Timeout: time.Minute},
+		upstream.CallOptions{SendTimeout: time.Minute},
 		logger,
 		scope,
 	)
@@ -233,17 +241,12 @@ func setup(
 		return nil, nil, err
 	}
 
-	respCh, shutdown, err := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{
+	respCh, shutdown := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{
 		TypeUrl: resource.ClusterType,
 		Node: &corev2.Node{
 			Id: nodeID,
 		},
-	}))
-
-	if err != nil {
-		logger.Error(ctx, "Open stream failed %s", err.Error())
-		return nil, nil, err
-	}
+	}), "aggregated_key")
 
 	select {
 	case <-cb.Signal:

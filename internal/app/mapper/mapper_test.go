@@ -28,6 +28,7 @@ type StringValue = structpb.Value_StringValue
 
 const (
 	clusterTypeURL  = "type.googleapis.com/envoy.api.v2.Cluster"
+	endpointTypeURL = "type.googleapis.com/envoy.api.v2.ClusterLoadAssignment"
 	listenerTypeURL = "type.googleapis.com/envoy.api.v2.Listener"
 	nodeid          = "nodeid"
 	nodecluster     = "cluster"
@@ -1284,14 +1285,14 @@ var _ = Describe("GetKey", func() {
 			mapper := New(&protoConfig, mockScope)
 			request := getDiscoveryRequest()
 			request.TypeUrl = typeurl
-			key, err := mapper.GetKey(transport.NewRequestV2(&request))
+			key, err := mapper.GetKey(transport.NewRequestV2(request))
 			Expect(mockScope.Snapshot().Counters()["mock.mapper.success+"].Value()).To(Equal(int64(1)))
 			Expect(key).To(Equal(assert))
 			Expect(err).Should(BeNil())
 		}, positiveTests...)
 
 	DescribeTable("should be able to return error",
-		func(match *MatchPredicate, result *ResultPredicate, request v2.DiscoveryRequest) {
+		func(match *MatchPredicate, result *ResultPredicate, request *v2.DiscoveryRequest) {
 			protoConfig := KeyerConfiguration{
 				Fragments: []*Fragment{
 					{
@@ -1306,7 +1307,7 @@ var _ = Describe("GetKey", func() {
 			}
 			mockScope := stats.NewMockScope("mock")
 			mapper := New(&protoConfig, mockScope)
-			key, err := mapper.GetKey(transport.NewRequestV2(&request))
+			key, err := mapper.GetKey(transport.NewRequestV2(request))
 			Expect(mockScope.Snapshot().Counters()["mock.mapper.error+"].Value()).To(Equal(int64(1)))
 			Expect(key).To(Equal(""))
 			Expect(err).Should(Equal(fmt.Errorf("Cannot map the input to a key")))
@@ -1341,7 +1342,7 @@ var _ = Describe("GetKey", func() {
 			}
 			mapper := New(&protoConfig, stats.NewMockScope(""))
 			req := getDiscoveryRequest()
-			key, err := mapper.GetKey(transport.NewRequestV2(&req))
+			key, err := mapper.GetKey(transport.NewRequestV2(req))
 			Expect(expectedKey).To(Equal(key))
 			Expect(err).Should(BeNil())
 		},
@@ -1371,7 +1372,7 @@ var _ = Describe("GetKey", func() {
 			}
 			mapper := New(&protoConfig, stats.NewMockScope(""))
 			req := getDiscoveryRequest()
-			key, err := mapper.GetKey(transport.NewRequestV2(&req))
+			key, err := mapper.GetKey(transport.NewRequestV2(req))
 			Expect(key).To(Equal(""))
 			Expect(err).Should(Equal(fmt.Errorf("Cannot map the input to a key")))
 		},
@@ -1393,7 +1394,7 @@ var _ = Describe("GetKey", func() {
 			}
 			mapper := New(&protoConfig, stats.NewMockScope(""))
 			req := getDiscoveryRequest()
-			key, err := mapper.GetKey(transport.NewRequestV2(&req))
+			key, err := mapper.GetKey(transport.NewRequestV2(req))
 			Expect(key).To(Equal(""))
 			Expect(err.Error()).Should(Equal("error parsing regexp: invalid UTF-8: `\xbd\xb2`"))
 		},
@@ -1423,14 +1424,14 @@ var _ = Describe("GetKey", func() {
 			}
 			mapper := New(&protoConfig, stats.NewMockScope(""))
 			req := getDiscoveryRequest()
-			key, err := mapper.GetKey(transport.NewRequestV2(&req))
+			key, err := mapper.GetKey(transport.NewRequestV2(req))
 			Expect(key).To(Equal(""))
 			Expect(err.Error()).Should(Equal("error parsing regexp: invalid UTF-8: `\xbd\xb2`"))
 		},
 		regexpErrorCasesMultipleFragments...)
 
 	DescribeTable("should return error for empty fragments",
-		func(match *MatchPredicate, result *ResultPredicate, request v2.DiscoveryRequest, assert string) {
+		func(match *MatchPredicate, result *ResultPredicate, request *v2.DiscoveryRequest, assert string) {
 			protoConfig := KeyerConfiguration{
 				Fragments: []*Fragment{
 					{
@@ -1444,7 +1445,7 @@ var _ = Describe("GetKey", func() {
 				},
 			}
 			mapper := New(&protoConfig, stats.NewMockScope(""))
-			key, err := mapper.GetKey(transport.NewRequestV2(&request))
+			key, err := mapper.GetKey(transport.NewRequestV2(request))
 			Expect(key).To(Equal(""))
 			Expect(err).Should(Equal(fmt.Errorf(assert)))
 		},
@@ -1454,9 +1455,19 @@ var _ = Describe("GetKey", func() {
 		mapper := New(&KeyerConfiguration{}, stats.NewMockScope(""))
 		request := getDiscoveryRequest()
 		request.TypeUrl = ""
-		key, err := mapper.GetKey(transport.NewRequestV2(&request))
+		key, err := mapper.GetKey(transport.NewRequestV2(request))
 		Expect(key).To(Equal(""))
 		Expect(err).Should(Equal(fmt.Errorf("typeURL is empty")))
+	})
+
+	It("EDS Resource names should not be empty", func() {
+		mapper := New(&KeyerConfiguration{}, stats.NewMockScope(""))
+		request := getDiscoveryRequest()
+		request.TypeUrl = endpointTypeURL
+		request.ResourceNames = nil
+		key, err := mapper.GetKey(transport.NewRequestV2(request))
+		Expect(key).To(Equal(""))
+		Expect(err).Should(Equal(fmt.Errorf("resource names is empty")))
 	})
 })
 
@@ -1802,12 +1813,12 @@ func getRegexAction(pattern string, replace string) *aggregationv1.ResultPredica
 	}
 }
 
-func getDiscoveryRequest() v2.DiscoveryRequest {
+func getDiscoveryRequest() *v2.DiscoveryRequest {
 	return getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, noderegion, nodezone, nodesubzone, getNodeMetatada()))
 }
 
-func getDiscoveryRequestWithNode(node *core.Node) v2.DiscoveryRequest {
-	return v2.DiscoveryRequest{
+func getDiscoveryRequestWithNode(node *core.Node) *v2.DiscoveryRequest {
+	return &v2.DiscoveryRequest{
 		Node:          node,
 		VersionInfo:   "version",
 		ResourceNames: []string{resource1, resource2},

@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strings"
 
+	v2 "github.com/envoyproxy/go-control-plane/pkg/resource/v2"
+	v3 "github.com/envoyproxy/go-control-plane/pkg/resource/v3"
 	"github.com/envoyproxy/xds-relay/internal/app/metrics"
 	"github.com/envoyproxy/xds-relay/internal/app/transport"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -49,9 +51,16 @@ func New(config *aggregationv1.KeyerConfiguration, scope tally.Scope) Mapper {
 
 // GetKey converts a request into an aggregated key
 func (mapper *mapper) GetKey(request transport.Request) (string, error) {
-	if request.GetTypeURL() == "" {
+	typeURL := request.GetTypeURL()
+	if typeURL == "" {
 		mapper.scope.Counter(metrics.MapperError).Inc(1)
 		return "", fmt.Errorf("typeURL is empty")
+	}
+
+	// A known issue (https://github.com/envoyproxy/envoy/issues/7529) causes envoy to generate
+	// EDS requests without resource_names, which could affect certain fragment rules.
+	if isEDS(typeURL) && len(request.GetResourceNames()) == 0 {
+		return "", fmt.Errorf("resource names is empty")
 	}
 
 	var resultFragments []string
@@ -82,6 +91,10 @@ func (mapper *mapper) GetKey(request transport.Request) (string, error) {
 
 	mapper.scope.Counter(metrics.MapperSuccess).Inc(1)
 	return strings.Join(resultFragments, separator), nil
+}
+
+func isEDS(typeURL string) bool {
+	return v2.EndpointType == typeURL || v3.EndpointType == typeURL
 }
 
 func isMatch(matchPredicate *matchPredicate, typeURL string, req transport.Request) (bool, error) {

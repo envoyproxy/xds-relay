@@ -29,6 +29,7 @@ func (s *streamv2) SendMsg(version string, nonce string) error {
 	msg := s.initialRequest.GetRaw().V2
 	msg.VersionInfo = version
 	msg.ResponseNonce = nonce
+	msg.ErrorDetail = nil
 	s.logger.With(
 		"request_type", msg.GetTypeUrl(),
 		"request_version", msg.GetVersionInfo(),

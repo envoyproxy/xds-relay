@@ -15,7 +15,7 @@ import (
 )
 
 type mockClientV3 struct {
-	errorOnStreamCreate error
+	errorOnStreamCreate []error
 	receiveChan         chan *v2.DiscoveryResponse
 	sendCb              func(m interface{}) error
 }
@@ -27,7 +27,12 @@ type mockGrpcStreamV3 struct {
 }
 
 func (stream *mockGrpcStreamV3) SendMsg(m interface{}) error {
-	return stream.sendCb(m)
+	select {
+	case <-stream.ctx.Done():
+		return nil
+	default:
+		return stream.sendCb(m)
+	}
 }
 
 func (stream *mockGrpcStreamV3) RecvMsg(m interface{}) error {
@@ -74,8 +79,10 @@ func (stream *mockGrpcStreamV3) Context() context.Context {
 func (c *mockClientV3) StreamListeners(
 	ctx context.Context,
 	opts ...grpc.CallOption) (listenerservice.ListenerDiscoveryService_StreamListenersClient, error) {
-	if c.errorOnStreamCreate != nil {
-		return nil, c.errorOnStreamCreate
+	if c.errorOnStreamCreate != nil && len(c.errorOnStreamCreate) != 0 {
+		e := c.errorOnStreamCreate[0]
+		c.errorOnStreamCreate = c.errorOnStreamCreate[1:]
+		return nil, e
 	}
 	return &mockGrpcStreamV3{ctx: ctx, receiveChan: c.receiveChan, sendCb: c.sendCb}, nil
 }
@@ -83,8 +90,10 @@ func (c *mockClientV3) StreamListeners(
 func (c *mockClientV3) StreamClusters(
 	ctx context.Context,
 	opts ...grpc.CallOption) (clusterservice.ClusterDiscoveryService_StreamClustersClient, error) {
-	if c.errorOnStreamCreate != nil {
-		return nil, c.errorOnStreamCreate
+	if c.errorOnStreamCreate != nil && len(c.errorOnStreamCreate) != 0 {
+		e := c.errorOnStreamCreate[0]
+		c.errorOnStreamCreate = c.errorOnStreamCreate[1:]
+		return nil, e
 	}
 	return &mockGrpcStreamV3{ctx: ctx, receiveChan: c.receiveChan, sendCb: c.sendCb}, nil
 }
@@ -92,8 +101,10 @@ func (c *mockClientV3) StreamClusters(
 func (c *mockClientV3) StreamRoutes(
 	ctx context.Context,
 	opts ...grpc.CallOption) (routeservice.RouteDiscoveryService_StreamRoutesClient, error) {
-	if c.errorOnStreamCreate != nil {
-		return nil, c.errorOnStreamCreate
+	if c.errorOnStreamCreate != nil && len(c.errorOnStreamCreate) != 0 {
+		e := c.errorOnStreamCreate[0]
+		c.errorOnStreamCreate = c.errorOnStreamCreate[1:]
+		return nil, e
 	}
 	return &mockGrpcStreamV3{ctx: ctx, receiveChan: c.receiveChan, sendCb: c.sendCb}, nil
 }
@@ -101,8 +112,10 @@ func (c *mockClientV3) StreamRoutes(
 func (c *mockClientV3) StreamEndpoints(
 	ctx context.Context,
 	opts ...grpc.CallOption) (endpointservice.EndpointDiscoveryService_StreamEndpointsClient, error) {
-	if c.errorOnStreamCreate != nil {
-		return nil, c.errorOnStreamCreate
+	if c.errorOnStreamCreate != nil && len(c.errorOnStreamCreate) != 0 {
+		e := c.errorOnStreamCreate[0]
+		c.errorOnStreamCreate = c.errorOnStreamCreate[1:]
+		return nil, e
 	}
 	return &mockGrpcStreamV3{ctx: ctx, receiveChan: c.receiveChan, sendCb: c.sendCb}, nil
 }

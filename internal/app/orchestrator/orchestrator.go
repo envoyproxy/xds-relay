@@ -8,6 +8,7 @@ package orchestrator
 
 import (
 	"context"
+	"strings"
 	"sync"
 
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
@@ -128,7 +129,7 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 
 	// If this is the first time we're seeing the request from the
 	// downstream client, initialize a channel to feed future responses.
-	responseChannel := o.downstreamResponseMap.createChannel(req)
+	watch := o.downstreamResponseMap.createWatch(req)
 
 	aggregatedKey, err := o.mapper.GetKey(req)
 	if err != nil {
@@ -138,7 +139,6 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 			"request_type", req.GetTypeURL(),
 			"node_id", req.GetNodeID(),
 		).Error(ctx, "failed to map to aggregated key")
-		metrics.OrchestratorUnaggregatedWatchErrorsSubscope(o.scope).Counter(metrics.ErrorUnaggregatedKey).Inc(1)
 
 		// TODO (https://github.com/envoyproxy/xds-relay/issues/56)
 		// Support unnaggregated keys.
@@ -166,6 +166,23 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 	}
 	metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchCreated).Inc(1)
 
+	// Log + stat to investigate NACK behavior
+	if isNackRequest(req) {
+		resourceString := ""
+		if req.GetResourceNames() != nil {
+			resourceString = strings.Join(req.GetResourceNames()[:], ",")
+		}
+		o.logger.With(
+			"request_version", req.GetVersionInfo(),
+			"resource_names", resourceString,
+			"nonce", req.GetResponseNonce(),
+			"request_type", req.GetTypeURL(),
+			"error", req.GetError(),
+			"aggregated_key", aggregatedKey,
+		).Debug(ctx, "NACK request")
+		metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorNackWatchCreated).Inc(1)
+	}
+
 	// Check if we have a cached response first.
 	cached, err := o.cache.Fetch(aggregatedKey)
 	if err != nil {
@@ -173,11 +190,13 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 		o.logger.With("error", err).With("aggregated_key", aggregatedKey).Warn(ctx, "failed to fetch aggregated key")
 	}
 
-	if cached != nil && cached.Resp != nil && cached.Resp.GetPayloadVersion() != req.GetVersionInfo() {
+	if cached != nil && cached.Resp != nil &&
+		cached.Resp.GetPayloadVersion() != req.GetVersionInfo() &&
+		req.GetError() == nil {
 		// If we have a cached response and the version is different,
 		// immediately push the result to the response channel.
 		go func() {
-			err := responseChannel.addResponse(cached.Resp)
+			err := watch.Send(cached.Resp)
 			if err != nil {
 				// Sanity check that the channel isn't blocked. This shouldn't
 				// ever happen since the channel is newly created. Regardless,
@@ -194,32 +213,23 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 	// Check if we have a upstream stream open for this aggregated key. If not,
 	// open a stream with the representative request.
 	if !o.upstreamResponseMap.exists(aggregatedKey) {
-		upstreamResponseChan, shutdown, err := o.upstreamClient.OpenStream(req)
-		if err != nil {
-			// TODO implement retry/back-off logic on error scenario.
-			// https://github.com/envoyproxy/xds-relay/issues/68
-			o.logger.With(
-				"error", err,
-				"aggregated_key", aggregatedKey,
-			).Error(ctx, "Failed to open stream to origin server")
+		upstreamResponseChan, shutdown := o.upstreamClient.OpenStream(req, aggregatedKey)
+		respChannel, upstreamOpenedPreviously := o.upstreamResponseMap.add(aggregatedKey, upstreamResponseChan)
+		if upstreamOpenedPreviously {
+			// A stream was opened previously due to a race between
+			// concurrent downstreams for the same aggregated key, between
+			// exists and add operations. In this event, simply close the
+			// slower stream and return the existing one.
+			shutdown()
 		} else {
-			respChannel, upstreamOpenedPreviously := o.upstreamResponseMap.add(aggregatedKey, upstreamResponseChan)
-			if upstreamOpenedPreviously {
-				// A stream was opened previously due to a race between
-				// concurrent downstreams for the same aggregated key, between
-				// exists and add operations. In this event, simply close the
-				// slower stream and return the existing one.
-				shutdown()
-			} else {
-				// Spin up a go routine to watch for upstream responses.
-				// One routine is opened per aggregate key.
-				o.logger.With("aggregated_key", aggregatedKey).Debug(ctx, "watching upstream")
-				go o.watchUpstream(ctx, aggregatedKey, respChannel.response, respChannel.done, shutdown)
-			}
+			// Spin up a go routine to watch for upstream responses.
+			// One routine is opened per aggregate key.
+			o.logger.With("aggregated_key", aggregatedKey).Debug(ctx, "watching upstream")
+			go o.watchUpstream(ctx, aggregatedKey, respChannel.response, respChannel.done, shutdown)
 		}
 	}
 
-	return responseChannel.watch, o.onCancelWatch(aggregatedKey, req)
+	return watch, o.onCancelWatch(aggregatedKey, req)
 }
 
 // GetReadOnlyCache returns the request/response cache with only read-only methods exposed.
@@ -340,7 +350,7 @@ func (o *orchestrator) fanout(resp transport.Response, watchers map[transport.Re
 			defer wg.Done()
 			// TODO https://github.com/envoyproxy/xds-relay/issues/119
 			if channel, ok := o.downstreamResponseMap.get(watch); ok {
-				if err := channel.addResponse(resp); err != nil {
+				if err := channel.Send(resp); err != nil {
 					// If the channel is blocked, we simply drop subsequent
 					// requests and error. Alternative possibilities are
 					// discussed here:
@@ -396,4 +406,8 @@ func (o *orchestrator) onCancelWatch(aggregatedKey string, req transport.Request
 func (o *orchestrator) shutdown(ctx context.Context) {
 	<-ctx.Done()
 	o.upstreamResponseMap.deleteAll()
+}
+
+func isNackRequest(req transport.Request) bool {
+	return req.GetError() != nil
 }
