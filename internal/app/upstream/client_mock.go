@@ -72,6 +72,7 @@ func NewMockClientEDS(
 		logger:      log.MockLogger,
 		scope:       scope,
 		shutdown:    make(<-chan struct{}),
+		allStreams:  make(map[string]string, 1),
 	}
 }
 
