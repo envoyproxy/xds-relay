@@ -139,7 +139,6 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 			"request_type", req.GetTypeURL(),
 			"node_id", req.GetNodeID(),
 		).Error(ctx, "failed to map to aggregated key")
-		metrics.OrchestratorUnaggregatedWatchErrorsSubscope(o.scope).Counter(metrics.ErrorUnaggregatedKey).Inc(1)
 
 		// TODO (https://github.com/envoyproxy/xds-relay/issues/56)
 		// Support unnaggregated keys.
