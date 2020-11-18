@@ -23,7 +23,7 @@ type StringMatch = aggregationv1.StringMatch
 
 const (
 	clusterTypeURL  = "type.googleapis.com/envoy.api.v2.Cluster"
-	endpointTypeURL = "type.googleapis.com/envoy.api.v2.ClusterLoadAssignmentr"
+	endpointTypeURL = "type.googleapis.com/envoy.api.v2.ClusterLoadAssignment"
 	listenerTypeURL = "type.googleapis.com/envoy.api.v2.Listener"
 	nodeid          = "nodeid"
 	nodecluster     = "cluster"

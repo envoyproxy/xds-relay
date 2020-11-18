@@ -2,6 +2,8 @@ package mapper
 
 import (
 	"fmt"
+	v2 "github.com/envoyproxy/go-control-plane/pkg/resource/v2"
+	v3 "github.com/envoyproxy/go-control-plane/pkg/resource/v3"
 	"regexp"
 	"strings"
 
@@ -35,8 +37,6 @@ type mapper struct {
 }
 
 const (
-	edsTypeURLV2 = "type.googleapis.com/envoy.api.v2.ClusterLoadAssignmentr"
-	edsTypeURLV3 = "type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment"
 	separator    = "_"
 )
 
@@ -93,7 +93,7 @@ func (mapper *mapper) GetKey(request transport.Request) (string, error) {
 }
 
 func isEDS(typeURL string) bool {
-	return edsTypeURLV2 == typeURL || edsTypeURLV3 == typeURL
+	return v2.EndpointType == typeURL || v3.EndpointType == typeURL
 }
 
 func isMatch(matchPredicate *matchPredicate, typeURL string, req transport.Request) (bool, error) {
