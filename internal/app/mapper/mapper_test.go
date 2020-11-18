@@ -23,6 +23,7 @@ type StringMatch = aggregationv1.StringMatch
 
 const (
 	clusterTypeURL  = "type.googleapis.com/envoy.api.v2.Cluster"
+	endpointTypeURL = "type.googleapis.com/envoy.api.v2.ClusterLoadAssignment"
 	listenerTypeURL = "type.googleapis.com/envoy.api.v2.Listener"
 	nodeid          = "nodeid"
 	nodecluster     = "cluster"
@@ -1281,6 +1282,16 @@ var _ = Describe("GetKey", func() {
 		key, err := mapper.GetKey(transport.NewRequestV2(request))
 		Expect(key).To(Equal(""))
 		Expect(err).Should(Equal(fmt.Errorf("typeURL is empty")))
+	})
+
+	It("EDS Resource names should not be empty", func() {
+		mapper := New(&KeyerConfiguration{}, stats.NewMockScope(""))
+		request := getDiscoveryRequest()
+		request.TypeUrl = endpointTypeURL
+		request.ResourceNames = nil
+		key, err := mapper.GetKey(transport.NewRequestV2(request))
+		Expect(key).To(Equal(""))
+		Expect(err).Should(Equal(fmt.Errorf("resource names is empty")))
 	})
 })
 
