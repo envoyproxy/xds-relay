@@ -445,6 +445,10 @@ func TestOpenStreamShouldSendTheResponseOnTheChannel(t *testing.T) {
 	blockUntilClean(resp, func() {
 		close(responseChan)
 	})
+
+	v, e = client.GetStream("aggregated_key")
+	assert.Equal(t, "", v)
+	assert.Error(t, e)
 }
 
 func TestOpenStreamShouldSendTheResponseOnTheChannelV3(t *testing.T) {
@@ -481,6 +485,10 @@ func TestOpenStreamShouldSendTheResponseOnTheChannelV3(t *testing.T) {
 	blockUntilClean(resp, func() {
 		close(responseChan)
 	})
+
+	v, e = client.GetStream("aggregated_key")
+	assert.Equal(t, "", v)
+	assert.Error(t, e)
 }
 
 func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonce(t *testing.T) {
