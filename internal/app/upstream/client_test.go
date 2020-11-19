@@ -31,7 +31,7 @@ func TestGetStreamShouldReturnErrorWhenStreamIsNotFound(t *testing.T) {
 	defer cancel()
 	client := createMockClient(ctx)
 
-	v, e := client.GetStream("notfound")
+	v, e := client.GetStreamVersion("notfound")
 	assert.Equal(t, "", v)
 	assert.Error(t, e)
 }
@@ -88,7 +88,7 @@ func TestOpenStreamShouldRetryOnStreamCreationFailure(t *testing.T) {
 					break
 				}
 			}
-			v, e := client.GetStream("aggregated_key")
+			v, e := client.GetStreamVersion("aggregated_key")
 			assert.Equal(t, "", v)
 			assert.NoError(t, e)
 			done()
@@ -127,7 +127,7 @@ func TestOpenStreamShouldRetryOnStreamCreationFailureV3(t *testing.T) {
 					break
 				}
 			}
-			v, e := client.GetStream("aggregated_key")
+			v, e := client.GetStreamVersion("aggregated_key")
 			assert.Equal(t, "", v)
 			assert.NoError(t, e)
 			done()
@@ -436,7 +436,7 @@ func TestOpenStreamShouldSendTheResponseOnTheChannel(t *testing.T) {
 	val := <-resp
 	assert.Equal(t, val.Get().V2, response)
 
-	v, e := client.GetStream("aggregated_key")
+	v, e := client.GetStreamVersion("aggregated_key")
 	assert.Equal(t, "v", v)
 	assert.NoError(t, e)
 
@@ -446,7 +446,7 @@ func TestOpenStreamShouldSendTheResponseOnTheChannel(t *testing.T) {
 		close(responseChan)
 	})
 
-	v, e = client.GetStream("aggregated_key")
+	v, e = client.GetStreamVersion("aggregated_key")
 	assert.Equal(t, "", v)
 	assert.Error(t, e)
 }
@@ -476,7 +476,7 @@ func TestOpenStreamShouldSendTheResponseOnTheChannelV3(t *testing.T) {
 	val := <-resp
 	assert.Equal(t, val.Get().V3, response)
 
-	v, e := client.GetStream("aggregated_key")
+	v, e := client.GetStreamVersion("aggregated_key")
 	assert.Equal(t, "v", v)
 	assert.NoError(t, e)
 
@@ -486,7 +486,7 @@ func TestOpenStreamShouldSendTheResponseOnTheChannelV3(t *testing.T) {
 		close(responseChan)
 	})
 
-	v, e = client.GetStream("aggregated_key")
+	v, e = client.GetStreamVersion("aggregated_key")
 	assert.Equal(t, "", v)
 	assert.Error(t, e)
 }

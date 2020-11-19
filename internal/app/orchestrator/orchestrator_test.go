@@ -34,7 +34,7 @@ func (m mockSimpleUpstreamClient) OpenStream(req transport.Request, key string) 
 	return m.responseChan, func() {}
 }
 
-func (m mockSimpleUpstreamClient) GetStream(string) (string, error) {
+func (m mockSimpleUpstreamClient) GetStreamVersion(string) (string, error) {
 	return "", nil
 }
 
@@ -46,7 +46,7 @@ type mockMultiStreamUpstreamClient struct {
 	mapper mapper.Mapper
 }
 
-func (m mockMultiStreamUpstreamClient) GetStream(string) (string, error) {
+func (m mockMultiStreamUpstreamClient) GetStreamVersion(string) (string, error) {
 	return "", nil
 }
 

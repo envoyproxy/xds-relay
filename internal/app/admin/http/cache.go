@@ -182,7 +182,7 @@ func cacheDumpHandler(o orchestrator.Orchestrator) http.HandlerFunc {
 func streamDumpHandler(o orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		key := filepath.Base(req.URL.Path)
-		version, err := o.GetStream(key)
+		version, err := o.GetStreamVersion(key)
 		if err != nil {
 			w.WriteHeader(http.StatusNotFound)
 			errMessage, _ := stringify.InterfaceToString(&marshallable.Error{

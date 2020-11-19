@@ -55,7 +55,7 @@ type Client interface {
 	// GetStream is used as a debugging tool to get the latest state of the stream for an aggregated key
 	// If the aggregated key is absent, then either the stream was not created or was already cancelled.
 	// If present, returns the current version of the response from upstream
-	GetStream(string) (string, error)
+	GetStreamVersion(string) (string, error)
 }
 
 type client struct {
@@ -150,7 +150,7 @@ func New(
 	}, nil
 }
 
-func (m *client) GetStream(key string) (string, error) {
+func (m *client) GetStreamVersion(key string) (string, error) {
 	if v, ok := m.allStreams[key]; ok {
 		return v, nil
 	}
