@@ -32,6 +32,7 @@ func NewMockClient(
 		logger:      log.MockLogger,
 		scope:       scope,
 		shutdown:    make(<-chan struct{}),
+		allStreams:  make(map[string]string, 1),
 	}
 }
 
@@ -53,6 +54,7 @@ func NewMockClientV3(
 		logger:      log.MockLogger,
 		scope:       scope,
 		shutdown:    make(<-chan struct{}),
+		allStreams:  make(map[string]string, 1),
 	}
 }
 
@@ -70,6 +72,7 @@ func NewMockClientEDS(
 		logger:      log.MockLogger,
 		scope:       scope,
 		shutdown:    make(<-chan struct{}),
+		allStreams:  make(map[string]string, 1),
 	}
 }
 

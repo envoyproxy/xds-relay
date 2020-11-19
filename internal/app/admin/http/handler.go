@@ -24,7 +24,7 @@ type Handler struct {
 }
 
 func getHandlers(bootstrap *bootstrapv1.Bootstrap,
-	orchestrator *orchestrator.Orchestrator,
+	orchestrator orchestrator.Orchestrator,
 	weboff chan bool,
 	logger log.Logger) []Handler {
 	handlers := []Handler{
@@ -48,7 +48,7 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 		},
 		{
 			"/cache/eds",
-			"print the eds payload for a particular key. usage: `/eds/<key>`",
+			"print the eds payload for a particular key. usage: `/cache/eds/<key>`",
 			edsDumpHandler(orchestrator),
 			true,
 		},
@@ -56,6 +56,12 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 			"/cache/keys",
 			"print all keys",
 			keyDumpHandler(orchestrator),
+			true,
+		},
+		{
+			"/cache/stream",
+			"print all live streams to the upstream control plane usage: `/cache/streams/<key>`",
+			streamDumpHandler(orchestrator),
 			true,
 		},
 		{
@@ -102,7 +108,7 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 }
 
 func RegisterHandlers(bootstrapConfig *bootstrapv1.Bootstrap,
-	orchestrator *orchestrator.Orchestrator,
+	orchestrator orchestrator.Orchestrator,
 	weboff chan bool,
 	logger log.Logger) {
 	for _, handler := range getHandlers(bootstrapConfig, orchestrator, weboff, logger) {
