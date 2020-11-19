@@ -52,7 +52,7 @@ type Client interface {
 	// All such scenarios need to exit cleanly and are not considered an erroneous situation.
 	OpenStream(transport.Request, string) (<-chan transport.Response, func())
 
-	// GetStream is used as a debugging tool to get the latest state of the stream for an aggregated key
+	// GetStreamVersion is used as a debugging tool to get the latest state of the stream for an aggregated key
 	// If the aggregated key is absent, then either the stream was not created or was already cancelled.
 	// If present, returns the current version of the response from upstream
 	GetStreamVersion(string) (string, error)
