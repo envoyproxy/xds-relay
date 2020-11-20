@@ -146,7 +146,7 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 	assert.NoError(t, err)
 
 	rr := httptest.NewRecorder()
-	handler := cacheDumpHandler(orchestrator)
+	handler := cacheDumpHandler(&orchestrator)
 
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
@@ -192,7 +192,7 @@ func TestAdminServer_CacheDumpHandler_NotFound(t *testing.T) {
 	assert.NoError(t, err)
 
 	rr := httptest.NewRecorder()
-	handler := cacheDumpHandler(orchestrator)
+	handler := cacheDumpHandler(&orchestrator)
 
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
