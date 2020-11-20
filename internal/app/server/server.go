@@ -121,7 +121,7 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 
 	weboff := make(chan bool, 1)
 	weboff <- true
-	handler.RegisterHandlers(bootstrapConfig, orchestrator, weboff, logger)
+	handler.RegisterHandlers(bootstrapConfig, &orchestrator, weboff, logger)
 
 	defer close(weboff)
 

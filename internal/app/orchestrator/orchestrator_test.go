@@ -34,20 +34,12 @@ func (m mockSimpleUpstreamClient) OpenStream(req transport.Request, key string) 
 	return m.responseChan, func() {}
 }
 
-func (m mockSimpleUpstreamClient) GetStreamVersion(string) (string, error) {
-	return "", nil
-}
-
 type mockMultiStreamUpstreamClient struct {
 	ldsResponseChan <-chan transport.Response
 	cdsResponseChan <-chan transport.Response
 
 	t      *testing.T
 	mapper mapper.Mapper
-}
-
-func (m mockMultiStreamUpstreamClient) GetStreamVersion(string) (string, error) {
-	return "", nil
 }
 
 func (m mockMultiStreamUpstreamClient) OpenStream(

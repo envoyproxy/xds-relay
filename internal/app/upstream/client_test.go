@@ -26,16 +26,6 @@ func TestMain(m *testing.M) {
 	defer goleak.VerifyTestMain(m)
 }
 
-func TestGetStreamShouldReturnErrorWhenStreamIsNotFound(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	client := createMockClient(ctx)
-
-	v, e := client.GetStreamVersion("notfound")
-	assert.Equal(t, "", v)
-	assert.Error(t, e)
-}
-
 func TestOpenStreamShouldReturnErrorForInvalidTypeUrl(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -88,9 +78,6 @@ func TestOpenStreamShouldRetryOnStreamCreationFailure(t *testing.T) {
 					break
 				}
 			}
-			v, e := client.GetStreamVersion("aggregated_key")
-			assert.Equal(t, "", v)
-			assert.NoError(t, e)
 			done()
 			blockUntilClean(respCh, func() {})
 		})
@@ -127,9 +114,6 @@ func TestOpenStreamShouldRetryOnStreamCreationFailureV3(t *testing.T) {
 					break
 				}
 			}
-			v, e := client.GetStreamVersion("aggregated_key")
-			assert.Equal(t, "", v)
-			assert.NoError(t, e)
 			done()
 			blockUntilClean(respCh, func() {})
 		})
@@ -414,9 +398,7 @@ func TestOpenStreamShouldRetryIfSendFailsV3(t *testing.T) {
 func TestOpenStreamShouldSendTheResponseOnTheChannel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	responseChan := make(chan *v2.DiscoveryResponse)
-	response := &v2.DiscoveryResponse{
-		VersionInfo: "v",
-	}
+	response := &v2.DiscoveryResponse{}
 	client := createMockClientWithResponse(ctx, time.Second, responseChan, func(m interface{}) error {
 		select {
 		case <-ctx.Done():
@@ -436,27 +418,17 @@ func TestOpenStreamShouldSendTheResponseOnTheChannel(t *testing.T) {
 	val := <-resp
 	assert.Equal(t, val.Get().V2, response)
 
-	v, e := client.GetStreamVersion("aggregated_key")
-	assert.Equal(t, "v", v)
-	assert.NoError(t, e)
-
 	done()
 	cancel()
 	blockUntilClean(resp, func() {
 		close(responseChan)
 	})
-
-	v, e = client.GetStreamVersion("aggregated_key")
-	assert.Equal(t, "", v)
-	assert.Error(t, e)
 }
 
 func TestOpenStreamShouldSendTheResponseOnTheChannelV3(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	responseChan := make(chan *discoveryv3.DiscoveryResponse)
-	response := &discoveryv3.DiscoveryResponse{
-		VersionInfo: "v",
-	}
+	response := &discoveryv3.DiscoveryResponse{}
 	client := createMockClientWithResponseV3(ctx, time.Second, responseChan, func(m interface{}) error {
 		select {
 		case <-ctx.Done():
@@ -476,19 +448,11 @@ func TestOpenStreamShouldSendTheResponseOnTheChannelV3(t *testing.T) {
 	val := <-resp
 	assert.Equal(t, val.Get().V3, response)
 
-	v, e := client.GetStreamVersion("aggregated_key")
-	assert.Equal(t, "v", v)
-	assert.NoError(t, e)
-
 	done()
 	cancel()
 	blockUntilClean(resp, func() {
 		close(responseChan)
 	})
-
-	v, e = client.GetStreamVersion("aggregated_key")
-	assert.Equal(t, "", v)
-	assert.Error(t, e)
 }
 
 func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonce(t *testing.T) {

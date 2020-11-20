@@ -116,11 +116,11 @@ func TestAdminServer_EDSDumpHandler(t *testing.T) {
 	<-respChannel.GetChannel().V2
 	<-respChannelv3.GetChannel().V3
 
-	rr := getResponse(t, "eds", orchestrator)
+	rr := getResponse(t, "eds", &orchestrator)
 	assert.Equal(t, http.StatusOK, rr.Code)
 	verifyEdsLen(t, rr, 2)
 
-	rr = getResponse(t, "edsv3", orchestrator)
+	rr = getResponse(t, "edsv3", &orchestrator)
 	assert.Equal(t, http.StatusOK, rr.Code)
 	verifyEdsLen(t, rr, 2)
 
@@ -145,83 +145,8 @@ func TestAdminServer_EDSDumpHandler404(t *testing.T) {
 	)
 	orchestrator := orchestrator.NewMock(t, mapper, client, stats.NewMockScope("mock_orchestrator"))
 
-	rr := getResponse(t, "eds", orchestrator)
+	rr := getResponse(t, "eds", &orchestrator)
 	assert.Equal(t, http.StatusNotFound, rr.Code)
-}
-
-func TestAdminServer_StreamDumpHandler404(t *testing.T) {
-	ctx := context.Background()
-	mapper := mapper.NewMock(t)
-	upstreamEdsResponseChannel := make(chan *v2.DiscoveryResponse)
-	client := upstream.NewMock(
-		ctx,
-		upstream.CallOptions{SendTimeout: time.Second},
-		nil,
-		nil,
-		nil,
-		upstreamEdsResponseChannel,
-		nil,
-		func(m interface{}) error { return nil },
-		stats.NewMockScope("mock"),
-	)
-	o := orchestrator.NewMock(t, mapper, client, stats.NewMockScope("mock_orchestrator"))
-
-	req, err := http.NewRequest("GET", "/cache/stream/eds", nil)
-	assert.NoError(t, err)
-	rr := httptest.NewRecorder()
-	handler := streamDumpHandler(o)
-
-	handler.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusNotFound, rr.Code)
-}
-
-func TestAdminServer_StreamDumpHandler(t *testing.T) {
-	ctx := context.Background()
-	mapper := mapper.NewMock(t)
-	upstreamLdsResponseChannel := make(chan *v2.DiscoveryResponse)
-	client := upstream.NewMock(
-		ctx,
-		upstream.CallOptions{SendTimeout: time.Second},
-		nil,
-		upstreamLdsResponseChannel,
-		nil,
-		nil,
-		nil,
-		func(m interface{}) error { return nil },
-		stats.NewMockScope("mock"),
-	)
-	orchestrator := orchestrator.NewMock(t, mapper, client, stats.NewMockScope("mock_orchestrator"))
-
-	respChannel, cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcp.Request{
-		TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
-		Node: &corev2.Node{
-			Id:      "test-1",
-			Cluster: "test-prod",
-		},
-	}))
-
-	upstreamLdsResponseChannel <- &v2.DiscoveryResponse{
-		VersionInfo: "1",
-		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
-		Resources:   []*any.Any{},
-	}
-
-	<-respChannel.GetChannel().V2
-
-	req, err := http.NewRequest("GET", "/cache/stream/test_lds", nil)
-	assert.NoError(t, err)
-	rr := httptest.NewRecorder()
-	handler := streamDumpHandler(orchestrator)
-
-	handler.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusOK, rr.Code)
-
-	resp := &marshallable.Stream{}
-	_ = json.Unmarshal(rr.Body.Bytes(), resp)
-	assert.Equal(t, "test_lds", resp.Key)
-	assert.Equal(t, "1", resp.Version)
-
-	cancelWatch()
 }
 
 func TestAdminServer_KeyDumpHandler(t *testing.T) {
@@ -242,7 +167,7 @@ func TestAdminServer_KeyDumpHandler(t *testing.T) {
 	)
 	orchestrator := orchestrator.NewMock(t, mapper, client, stats.NewMockScope("mock_orchestrator"))
 
-	verifyKeyLen(t, 0, orchestrator)
+	verifyKeyLen(t, 0, &orchestrator)
 
 	respChannel, cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
@@ -273,7 +198,7 @@ func TestAdminServer_KeyDumpHandler(t *testing.T) {
 	<-respChannel.GetChannel().V2
 	<-respChannel2.GetChannel().V2
 
-	verifyKeyLen(t, 2, orchestrator)
+	verifyKeyLen(t, 2, &orchestrator)
 	cancelWatch()
 	cancelWatch2()
 }
@@ -362,7 +287,7 @@ func testAdminServerCacheDumpHelper(t *testing.T, urls []string) {
 			assert.NoError(t, err)
 
 			rr := httptest.NewRecorder()
-			handler := cacheDumpHandler(orchestrator)
+			handler := cacheDumpHandler(&orchestrator)
 
 			handler.ServeHTTP(rr, req)
 			assert.Equal(t, http.StatusOK, rr.Code)
@@ -458,7 +383,7 @@ func testAdminServerCacheDumpHandlerV3(t *testing.T, urls []string) {
 			assert.NoError(t, err)
 
 			rr := httptest.NewRecorder()
-			handler := cacheDumpHandler(orchestrator)
+			handler := cacheDumpHandler(&orchestrator)
 
 			handler.ServeHTTP(rr, req)
 			assert.Equal(t, http.StatusOK, rr.Code)
@@ -571,7 +496,7 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffix_NotFound(t *testing.T) {
 		assert.NoError(t, err)
 
 		rr := httptest.NewRecorder()
-		handler := cacheDumpHandler(orchestrator)
+		handler := cacheDumpHandler(&orchestrator)
 
 		handler.ServeHTTP(rr, req)
 		assert.Equal(t, http.StatusOK, rr.Code)
@@ -629,7 +554,7 @@ func verifyEdsLen(t *testing.T, rr *httptest.ResponseRecorder, len int) {
 	assert.Len(t, eds.Endpoints, len)
 }
 
-func getResponse(t *testing.T, key string, o orchestrator.Orchestrator) *httptest.ResponseRecorder {
+func getResponse(t *testing.T, key string, o *orchestrator.Orchestrator) *httptest.ResponseRecorder {
 	req, err := http.NewRequest("GET", "/cache/eds/"+key, nil)
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
@@ -667,7 +592,7 @@ func getEndpointV3(address string) *endpointv3.LbEndpoint_Endpoint {
 	}
 }
 
-func verifyKeyLen(t *testing.T, len int, o orchestrator.Orchestrator) {
+func verifyKeyLen(t *testing.T, len int, o *orchestrator.Orchestrator) {
 	req, err := http.NewRequest("GET", "/cache/keys", nil)
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
