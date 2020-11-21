@@ -2,6 +2,7 @@ package cache
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -75,7 +76,7 @@ var testDiscoveryResponse = v2.DiscoveryResponse{
 
 var testResource = Resource{
 	Resp:     transport.NewResponseV2(&v2.DiscoveryRequest{}, &testDiscoveryResponse),
-	Requests: make(map[transport.Request]bool),
+	Requests: &sync.Map{},
 }
 
 func TestAddRequestAndFetch(t *testing.T) {
@@ -119,9 +120,9 @@ func TestSetResponseAndFetch(t *testing.T) {
 	assert.EqualError(t, err, "no value found for key: key_A")
 	assert.Nil(t, resource)
 
-	requests, err := cache.SetResponse(testKeyA, testResource.Resp)
+	m, err := cache.SetResponse(testKeyA, testResource.Resp)
 	assert.NoError(t, err)
-	assert.Nil(t, requests)
+	assert.Equal(t, 0, getLength(m))
 
 	resource, err = cache.Fetch(testKeyA)
 	assert.NoError(t, err)
@@ -142,9 +143,11 @@ func TestAddRequestAndSetResponse(t *testing.T) {
 
 	requests, err := cache.SetResponse(testKeyA, testResource.Resp)
 	assert.NoError(t, err)
-	assert.Equal(t, 2, len(requests))
-	assert.Equal(t, true, requests[reqA])
-	assert.Equal(t, true, requests[reqB])
+	assert.Equal(t, 2, getLength(requests))
+	_, ok := requests.Load(reqA)
+	assert.True(t, ok)
+	_, ok = requests.Load(reqB)
+	assert.True(t, ok)
 
 	resource, err := cache.Fetch(testKeyA)
 	assert.NoError(t, err)
@@ -270,8 +273,17 @@ func TestDeleteRequest(t *testing.T) {
 
 	requests, err := cache.SetResponse(testKeyA, testResource.Resp)
 	assert.NoError(t, err)
-	assert.Equal(t, 0, len(requests))
+	assert.Equal(t, 0, getLength(requests))
 
 	err = cache.DeleteRequest(testKeyB, transport.NewRequestV2(&testRequestB))
 	assert.NoError(t, err)
+}
+
+func getLength(m *sync.Map) int {
+	count := 0
+	m.Range(func(key, value interface{}) bool {
+		count++
+		return true
+	})
+	return count
 }

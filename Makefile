@@ -6,7 +6,7 @@ setup:
 
 .PHONY: compile
 compile: setup  ## Compiles the binary
-	go build -o ./bin/${SERVICE_NAME}
+	go build -race -o ./bin/${SERVICE_NAME}
 
 .PHONY: install
 install: ## Installs dependencies
@@ -14,7 +14,7 @@ install: ## Installs dependencies
 
 .PHONY: unit
 unit: ## Run all unit tests with coverage report
-	go test -v -cover ./...
+	go test -race -v -cover ./...
 
 .PHONY: integration-tests
 integration-tests:  ## Run integration tests

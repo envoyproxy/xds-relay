@@ -342,9 +342,9 @@ func (o *orchestrator) watchUpstream(
 
 // fanout pushes the response to the response channels of all open downstream
 // watchers in parallel.
-func (o *orchestrator) fanout(resp transport.Response, watchers map[transport.Request]bool, aggregatedKey string) {
+func (o *orchestrator) fanout(resp transport.Response, watchers *sync.Map, aggregatedKey string) {
 	var wg sync.WaitGroup
-	for watch := range watchers {
+	watchers.Range(func(watch, value interface{}) bool {
 		wg.Add(1)
 		go func(watch transport.Request) {
 			defer wg.Done()
@@ -368,8 +368,10 @@ func (o *orchestrator) fanout(resp transport.Response, watchers map[transport.Re
 				).Debug(context.Background(), "response sent")
 				metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchFanouts).Inc(1)
 			}
-		}(watch)
-	}
+		}(watch.(transport.Request))
+		return true
+	})
+
 	// Wait for all fanouts to complete.
 	wg.Wait()
 }
@@ -382,7 +384,7 @@ func (o *orchestrator) onCacheEvicted(key string, resource cache.Resource) {
 	// problem: https://github.com/envoyproxy/xds-relay/issues/71
 	metrics.OrchestratorCacheEvictSubscope(o.scope, key).Counter(metrics.OrcheestratorCacheEvictCount).Inc(1)
 	metrics.OrchestratorCacheEvictSubscope(o.scope, key).Counter(
-		metrics.OrchestratorOnCacheEvictedRequestCount).Inc(int64(len(resource.Requests)))
+		metrics.OrchestratorOnCacheEvictedRequestCount).Inc(int64(getLength(resource.Requests)))
 	o.logger.With("aggregated_key", key).Debug(context.Background(), "cache eviction called")
 	o.downstreamResponseMap.deleteAll(resource.Requests)
 	o.upstreamResponseMap.delete(key)
@@ -410,4 +412,13 @@ func (o *orchestrator) shutdown(ctx context.Context) {
 
 func isNackRequest(req transport.Request) bool {
 	return req.GetError() != nil
+}
+
+func getLength(m *sync.Map) int {
+	count := 0
+	m.Range(func(key, value interface{}) bool {
+		count++
+		return true
+	})
+	return count
 }
