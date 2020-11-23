@@ -17,11 +17,15 @@ func NewMock(t *testing.T) Mapper {
 
 func NewMockMapper(t *testing.T) Mapper {
 	bytes, err := ioutil.ReadFile("testdata/aggregation_rules.yaml") // key on request type
-	assert.NoError(t, err)
+	if t != nil {
+		assert.NoError(t, err)
+	}
 
 	var config aggregationv1.KeyerConfiguration
 	err = yamlproto.FromYAMLToKeyerConfiguration(string(bytes), &config)
-	assert.NoError(t, err)
+	if t != nil {
+		assert.NoError(t, err)
+	}
 
 	return New(&config, stats.NewMockScope(""))
 }

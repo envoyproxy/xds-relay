@@ -355,8 +355,7 @@ func (o *orchestrator) fanout(resp transport.Response, watchers map[transport.Re
 					// requests and error. Alternative possibilities are
 					// discussed here:
 					// https://github.com/envoyproxy/xds-relay/pull/53#discussion_r420325553
-					o.logger.With("aggregated_key", aggregatedKey).With("node_id", watch.GetNodeID()).
-						Error(context.Background(), "channel blocked during fanout")
+
 					metrics.OrchestratorWatchErrorsSubscope(o.scope, aggregatedKey).Counter(metrics.ErrorChannelFull).Inc(1)
 					return
 				}
