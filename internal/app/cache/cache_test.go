@@ -2,6 +2,8 @@ package cache
 
 import (
 	"fmt"
+	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -274,4 +276,29 @@ func TestDeleteRequest(t *testing.T) {
 
 	err = cache.DeleteRequest(testKeyB, transport.NewRequestV2(&testRequestB))
 	assert.NoError(t, err)
+}
+
+func BenchmarkCacheRetrieval(b *testing.B) {
+	b.StopTimer()
+	cache, _ := NewCache(1, testOnEvict, time.Second*60, log.MockLogger, stats.NewMockScope("cache"))
+	countStr := os.Getenv("MAX_DISCOVERY_REQUESTS")
+	count, _ := strconv.ParseInt(countStr, 10, 64)
+	for i := 0; i < int(count); i++ {
+		_ = cache.AddRequest(testKeyA, transport.NewRequestV2(&v2.DiscoveryRequest{}))
+	}
+
+	r, _ := cache.Fetch(testKeyA)
+	for req := range r.Requests {
+		cache.DeleteRequest(testKeyA, req)
+	}
+
+	_ = cache.AddRequest(testKeyA, transport.NewRequestV2(&v2.DiscoveryRequest{}))
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		counter := 0
+		r, _ = cache.Fetch(testKeyA)
+		for range r.Requests {
+			counter++
+		}
+	}
 }
