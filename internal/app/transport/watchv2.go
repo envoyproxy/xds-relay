@@ -50,3 +50,7 @@ func (w *watchV2) Send(s Response) error {
 		return fmt.Errorf("channel is blocked")
 	}
 }
+
+func (w *watchV2) IsClosed() bool {
+	return w.closed
+}

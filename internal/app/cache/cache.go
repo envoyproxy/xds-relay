@@ -21,13 +21,10 @@ type Cache interface {
 	Fetch(key string) (*Resource, error)
 
 	// SetResponse sets the cache response and returns the list of requests.
-	SetResponse(key string, resp transport.Response) (map[transport.Request]bool, error)
+	SetResponse(key string, response transport.Response) error
 
 	// AddRequest adds the request to the cache.
 	AddRequest(key string, req transport.Request) error
-
-	// DeleteRequest removes the given request from any cache entries it's present in.
-	DeleteRequest(key string, req transport.Request) error
 
 	// GetReadOnlyCache returns a copy of the cache that only exposes read-only methods in its interface.
 	GetReadOnlyCache() ReadOnlyCache
@@ -49,8 +46,8 @@ type cache struct {
 
 type Resource struct {
 	Resp           transport.Response
-	Requests       map[transport.Request]bool
 	ExpirationTime time.Time
+	TypeURL        string
 }
 
 // OnEvictFunc is a callback function for each eviction. Receives the key and cache value when called.
@@ -145,7 +142,7 @@ func (c *cache) Fetch(key string) (*Resource, error) {
 	return &resource, nil
 }
 
-func (c *cache) SetResponse(key string, response transport.Response) (map[transport.Request]bool, error) {
+func (c *cache) SetResponse(key string, response transport.Response) error {
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
 	metrics.CacheSetSubscope(c.scope, key).Counter(metrics.CacheSetAttempt).Inc(1)
@@ -154,7 +151,7 @@ func (c *cache) SetResponse(key string, response transport.Response) (map[transp
 		resource := Resource{
 			Resp:           response,
 			ExpirationTime: c.getExpirationTime(time.Now()),
-			Requests:       make(map[transport.Request]bool),
+			TypeURL:        response.GetTypeURL(),
 		}
 		c.cache.Add(key, resource)
 		metrics.CacheSetSubscope(c.scope, key).Counter(metrics.CacheSetSuccess).Inc(1)
@@ -162,12 +159,12 @@ func (c *cache) SetResponse(key string, response transport.Response) (map[transp
 			"aggregated_key", key,
 			"response_type", response.GetTypeURL(),
 		).Debug(context.Background(), "set response")
-		return nil, nil
+		return nil
 	}
 	resource, ok := value.(Resource)
 	if !ok {
 		metrics.CacheSetSubscope(c.scope, key).Counter(metrics.CacheSetError).Inc(1)
-		return nil, fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
+		return fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
 	resource.Resp = response
 	resource.ExpirationTime = c.getExpirationTime(time.Now())
@@ -176,7 +173,7 @@ func (c *cache) SetResponse(key string, response transport.Response) (map[transp
 		"aggregated_key", key, "response_type", response.GetTypeURL(),
 	).Debug(context.Background(), "set response")
 	metrics.CacheSetSubscope(c.scope, key).Counter(metrics.CacheSetSuccess).Inc(1)
-	return resource.Requests, nil
+	return nil
 }
 
 func (c *cache) AddRequest(key string, req transport.Request) error {
@@ -185,10 +182,8 @@ func (c *cache) AddRequest(key string, req transport.Request) error {
 	metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheAddAttempt).Inc(1)
 	value, found := c.cache.Get(key)
 	if !found {
-		requests := make(map[transport.Request]bool)
-		requests[req] = true
 		resource := Resource{
-			Requests:       requests,
+			TypeURL:        req.GetTypeURL(),
 			ExpirationTime: c.getExpirationTime(time.Now()),
 		}
 		c.cache.Add(key, resource)
@@ -205,7 +200,6 @@ func (c *cache) AddRequest(key string, req transport.Request) error {
 		metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheAddError).Inc(1)
 		return fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
-	resource.Requests[req] = true
 	c.cache.Add(key, resource)
 	c.logger.With(
 		"aggregated_key", key,
@@ -213,30 +207,6 @@ func (c *cache) AddRequest(key string, req transport.Request) error {
 		"request_type", req.GetTypeURL(),
 	).Debug(context.Background(), "request added")
 	metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheAddSuccess).Inc(1)
-	return nil
-}
-
-func (c *cache) DeleteRequest(key string, req transport.Request) error {
-	c.cacheMu.Lock()
-	defer c.cacheMu.Unlock()
-	metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheDeleteAttempt).Inc(1)
-	value, found := c.cache.Get(key)
-	if !found {
-		return nil
-	}
-	resource, ok := value.(Resource)
-	if !ok {
-		metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheDeleteError).Inc(1)
-		return fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
-	}
-	delete(resource.Requests, req)
-	c.cache.Add(key, resource)
-	c.logger.With(
-		"aggregated_key", key,
-		"node_id", req.GetNodeID(),
-		"request_type", req.GetTypeURL(),
-	).Debug(context.Background(), "request deleted")
-	metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheDeleteSuccess).Inc(1)
 	return nil
 }
 

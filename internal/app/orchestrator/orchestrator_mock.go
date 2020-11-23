@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -30,7 +31,7 @@ func NewMockOrchestrator(t *testing.T,
 		scope:                 scope,
 		mapper:                mapper,
 		upstreamClient:        upstreamClient,
-		downstreamResponseMap: newDownstreamResponseMap(),
+		downstreamResponseMap: newDownstreamResponseMap(context.Background()),
 		upstreamResponseMap:   newUpstreamResponseMap(),
 	}
 

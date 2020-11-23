@@ -12,84 +12,110 @@
 package orchestrator
 
 import (
+	"context"
 	"sync"
+	"time"
 
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
 	"github.com/envoyproxy/xds-relay/internal/app/transport"
+	"k8s.io/client-go/util/workqueue"
 )
 
 // downstreamResponseMap is a map of downstream xDS client requests to response
 // channels.
 type downstreamResponseMap struct {
 	mu      sync.RWMutex
-	watches map[transport.Request]transport.Watch
+	watches map[string][]transport.Watch
+	wq      workqueue.RateLimitingInterface
 }
 
-func newDownstreamResponseMap() downstreamResponseMap {
-	return downstreamResponseMap{
-		watches: make(map[transport.Request]transport.Watch),
+func newDownstreamResponseMap(ctx context.Context) *downstreamResponseMap {
+	d := &downstreamResponseMap{
+		watches: make(map[string][]transport.Watch),
+		wq: workqueue.NewNamedRateLimitingQueue(
+			workqueue.NewItemExponentialFailureRateLimiter(time.Second, time.Second),
+			"watchermanager"),
+	}
+
+	go cleanup(d)
+	go func() {
+		<-ctx.Done()
+		d.wq.ShutDown()
+	}()
+	return d
+}
+
+func cleanup(d *downstreamResponseMap) {
+	for {
+		item, shutdown := d.wq.Get()
+		if shutdown {
+			return
+		}
+		aggregatedKey := item.(string)
+		if watches, ok := d.watches[aggregatedKey]; ok {
+			cpy := make([]transport.Watch, 0)
+			d.mu.Lock()
+			for _, w := range watches {
+				if !w.IsClosed() {
+					cpy = append(cpy, w)
+				}
+			}
+			d.watches[aggregatedKey] = cpy
+			d.mu.Unlock()
+		}
+
+		d.wq.Done(item)
 	}
 }
 
 // createWatch initializes a new channel for a request if it doesn't already
 // exist.
-func (d *downstreamResponseMap) createWatch(req transport.Request) transport.Watch {
+func (d *downstreamResponseMap) createWatch(req transport.Request, aggregatedKey string) transport.Watch {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	if _, ok := d.watches[req]; !ok {
-		d.watches[req] = req.CreateWatch()
+	w := req.CreateWatch()
+	if _, ok := d.watches[aggregatedKey]; !ok {
+		d.watches[aggregatedKey] = make([]transport.Watch, 0)
 	}
-	return d.watches[req]
+
+	d.watches[aggregatedKey] = append(d.watches[aggregatedKey], w)
+	return w
 }
 
 // get retrieves the channel where responses are set for the specified request.
-func (d *downstreamResponseMap) get(req transport.Request) (transport.Watch, bool) {
+func (d *downstreamResponseMap) get(aggregatedKey string) ([]transport.Watch, bool) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
-	channel, ok := d.watches[req]
+	channel, ok := d.watches[aggregatedKey]
 	return channel, ok
 }
 
 // delete removes the response channel and request entry from the map and
 // closes the corresponding channel.
-func (d *downstreamResponseMap) delete(req transport.Request) transport.Watch {
+func (d *downstreamResponseMap) delete(w transport.Watch, aggregatedKey string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	if watch, ok := d.watches[req]; ok {
+	if watch, ok := d.watches[aggregatedKey]; ok {
 		// wait for all writes to the responseChannel to complete before closing.
-		watch.Close()
-		delete(d.watches, req)
-		return watch
+		for _, w := range watch {
+			w.Close()
+		}
+		d.wq.AddRateLimited(aggregatedKey)
 	}
-	return nil
 }
 
 // deleteAll removes all response channels and request entries from the map and
 // closes the corresponding channels.
-func (d *downstreamResponseMap) deleteAll(watchers map[transport.Request]bool) {
+func (d *downstreamResponseMap) deleteAll(aggregatedKey string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	for watch := range watchers {
-		if w, ok := d.watches[watch]; ok {
-			// wait for all writes to the responseChannel to complete before closing.
-			w.Close()
-			delete(d.watches, watch)
-		}
+	for _, watch := range d.watches[aggregatedKey] {
+		watch.Close()
 	}
+	delete(d.watches, aggregatedKey)
 }
 
 // getAggregatedKeys returns a list of aggregated keys for all requests in the downstream response map.
 func (d *downstreamResponseMap) getAggregatedKeys(m *mapper.Mapper) (map[string]bool, error) {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	// Since multiple requests can map to the same cache key, we use a map to ensure unique entries.
-	keys := make(map[string]bool)
-	for request := range d.watches {
-		key, err := mapper.Mapper.GetKey(*m, request)
-		if err != nil {
-			return nil, err
-		}
-		keys[key] = true
-	}
-	return keys, nil
+	return nil, nil
 }

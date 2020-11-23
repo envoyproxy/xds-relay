@@ -19,7 +19,9 @@ require (
 	go.uber.org/goleak v1.1.0
 	go.uber.org/zap v1.14.0
 	golang.org/x/tools v0.0.0-20200527150044-688b3c5d9fa5 // indirect
-	google.golang.org/genproto v0.0.0-20191108220845-16a3f7862a1a
+	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013
 	google.golang.org/grpc v1.27.1
-	google.golang.org/protobuf v1.23.0
+	google.golang.org/protobuf v1.24.0
+	k8s.io/apimachinery v0.19.4 // indirect
+	k8s.io/client-go v11.0.0+incompatible
 )

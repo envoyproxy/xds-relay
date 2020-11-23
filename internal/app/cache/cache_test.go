@@ -2,8 +2,6 @@ package cache
 
 import (
 	"fmt"
-	"os"
-	"strconv"
 	"testing"
 	"time"
 
@@ -12,6 +10,7 @@ import (
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	"github.com/envoyproxy/go-control-plane/pkg/resource/v2"
 	"github.com/golang/groupcache/lru"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/onsi/gomega"
@@ -76,8 +75,8 @@ var testDiscoveryResponse = v2.DiscoveryResponse{
 }
 
 var testResource = Resource{
-	Resp:     transport.NewResponseV2(&v2.DiscoveryRequest{}, &testDiscoveryResponse),
-	Requests: make(map[transport.Request]bool),
+	Resp:    transport.NewResponseV2(&v2.DiscoveryRequest{}, &testDiscoveryResponse),
+	TypeURL: resource.ListenerType,
 }
 
 func TestAddRequestAndFetch(t *testing.T) {
@@ -254,51 +253,4 @@ func TestGetExpirationTime(t *testing.T) {
 	currentTime := time.Date(0, 0, 0, 0, 0, 1, 0, time.UTC)
 	expirationTime := time.Date(0, 0, 0, 0, 0, 2, 0, time.UTC)
 	assert.Equal(t, expirationTime, c.getExpirationTime(currentTime))
-}
-
-func TestDeleteRequest(t *testing.T) {
-	cache, err := NewCache(1, testOnEvict, time.Second*60, log.MockLogger, stats.NewMockScope("cache"))
-	assert.NoError(t, err)
-
-	reqA := transport.NewRequestV2(&testRequestA)
-	err = cache.AddRequest(testKeyA, reqA)
-	assert.NoError(t, err)
-
-	err = cache.AddRequest(testKeyA, reqA)
-	assert.NoError(t, err)
-
-	err = cache.DeleteRequest(testKeyA, reqA)
-	assert.NoError(t, err)
-
-	requests, err := cache.SetResponse(testKeyA, testResource.Resp)
-	assert.NoError(t, err)
-	assert.Equal(t, 0, len(requests))
-
-	err = cache.DeleteRequest(testKeyB, transport.NewRequestV2(&testRequestB))
-	assert.NoError(t, err)
-}
-
-func BenchmarkCacheRetrieval(b *testing.B) {
-	b.StopTimer()
-	cache, _ := NewCache(1, testOnEvict, time.Second*60, log.MockLogger, stats.NewMockScope("cache"))
-	countStr := os.Getenv("MAX_DISCOVERY_REQUESTS")
-	count, _ := strconv.ParseInt(countStr, 10, 64)
-	for i := 0; i < int(count); i++ {
-		_ = cache.AddRequest(testKeyA, transport.NewRequestV2(&v2.DiscoveryRequest{}))
-	}
-
-	r, _ := cache.Fetch(testKeyA)
-	for req := range r.Requests {
-		cache.DeleteRequest(testKeyA, req)
-	}
-
-	_ = cache.AddRequest(testKeyA, transport.NewRequestV2(&v2.DiscoveryRequest{}))
-	b.StartTimer()
-	for i := 0; i < b.N; i++ {
-		counter := 0
-		r, _ = cache.Fetch(testKeyA)
-		for range r.Requests {
-			counter++
-		}
-	}
 }
