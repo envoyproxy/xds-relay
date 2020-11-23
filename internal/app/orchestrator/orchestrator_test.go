@@ -65,7 +65,7 @@ func newMockOrchestrator(t *testing.T, mockScope tally.Scope, mapper mapper.Mapp
 		scope:                 mockScope,
 		mapper:                mapper,
 		upstreamClient:        upstreamClient,
-		downstreamResponseMap: newDownstreamResponseMap(),
+		downstreamResponseMap: newDownstreamResponseMap(context.Background()),
 		upstreamResponseMap:   newUpstreamResponseMap(),
 	}
 
@@ -246,9 +246,8 @@ func TestCachedResponse(t *testing.T) {
 			},
 		},
 	}
-	watchers, err := orchestrator.cache.SetResponse(aggregatedKey, transport.NewResponseV2(&req, &mockResponse))
+	err = orchestrator.cache.SetResponse(aggregatedKey, transport.NewResponseV2(&req, &mockResponse))
 	assert.NoError(t, err)
-	assert.Equal(t, 0, len(watchers))
 
 	respChannel, cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&req))
 	assert.NotNil(t, respChannel)
@@ -481,9 +480,8 @@ func TestNACKRequest(t *testing.T) {
 			},
 		},
 	}
-	watchers, err := orchestrator.cache.SetResponse(aggregatedKey, transport.NewResponseV2(&req, &mockResponse))
+	err = orchestrator.cache.SetResponse(aggregatedKey, transport.NewResponseV2(&req, &mockResponse))
 	assert.NoError(t, err)
-	assert.Equal(t, 0, len(watchers))
 
 	respChannel, cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&req))
 	assert.NotNil(t, respChannel)
