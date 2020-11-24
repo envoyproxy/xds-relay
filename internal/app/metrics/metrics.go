@@ -40,8 +40,8 @@ const (
 	ErrorUpstreamFailure         = "upstream"     // counter, # of errors as a result of a problem upstream
 	ErrorCacheMiss               = "cache_miss"   // counter, # of errors due to a fanout attempt with no cached response
 
-	TimerSendTime   = "send"   // timer, time taken for response fanouts
-	TimerFanoutTime = "fanout" // timer, time taken for response fanouts
+	TimerSendTime   = "send"   // timer, time taken for iterating all watches
+	TimerFanoutTime = "fanout" // timer, time taken for response fanout completion
 )
 
 // .upstream
