@@ -344,6 +344,7 @@ func (o *orchestrator) watchUpstream(
 // fanout pushes the response to the response channels of all open downstream
 // watchers in parallel.
 func (o *orchestrator) fanout(resp transport.Response, watchers *sync.Map, aggregatedKey string) {
+	start := time.Now()
 	var wg sync.WaitGroup
 	watchers.Range(func(watch, value interface{}) bool {
 		wg.Add(1)
