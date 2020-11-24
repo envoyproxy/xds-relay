@@ -39,6 +39,9 @@ const (
 	ErrorChannelFull             = "channel_full" // counter, # of response fanout failures due to blocked channels
 	ErrorUpstreamFailure         = "upstream"     // counter, # of errors as a result of a problem upstream
 	ErrorCacheMiss               = "cache_miss"   // counter, # of errors due to a fanout attempt with no cached response
+
+	TimerSendTime   = "send"   // timer, time taken for response fanouts
+	TimerFanoutTime = "fanout" // timer, time taken for response fanouts
 )
 
 // .upstream

@@ -10,6 +10,7 @@ import (
 	"context"
 	"strings"
 	"sync"
+	"time"
 
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
 	"github.com/golang/protobuf/ptypes"
@@ -374,6 +375,7 @@ func (o *orchestrator) fanout(resp transport.Response, watchers *sync.Map, aggre
 
 	// Wait for all fanouts to complete.
 	wg.Wait()
+	o.scope.Timer(metrics.TimerSendTime).Record(time.Since(start))
 }
 
 // onCacheEvicted is called when the cache evicts a response due to TTL or
