@@ -208,8 +208,6 @@ func TestUnaggregatedKey(t *testing.T) {
 	assert.Error(t, err)
 
 	respChannel, _ := orchestrator.CreateWatch(req)
-	testutils.AssertCounterValue(t, mockScope.Snapshot().Counters(),
-		"mock_orchestrator.watch.errors.unaggregated_key", 1)
 	assert.NotNil(t, respChannel)
 	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.watches))
 	_, more := <-respChannel.GetChannel().V2

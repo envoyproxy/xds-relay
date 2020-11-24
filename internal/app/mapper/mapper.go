@@ -5,8 +5,11 @@ import (
 	"regexp"
 	"strings"
 
+	v2 "github.com/envoyproxy/go-control-plane/pkg/resource/v2"
+	v3 "github.com/envoyproxy/go-control-plane/pkg/resource/v3"
 	"github.com/envoyproxy/xds-relay/internal/app/metrics"
 	"github.com/envoyproxy/xds-relay/internal/app/transport"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/uber-go/tally"
 
@@ -48,9 +51,16 @@ func New(config *aggregationv1.KeyerConfiguration, scope tally.Scope) Mapper {
 
 // GetKey converts a request into an aggregated key
 func (mapper *mapper) GetKey(request transport.Request) (string, error) {
-	if request.GetTypeURL() == "" {
+	typeURL := request.GetTypeURL()
+	if typeURL == "" {
 		mapper.scope.Counter(metrics.MapperError).Inc(1)
 		return "", fmt.Errorf("typeURL is empty")
+	}
+
+	// A known issue (https://github.com/envoyproxy/envoy/issues/7529) causes envoy to generate
+	// EDS requests without resource_names, which could affect certain fragment rules.
+	if isEDS(typeURL) && len(request.GetResourceNames()) == 0 {
+		return "", fmt.Errorf("resource names is empty")
 	}
 
 	var resultFragments []string
@@ -81,6 +91,10 @@ func (mapper *mapper) GetKey(request transport.Request) (string, error) {
 
 	mapper.scope.Counter(metrics.MapperSuccess).Inc(1)
 	return strings.Join(resultFragments, separator), nil
+}
+
+func isEDS(typeURL string) bool {
+	return v2.EndpointType == typeURL || v3.EndpointType == typeURL
 }
 
 func isMatch(matchPredicate *matchPredicate, typeURL string, req transport.Request) (bool, error) {
@@ -140,6 +154,11 @@ func isNodeMatch(matchPredicate *matchPredicate, req transport.Request) (bool, e
 	localityMatch := predicate.GetLocalityMatch()
 	if localityMatch != nil {
 		return compareLocality(localityMatch, req.GetLocality())
+	}
+
+	nodeMetadataMatch := predicate.GetNodeMetadataMatch()
+	if nodeMetadataMatch != nil {
+		return compareNodeMetadata(nodeMetadataMatch, req.GetNodeMetadata())
 	}
 
 	return false, fmt.Errorf("RequestNodeMatch is invalid")
@@ -274,6 +293,9 @@ func getResultFromRequestNodePredicate(predicate *resultPredicate, req transport
 		resultFragment, err = getResultFragmentFromAction(req.GetCluster(), requestNodeFragment.GetClusterAction())
 	} else if requestNodeFragment.GetLocalityAction() != nil {
 		resultFragment, err = getFragmentFromLocalityAction(req.GetLocality(), requestNodeFragment.GetLocalityAction())
+	} else if requestNodeFragment.GetNodeMetadataAction() != nil {
+		resultFragment, err = getFragmentFromNodeMetadataAction(req.GetNodeMetadata(),
+			requestNodeFragment.GetNodeMetadataAction())
 	}
 
 	if err != nil {
@@ -426,6 +448,27 @@ func getFragmentFromLocalityAction(
 	return strings.Join(matches, "|"), nil
 }
 
+func getFragmentFromNodeMetadataAction(
+	nodeMetadata *structpb.Struct,
+	action *aggregationv1.ResultPredicate_NodeMetadataAction) (string, error) {
+	// Traverse to the right node
+	var value *structpb.Value = nil
+	var ok bool
+	for _, segment := range action.GetPath() {
+		fields := nodeMetadata.GetFields()
+		value, ok = fields[segment.Key]
+		if !ok {
+			// TODO what to do if the key doesn't map to a valid struct field?
+			return "", fmt.Errorf("Path to key is inexistent")
+		}
+		nodeMetadata = value.GetStructValue()
+	}
+
+	// TODO: We need to stringify values other than strings (bool, integers, etc) before
+	// extracting the fragment via a call to getResultFragmentFromAction.
+	return getResultFragmentFromAction(value.GetStringValue(), action.GetAction())
+}
+
 func compareString(stringMatch *aggregationv1.StringMatch, nodeValue string) (bool, error) {
 	if nodeValue == "" {
 		return false, fmt.Errorf("MatchPredicate Node field cannot be empty")
@@ -445,6 +488,10 @@ func compareString(stringMatch *aggregationv1.StringMatch, nodeValue string) (bo
 	}
 
 	return false, nil
+}
+
+func compareBool(boolMatch *aggregationv1.BoolMatch, boolValue bool) bool {
+	return boolMatch.ValueMatch == boolValue
 }
 
 func compareLocality(localityMatch *aggregationv1.LocalityMatch,
@@ -479,4 +526,39 @@ func compareLocality(localityMatch *aggregationv1.LocalityMatch,
 	}
 
 	return regionMatch && zoneMatch && subZoneMatch, nil
+}
+
+func compareNodeMetadata(nodeMetadataMatch *aggregationv1.NodeMetadataMatch,
+	nodeMetadata *structpb.Struct) (bool, error) {
+	if nodeMetadata == nil {
+		return false, fmt.Errorf("Metadata Node field cannot be empty")
+	}
+
+	var value *structpb.Value = nil
+	var ok bool
+	for _, segment := range nodeMetadataMatch.GetPath() {
+		// Starting from the second iteration, make sure that we're dealing with structs
+		if value != nil {
+			if value.GetStructValue() != nil {
+				nodeMetadata = value.GetStructValue()
+			} else {
+				// TODO: signal that the field is not a struct
+				return false, nil
+			}
+		}
+		fields := nodeMetadata.GetFields()
+		value, ok = fields[segment.Key]
+		if !ok {
+			return false, nil
+		}
+	}
+
+	// TODO: implement the other structpb.Value types.
+	if nodeMetadataMatch.Match.GetStringMatch() != nil {
+		return compareString(nodeMetadataMatch.Match.GetStringMatch(), value.GetStringValue())
+	} else if nodeMetadataMatch.Match.GetBoolMatch() != nil {
+		return compareBool(nodeMetadataMatch.Match.GetBoolMatch(), value.GetBoolValue()), nil
+	} else {
+		return false, fmt.Errorf("Invalid NodeMetadata Match")
+	}
 }

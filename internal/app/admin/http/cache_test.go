@@ -54,6 +54,7 @@ func TestAdminServer_EDSDumpHandler(t *testing.T) {
 			Id:      "test-1",
 			Cluster: "test-prod1",
 		},
+		ResourceNames: []string{"res"},
 	}))
 	respChannelv3, cancelWatchv3 := orchestrator.CreateWatch(transport.NewRequestV3(&gcpv3.Request{
 		TypeUrl: resourcev3.EndpointType,
@@ -61,6 +62,7 @@ func TestAdminServer_EDSDumpHandler(t *testing.T) {
 			Id:      "test-2",
 			Cluster: "test-prod2",
 		},
+		ResourceNames: []string{"res"},
 	}))
 
 	endpoint := &v2.ClusterLoadAssignment{
