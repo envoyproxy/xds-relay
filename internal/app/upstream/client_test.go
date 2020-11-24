@@ -158,7 +158,7 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServer(t *testing.T) {
 	var message *v2.DiscoveryRequest
 	responseChan := make(chan *v2.DiscoveryResponse)
 	wait := make(chan bool)
-	first := true
+	first := int32(0)
 	client := NewMock(
 		ctx,
 		CallOptions{SendTimeout: time.Nanosecond},
@@ -169,9 +169,9 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServer(t *testing.T) {
 		responseChan,
 		func(m interface{}) error {
 			message = m.(*v2.DiscoveryRequest)
-			if first {
+			atomic.AddInt32(&first, 1)
+			if atomic.LoadInt32(&first) == 1 {
 				close(wait)
-				first = false
 			}
 			return nil
 		},
@@ -199,7 +199,7 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServerV3(t *testing.T) {
 	var message *discoveryv3.DiscoveryRequest
 	responseChan := make(chan *discoveryv3.DiscoveryResponse)
 	wait := make(chan bool)
-	first := true
+	first := int32(0)
 	client := NewMockV3(
 		ctx,
 		CallOptions{SendTimeout: time.Nanosecond},
@@ -210,9 +210,9 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServerV3(t *testing.T) {
 		responseChan,
 		func(m interface{}) error {
 			message = m.(*discoveryv3.DiscoveryRequest)
-			if first {
+			atomic.AddInt32(&first, 1)
+			if atomic.LoadInt32(&first) == 1 {
 				close(wait)
-				first = false
 			}
 			return nil
 		},
