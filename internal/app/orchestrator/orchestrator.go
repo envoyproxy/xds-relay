@@ -140,7 +140,7 @@ func (o *orchestrator) CreateWatch(req transport.Request, watch transport.Watch)
 		// TODO (https://github.com/envoyproxy/xds-relay/issues/56)
 		// Support unnaggregated keys.
 		// nil is a kill pill which will cause go-control-plane to error out the stream
-		_ = watch.Send(nil)
+		_ = o.send(nil, watch, aggregatedKey)
 		return nil
 	}
 
@@ -187,15 +187,8 @@ func (o *orchestrator) CreateWatch(req transport.Request, watch transport.Watch)
 		cachedResponse = true
 		// If we have a cached response and the version is different,
 		// immediately push the result to the response channel.
-		err := watch.Send(cached.Resp)
-		if err != nil {
-			// Sanity check that the channel isn't blocked. This shouldn't
-			// ever happen since the channel is newly created. Regardless,
-			// continue to create the watch.
-			o.logger.With("aggregated_key", aggregatedKey, "error", err).Warn(context.Background(),
-				"failed to push cached response")
-			metrics.OrchestratorWatchErrorsSubscope(o.scope, aggregatedKey).Counter(metrics.ErrorChannelFull).Inc(1)
-		} else {
+		err := o.send(cached.Resp, watch, aggregatedKey)
+		if err == nil {
 			metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchFanouts).Inc(1)
 		}
 	}
@@ -346,16 +339,7 @@ func (o *orchestrator) fanout(resp transport.Response, aggregatedKey string) {
 		go func(w transport.Watch) {
 			defer wg.Done()
 			// TODO https://github.com/envoyproxy/xds-relay/issues/119
-			if err := w.Send(resp); err != nil {
-				// If the channel is blocked, we simply drop subsequent
-				// requests and error. Alternative possibilities are
-				// discussed here:
-				// https://github.com/envoyproxy/xds-relay/pull/53#discussion_r420325553
-				o.logger.With("aggregated_key", aggregatedKey).
-					Error(context.Background(), "channel blocked during fanout")
-				metrics.OrchestratorWatchErrorsSubscope(o.scope, aggregatedKey).Counter(metrics.ErrorChannelFull).Inc(1)
-				return
-			}
+			_ = o.send(resp, w, aggregatedKey)
 			o.logger.With(
 				"aggregated_key", aggregatedKey,
 				"response_version", resp.GetPayloadVersion(),
@@ -382,7 +366,7 @@ func (o *orchestrator) onCacheEvicted(key string, resource cache.Resource) {
 	o.logger.With("aggregated_key", key).Debug(context.Background(), "cache eviction called")
 	if s, ok := o.downstreamResponseMap.getSnapshot(key); ok {
 		for _, d := range s {
-			_ = d.Send(nil)
+			_ = o.send(nil, d, key)
 		}
 	}
 	o.upstreamResponseMap.delete(key)
@@ -407,4 +391,18 @@ func (o *orchestrator) shutdown(ctx context.Context) {
 
 func isNackRequest(req transport.Request) bool {
 	return req.GetError() != nil
+}
+
+func (o *orchestrator) send(resp transport.Response, w transport.Watch, aggregatedKey string) error {
+	err := w.Send(resp)
+	if err != nil {
+		// If the channel is blocked, we simply drop subsequent
+		// requests and error. Alternative possibilities are
+		// discussed here:
+		// https://github.com/envoyproxy/xds-relay/pull/53#discussion_r420325553
+		o.logger.With("aggregated_key", aggregatedKey).
+			Error(context.Background(), "channel blocked during fanout")
+		metrics.OrchestratorWatchErrorsSubscope(o.scope, aggregatedKey).Counter(metrics.ErrorChannelFull).Inc(1)
+	}
+	return err
 }
