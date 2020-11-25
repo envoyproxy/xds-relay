@@ -183,7 +183,6 @@ func (o *orchestrator) CreateWatch(req transport.Request, watch transport.Watch)
 		// If we have a cached response and the version is different,
 		// immediately push the result to the response channel.
 		err := watch.Send(cached.Resp)
-		watch.Close()
 		if err != nil {
 			// Sanity check that the channel isn't blocked. This shouldn't
 			// ever happen since the channel is newly created. Regardless,

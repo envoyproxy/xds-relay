@@ -55,9 +55,8 @@ func (d *downstreamResponseMap) get(req transport.Request) (transport.Watch, boo
 func (d *downstreamResponseMap) delete(req transport.Request) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	if watch, ok := d.watches[req]; ok {
+	if _, ok := d.watches[req]; ok {
 		// wait for all writes to the responseChannel to complete before closing.
-		watch.Close()
 		delete(d.watches, req)
 	}
 }
@@ -68,9 +67,8 @@ func (d *downstreamResponseMap) deleteAll(watchers map[transport.Request]bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	for watch := range watchers {
-		if w, ok := d.watches[watch]; ok {
+		if _, ok := d.watches[watch]; ok {
 			// wait for all writes to the responseChannel to complete before closing.
-			w.Close()
 			delete(d.watches, watch)
 		}
 	}
