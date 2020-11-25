@@ -346,6 +346,9 @@ func (o *orchestrator) fanout(resp transport.Response, aggregatedKey string) {
 		return
 	}
 	for _, watch := range watchSnapshot {
+		if watch == nil {
+			break
+		}
 		wg.Add(1)
 		go func(w transport.Watch) {
 			defer wg.Done()

@@ -3,6 +3,8 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -70,7 +72,9 @@ func newMockOrchestrator(t *testing.T, mockScope tally.Scope, mapper mapper.Mapp
 	}
 
 	cache, err := cache.NewCache(1000, orchestrator.onCacheEvicted, 10*time.Second, log.MockLogger, mockScope)
-	assert.NoError(t, err)
+	if t != nil {
+		assert.NoError(t, err)
+	}
 	orchestrator.cache = cache
 
 	return orchestrator
@@ -512,5 +516,57 @@ func TestNACKRequest(t *testing.T) {
 	testutils.AssertSyncMapLen(t, 0, orchestrator.upstreamResponseMap.internal)
 
 	assert.Len(t, orchestrator.downstreamResponseMap.watches, 0)
+	cancelWatch()
+}
+
+func BenchmarkGoldenPath(b *testing.B) {
+	b.StopTimer()
+	upstreamResponseChannel := make(chan transport.Response)
+	mapper := mapper.NewMock(nil)
+	mockScope := stats.NewMockScope("mock_orchestrator")
+	orchestrator := newMockOrchestrator(
+		nil,
+		mockScope,
+		mapper,
+		mockSimpleUpstreamClient{
+			responseChan: upstreamResponseChannel,
+		},
+	)
+
+	req := gcp.Request{
+		TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
+	}
+
+	countStr := os.Getenv("MAX_DISCOVERY_REQUESTS")
+	count, _ := strconv.ParseInt(countStr, 10, 64)
+	wat := make([]func(), 0)
+	for i := 0; i < int(count); i++ {
+		w := orchestrator.CreateWatch(transport.NewRequestV2(&req), transport.NewWatchV2(make(chan<- gcp.Response)))
+		wat = append(wat, w)
+	}
+	for _, w := range wat {
+		w()
+	}
+	b.StartTimer()
+	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&req), transport.NewWatchV2(make(chan<- gcp.Response)))
+
+	resp := v2.DiscoveryResponse{
+		VersionInfo: "1",
+		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
+		Resources: []*any.Any{
+			{
+				Value: []byte("lds resource"),
+			},
+		},
+	}
+
+	for i := 0; i < b.N; i++ {
+		upstreamResponseChannel <- transport.NewResponseV2(&req, &resp)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	orchestrator.shutdown(ctx)
+
 	cancelWatch()
 }
