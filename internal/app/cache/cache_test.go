@@ -35,28 +35,6 @@ func testOnEvict(key string, value Resource) {
 	})
 }
 
-var testRequestA = v2.DiscoveryRequest{
-	VersionInfo: "version_A",
-	Node: &core.Node{
-		Id:      "id_A",
-		Cluster: "cluster_A",
-	},
-	ResourceNames: []string{"resource_A"},
-	TypeUrl:       "typeURL_A",
-	ResponseNonce: "nonce_A",
-}
-
-var testRequestB = v2.DiscoveryRequest{
-	VersionInfo: "version_B",
-	Node: &core.Node{
-		Id:      "id_B",
-		Cluster: "cluster_B",
-	},
-	ResourceNames: []string{"resource_B"},
-	TypeUrl:       "typeURL_B",
-	ResponseNonce: "nonce_B",
-}
-
 var testDiscoveryResponse = v2.DiscoveryResponse{
 	VersionInfo: "version_A",
 	Resources: []*any.Any{

@@ -54,8 +54,10 @@ func Test_downstreamResponseMap_delete(t *testing.T) {
 	responseMap.delete(watch1)
 	responseMap.delete(watch2)
 
-	watch1.Send(nil)
-	watch2.Send(nil)
+	err := watch1.Send(nil)
+	assert.NoError(t, err)
+	err = watch2.Send(nil)
+	assert.NoError(t, err)
 
 	select {
 	case <-chan1:

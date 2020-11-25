@@ -140,7 +140,7 @@ func (o *orchestrator) CreateWatch(req transport.Request, watch transport.Watch)
 		// TODO (https://github.com/envoyproxy/xds-relay/issues/56)
 		// Support unnaggregated keys.
 		// nil is a kill pill which will cause go-control-plane to error out the stream
-		watch.Send(nil)
+		_ = watch.Send(nil)
 		return nil
 	}
 
@@ -382,7 +382,7 @@ func (o *orchestrator) onCacheEvicted(key string, resource cache.Resource) {
 	o.logger.With("aggregated_key", key).Debug(context.Background(), "cache eviction called")
 	if s, ok := o.downstreamResponseMap.getSnapshot(key); ok {
 		for _, d := range s {
-			d.Send(nil)
+			_ = d.Send(nil)
 		}
 	}
 	o.upstreamResponseMap.delete(key)
