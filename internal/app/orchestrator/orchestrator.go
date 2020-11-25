@@ -139,6 +139,8 @@ func (o *orchestrator) CreateWatch(req transport.Request, watch transport.Watch)
 
 		// TODO (https://github.com/envoyproxy/xds-relay/issues/56)
 		// Support unnaggregated keys.
+		// nil is a kill pill which will cause go-control-plane to error out the stream
+		watch.Send(nil)
 		return nil
 	}
 
@@ -177,9 +179,12 @@ func (o *orchestrator) CreateWatch(req transport.Request, watch transport.Watch)
 		o.logger.With("error", err).With("aggregated_key", aggregatedKey).Warn(ctx, "failed to fetch aggregated key")
 	}
 
+	cachedResponse := false
+
 	if cached != nil && cached.Resp != nil &&
 		cached.Resp.GetPayloadVersion() != req.GetVersionInfo() &&
 		req.GetError() == nil {
+		cachedResponse = true
 		// If we have a cached response and the version is different,
 		// immediately push the result to the response channel.
 		err := watch.Send(cached.Resp)
@@ -193,12 +198,13 @@ func (o *orchestrator) CreateWatch(req transport.Request, watch transport.Watch)
 		} else {
 			metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchFanouts).Inc(1)
 		}
-		return nil
 	}
 
-	// If this is the first time we're seeing the request from the
-	// downstream client, initialize a channel to feed future responses.
-	o.downstreamResponseMap.addWatch(aggregatedKey, watch)
+	if !cachedResponse {
+		// If this is the first time we're seeing the request from the
+		// downstream client, initialize a channel to feed future responses.
+		o.downstreamResponseMap.addWatch(aggregatedKey, watch)
+	}
 
 	// Check if we have a upstream stream open for this aggregated key. If not,
 	// open a stream with the representative request.
@@ -219,7 +225,10 @@ func (o *orchestrator) CreateWatch(req transport.Request, watch transport.Watch)
 		}
 	}
 
-	return o.onCancelWatch(aggregatedKey, watch)
+	if !cachedResponse {
+		return o.onCancelWatch(aggregatedKey, watch)
+	}
+	return nil
 }
 
 // GetReadOnlyCache returns the request/response cache with only read-only methods exposed.
@@ -274,10 +283,7 @@ func (o *orchestrator) watchUpstream(
 
 				// TODO implement retry/back-off logic on error scenario.
 				// https://github.com/envoyproxy/xds-relay/issues/68
-				f, err := o.cache.Fetch(aggregatedKey)
-				if err == nil {
-					o.onCacheEvicted(aggregatedKey, *f)
-				}
+				o.onCacheEvicted(aggregatedKey, cache.Resource{})
 
 				return
 			}
@@ -378,7 +384,11 @@ func (o *orchestrator) onCacheEvicted(key string, resource cache.Resource) {
 	metrics.OrchestratorCacheEvictSubscope(o.scope, key).Counter(
 		metrics.OrchestratorOnCacheEvictedRequestCount).Inc(int64(len(o.downstreamResponseMap.get(key))))
 	o.logger.With("aggregated_key", key).Debug(context.Background(), "cache eviction called")
-	o.downstreamResponseMap.deleteAll(key)
+	if s, ok := o.downstreamResponseMap.getSnapshot(key); ok {
+		for _, d := range s {
+			d.Send(nil)
+		}
+	}
 	o.upstreamResponseMap.delete(key)
 }
 
@@ -394,6 +404,9 @@ func (o *orchestrator) onCancelWatch(aggregatedKey string, w transport.Watch) fu
 func (o *orchestrator) shutdown(ctx context.Context) {
 	<-ctx.Done()
 	o.upstreamResponseMap.deleteAll()
+	for key := range o.downstreamResponseMap.watches {
+		o.downstreamResponseMap.deleteAll(key)
+	}
 }
 
 func isNackRequest(req transport.Request) bool {

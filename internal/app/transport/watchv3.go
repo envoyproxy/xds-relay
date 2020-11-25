@@ -37,8 +37,12 @@ func (w *watchV3) Send(s Response) error {
 	}
 	w.mu.Unlock()
 
+	var response gcpv3.Response
+	if s != nil {
+		response = &gcpv3.PassthroughResponse{DiscoveryResponse: s.Get().V3, Request: s.GetRequest().V3}
+	}
 	select {
-	case w.out <- &gcpv3.PassthroughResponse{DiscoveryResponse: s.Get().V3, Request: s.GetRequest().V3}:
+	case w.out <- response:
 		return nil
 	default:
 		return fmt.Errorf("channel is blocked")

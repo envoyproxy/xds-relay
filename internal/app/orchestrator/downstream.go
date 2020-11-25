@@ -72,9 +72,7 @@ func (d *downstreamResponseMap) delete(w transport.Watch) {
 func (d *downstreamResponseMap) deleteAll(aggregatedKey string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	if _, ok := d.watches[aggregatedKey]; ok {
-		d.watches[aggregatedKey] = make([]transport.Watch, 0)
-	}
+	delete(d.watches, aggregatedKey)
 }
 
 // getAggregatedKeys returns a list of aggregated keys for all requests in the downstream response map.

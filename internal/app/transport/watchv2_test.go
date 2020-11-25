@@ -45,15 +45,6 @@ func TestSendFalseWhenBlockedV2(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestCloseSendsNilV2(t *testing.T) {
-	ch := make(chan gcp.Response, 1)
-	defer close(ch)
-	NewWatchV2(ch).Close()
-	resp, ok := <-ch
-	assert.True(t, ok)
-	assert.Nil(t, resp)
-}
-
 func TestSendAfterCloseV2(t *testing.T) {
 	ch := make(chan gcp.Response, 1)
 	defer close(ch)

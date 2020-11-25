@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -74,40 +73,7 @@ var testDiscoveryResponse = v2.DiscoveryResponse{
 }
 
 var testResource = Resource{
-	Resp:     transport.NewResponseV2(&v2.DiscoveryRequest{}, &testDiscoveryResponse),
-	Requests: make(map[transport.Request]bool),
-}
-
-func TestAddRequestAndFetch(t *testing.T) {
-	mockScope := stats.NewMockScope("")
-	cache, err := NewCache(1, testOnEvict, time.Second*60, log.MockLogger, mockScope)
-	assert.NoError(t, err)
-
-	resource, err := cache.Fetch(testKeyA)
-	countersSnapshot := mockScope.Snapshot().Counters()
-	assert.EqualValues(
-		t, 1, countersSnapshot[fmt.Sprintf("cache.fetch.attempt+key=%v", testKeyA)].Value())
-	assert.EqualValues(
-		t, 1, countersSnapshot[fmt.Sprintf("cache.fetch.miss+key=%v", testKeyA)].Value())
-	assert.EqualError(t, err, "no value found for key: key_A")
-	assert.Nil(t, resource)
-
-	err = cache.AddRequest(testKeyA, transport.NewRequestV2(&testRequestA))
-	assert.NoError(t, err)
-	countersSnapshot = mockScope.Snapshot().Counters()
-	assert.EqualValues(
-		t, 1, countersSnapshot[fmt.Sprintf("cache.add_request.attempt+key=%v", testKeyA)].Value())
-	assert.EqualValues(
-		t, 1, countersSnapshot[fmt.Sprintf("cache.add_request.success+key=%v", testKeyA)].Value())
-
-	resource, err = cache.Fetch(testKeyA)
-	assert.NoError(t, err)
-	assert.Nil(t, resource.Resp)
-	countersSnapshot = mockScope.Snapshot().Counters()
-	assert.EqualValues(
-		t, 2, countersSnapshot[fmt.Sprintf("cache.fetch.attempt+key=%v", testKeyA)].Value())
-	assert.EqualValues(
-		t, 1, countersSnapshot[fmt.Sprintf("cache.fetch.miss+key=%v", testKeyA)].Value())
+	Resp: transport.NewResponseV2(&v2.DiscoveryRequest{}, &testDiscoveryResponse),
 }
 
 func TestSetResponseAndFetch(t *testing.T) {
@@ -119,34 +85,10 @@ func TestSetResponseAndFetch(t *testing.T) {
 	assert.EqualError(t, err, "no value found for key: key_A")
 	assert.Nil(t, resource)
 
-	requests, err := cache.SetResponse(testKeyA, testResource.Resp)
+	err = cache.SetResponse(testKeyA, testResource.Resp)
 	assert.NoError(t, err)
-	assert.Nil(t, requests)
 
 	resource, err = cache.Fetch(testKeyA)
-	assert.NoError(t, err)
-	assert.Equal(t, &testDiscoveryResponse, resource.Resp.Get().V2)
-}
-
-func TestAddRequestAndSetResponse(t *testing.T) {
-	cache, err := NewCache(2, testOnEvict, time.Second*60, log.MockLogger, stats.NewMockScope("cache"))
-	assert.NoError(t, err)
-
-	reqA := transport.NewRequestV2(&testRequestA)
-	err = cache.AddRequest(testKeyA, reqA)
-	assert.NoError(t, err)
-
-	reqB := transport.NewRequestV2(&testRequestB)
-	err = cache.AddRequest(testKeyA, reqB)
-	assert.NoError(t, err)
-
-	requests, err := cache.SetResponse(testKeyA, testResource.Resp)
-	assert.NoError(t, err)
-	assert.Equal(t, 2, len(requests))
-	assert.Equal(t, true, requests[reqA])
-	assert.Equal(t, true, requests[reqB])
-
-	resource, err := cache.Fetch(testKeyA)
 	assert.NoError(t, err)
 	assert.Equal(t, &testDiscoveryResponse, resource.Resp.Get().V2)
 }
@@ -155,7 +97,7 @@ func TestMaxEntries(t *testing.T) {
 	cache, err := NewCache(1, testOnEvict, time.Second*60, log.MockLogger, stats.NewMockScope("cache"))
 	assert.NoError(t, err)
 
-	_, err = cache.SetResponse(testKeyA, testResource.Resp)
+	err = cache.SetResponse(testKeyA, testResource.Resp)
 	assert.NoError(t, err)
 
 	resource, err := cache.Fetch(testKeyA)
@@ -166,7 +108,7 @@ func TestMaxEntries(t *testing.T) {
 		key:    testKeyA,
 		reason: "testOnEvict called",
 	}, func() {
-		err = cache.AddRequest(testKeyB, transport.NewRequestV2(&testRequestB))
+		err = cache.SetResponse(testKeyB, testResource.Resp)
 		assert.NoError(t, err)
 	})
 
@@ -176,14 +118,14 @@ func TestMaxEntries(t *testing.T) {
 
 	resource, err = cache.Fetch(testKeyB)
 	assert.NoError(t, err)
-	assert.Nil(t, resource.Resp)
+	assert.NotNil(t, resource.Resp)
 }
 
 func TestTTL_Enabled(t *testing.T) {
 	cache, err := NewCache(1, testOnEvict, time.Millisecond*10, log.MockLogger, stats.NewMockScope("cache"))
 	assert.NoError(t, err)
 
-	_, err = cache.SetResponse(testKeyA, testResource.Resp)
+	err = cache.SetResponse(testKeyA, testResource.Resp)
 	assert.NoError(t, err)
 
 	resource, err := cache.Fetch(testKeyA)
@@ -210,7 +152,7 @@ func TestTTL_Disabled(t *testing.T) {
 	cache, err := NewCache(1, testOnEvict, 0, log.MockLogger, stats.NewMockScope("cache"))
 	assert.NoError(t, err)
 
-	_, err = cache.SetResponse(testKeyA, testResource.Resp)
+	err = cache.SetResponse(testKeyA, testResource.Resp)
 	assert.NoError(t, err)
 
 	resource, err := cache.Fetch(testKeyA)
@@ -252,26 +194,4 @@ func TestGetExpirationTime(t *testing.T) {
 	currentTime := time.Date(0, 0, 0, 0, 0, 1, 0, time.UTC)
 	expirationTime := time.Date(0, 0, 0, 0, 0, 2, 0, time.UTC)
 	assert.Equal(t, expirationTime, c.getExpirationTime(currentTime))
-}
-
-func TestDeleteRequest(t *testing.T) {
-	cache, err := NewCache(1, testOnEvict, time.Second*60, log.MockLogger, stats.NewMockScope("cache"))
-	assert.NoError(t, err)
-
-	reqA := transport.NewRequestV2(&testRequestA)
-	err = cache.AddRequest(testKeyA, reqA)
-	assert.NoError(t, err)
-
-	err = cache.AddRequest(testKeyA, reqA)
-	assert.NoError(t, err)
-
-	err = cache.DeleteRequest(testKeyA, reqA)
-	assert.NoError(t, err)
-
-	requests, err := cache.SetResponse(testKeyA, testResource.Resp)
-	assert.NoError(t, err)
-	assert.Equal(t, 0, len(requests))
-
-	err = cache.DeleteRequest(testKeyB, transport.NewRequestV2(&testRequestB))
-	assert.NoError(t, err)
 }

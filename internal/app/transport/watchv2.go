@@ -38,8 +38,12 @@ func (w *watchV2) Send(s Response) error {
 	}
 	w.mu.Unlock()
 
+	var response gcpv2.Response
+	if s != nil {
+		response = &gcpv2.PassthroughResponse{DiscoveryResponse: s.Get().V2, Request: s.GetRequest().V2}
+	}
 	select {
-	case w.out <- &gcpv2.PassthroughResponse{DiscoveryResponse: s.Get().V2, Request: s.GetRequest().V2}:
+	case w.out <- response:
 		return nil
 	default:
 		return fmt.Errorf("channel is blocked")

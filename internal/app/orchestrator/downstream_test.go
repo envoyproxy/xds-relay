@@ -28,68 +28,56 @@ var (
 func Test_downstreamResponseMap_addWatch(t *testing.T) {
 	responseMap := newDownstreamResponseMap()
 	assert.Equal(t, 0, len(responseMap.watches))
-	responseMap.addWatch(transport.NewRequestV2(&mockRequest), transport.NewWatchV2(make(chan<- gcp.Response, 1)))
+	responseMap.addWatch("key", transport.NewWatchV2(make(chan<- gcp.Response, 1)))
 	assert.Equal(t, 1, len(responseMap.watches))
 }
 
 func Test_downstreamResponseMap_get(t *testing.T) {
 	responseMap := newDownstreamResponseMap()
-	request := transport.NewRequestV2(&mockRequest)
-	responseMap.addWatch(request, transport.NewWatchV2(make(chan<- gcp.Response, 1)))
+	responseMap.addWatch("key", transport.NewWatchV2(make(chan<- gcp.Response, 1)))
 	assert.Equal(t, 1, len(responseMap.watches))
-	if _, ok := responseMap.get(request); !ok {
-		t.Error("request not found")
-	}
+	assert.Len(t, responseMap.get("key"), 1)
 }
 
 func Test_downstreamResponseMap_delete(t *testing.T) {
 	responseMap := newDownstreamResponseMap()
-	request := transport.NewRequestV2(&mockRequest)
-	request2 := transport.NewRequestV2(&gcp.Request{
-		TypeUrl: "type.googleapis.com/envoy.api.v2.Cluster",
-	})
-	responseMap.addWatch(request, transport.NewWatchV2(make(chan<- gcp.Response, 1)))
-	responseMap.addWatch(request2, transport.NewWatchV2(make(chan<- gcp.Response, 1)))
+	chan1 := make(chan gcp.Response, 1)
+	chan2 := make(chan gcp.Response, 1)
+	watch1 := transport.NewWatchV2(chan1)
+	watch2 := transport.NewWatchV2(chan2)
+	responseMap.addWatch("key1", watch1)
+	responseMap.addWatch("key2", watch2)
 	assert.Equal(t, 2, len(responseMap.watches))
-	if _, ok := responseMap.get(request); !ok {
-		t.Error("request not found")
+	assert.Len(t, responseMap.get("key1"), 1)
+	assert.Len(t, responseMap.get("key2"), 1)
+
+	responseMap.delete(watch1)
+	responseMap.delete(watch2)
+
+	watch1.Send(nil)
+	watch2.Send(nil)
+
+	select {
+	case <-chan1:
+		assert.Fail(t, "watch should be noop after delete")
+	default:
 	}
-	if _, ok := responseMap.get(request2); !ok {
-		t.Error("request not found")
+
+	select {
+	case <-chan2:
+		assert.Fail(t, "watch should be noop after delete")
+	default:
 	}
-	responseMap.delete(request)
-	assert.Equal(t, 1, len(responseMap.watches))
-	if _, ok := responseMap.get(request); ok {
-		t.Error("request found, when should be deleted")
-	}
-	responseMap.delete(request2)
-	assert.Equal(t, 0, len(responseMap.watches))
 }
 
 func Test_downstreamResponseMap_deleteAll(t *testing.T) {
 	responseMap := newDownstreamResponseMap()
-	request := transport.NewRequestV2(&mockRequest)
-	request2 := transport.NewRequestV2(&gcp.Request{
-		TypeUrl: "type.googleapis.com/envoy.api.v2.Cluster",
-	})
-	request3 := transport.NewRequestV2(&gcp.Request{
-		TypeUrl: "type.googleapis.com/envoy.api.v2.RouteConfiguration",
-	})
-	responseMap.addWatch(request, transport.NewWatchV2(make(chan<- gcp.Response, 1)))
-	responseMap.addWatch(request2, transport.NewWatchV2(make(chan<- gcp.Response, 1)))
-	responseMap.addWatch(request3, transport.NewWatchV2(make(chan<- gcp.Response, 1)))
+	responseMap.addWatch("key1", transport.NewWatchV2(make(chan<- gcp.Response, 1)))
+	responseMap.addWatch("key2", transport.NewWatchV2(make(chan<- gcp.Response, 1)))
+	responseMap.addWatch("key3", transport.NewWatchV2(make(chan<- gcp.Response, 1)))
 	assert.Equal(t, 3, len(responseMap.watches))
-	responseMap.deleteAll(
-		map[transport.Request]bool{
-			request:  true,
-			request2: true,
-		},
-	)
-	assert.Equal(t, 1, len(responseMap.watches))
-	if _, ok := responseMap.get(request); ok {
-		t.Error("request found, when should be deleted")
-	}
-	if _, ok := responseMap.get(request2); ok {
-		t.Error("request found, when should be deleted")
-	}
+	responseMap.deleteAll("key1")
+	responseMap.deleteAll("key2")
+	assert.Len(t, responseMap.watches, 1)
+	assert.Len(t, responseMap.get("key3"), 1)
 }
