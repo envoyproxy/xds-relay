@@ -548,8 +548,6 @@ func verifyCacheOutput(t *testing.T, rr *httptest.ResponseRecorder, cdsFile stri
 	assert.Equal(t, expectedCdsResponse["Key"], actualCdsResponse["Key"])
 	assert.Equal(t, expectedLdsResponse["Resp"], actualLdsResponse["Resp"])
 	assert.Equal(t, expectedCdsResponse["Resp"], actualCdsResponse["Resp"])
-	assert.Equal(t, len(actualLdsResponse["Requests"].([]interface{})), 1)
-	assert.Equal(t, len(actualCdsResponse["Requests"].([]interface{})), 1)
 	assert.NotNil(t, actualLdsResponse["ExpirationTime"])
 	assert.NotNil(t, actualCdsResponse["ExpirationTime"])
 }

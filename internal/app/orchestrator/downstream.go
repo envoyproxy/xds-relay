@@ -14,7 +14,6 @@ package orchestrator
 import (
 	"sync"
 
-	"github.com/envoyproxy/xds-relay/internal/app/mapper"
 	"github.com/envoyproxy/xds-relay/internal/app/transport"
 )
 
@@ -76,6 +75,12 @@ func (d *downstreamResponseMap) deleteAll(aggregatedKey string) {
 }
 
 // getAggregatedKeys returns a list of aggregated keys for all requests in the downstream response map.
-func (d *downstreamResponseMap) getAggregatedKeys(m *mapper.Mapper) (map[string]bool, error) {
-	return nil, nil
+func (d *downstreamResponseMap) getAggregatedKeys() []string {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	keys := make([]string, 0, len(d.watches))
+	for key := range d.watches {
+		keys = append(keys, key)
+	}
+	return keys
 }

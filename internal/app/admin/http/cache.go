@@ -108,23 +108,8 @@ func edsDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 
 func keyDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		allKeys, err := orchestrator.Orchestrator.GetDownstreamAggregatedKeys(*o)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			errMessage, _ := stringify.InterfaceToString(&marshallable.Error{
-				Message: fmt.Sprintf("error in getting cache keys: %s", err.Error()),
-			})
-			_, _ = w.Write([]byte(errMessage))
-			return
-		}
-
-		keys := make([]string, 0)
-		for k := range allKeys {
-			keys = append(keys, k)
-		}
-
 		response := &marshallable.Key{
-			Names: keys,
+			Names: orchestrator.Orchestrator.GetDownstreamAggregatedKeys(*o),
 		}
 		marshalledKeys, err := stringify.InterfaceToString(response)
 		if err != nil {
@@ -143,7 +128,6 @@ func keyDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusOK)
-
 	}
 }
 
@@ -157,16 +141,11 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 		// If no key is provided, output the entire cache.
 		if hasWildcardSuffix(cacheKey) {
 			// Retrieve all keys
-			allKeys, err := orchestrator.Orchestrator.GetDownstreamAggregatedKeys(*o)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				fmt.Fprintf(w, "error in getting cache keys: %s", err.Error())
-				return
-			}
+			allKeys := orchestrator.Orchestrator.GetDownstreamAggregatedKeys(*o)
 
 			// Find keys that match prefix of wildcard
 			rootCacheKeyName := strings.TrimSuffix(cacheKey, "*")
-			for potentialMatchKey := range allKeys {
+			for _, potentialMatchKey := range allKeys {
 				if strings.HasPrefix(potentialMatchKey, rootCacheKeyName) {
 					keysToPrint = append(keysToPrint, potentialMatchKey)
 				}

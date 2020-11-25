@@ -55,7 +55,7 @@ type Orchestrator interface {
 
 	GetReadOnlyCache() cache.ReadOnlyCache
 
-	GetDownstreamAggregatedKeys() (map[string]bool, error)
+	GetDownstreamAggregatedKeys() []string
 
 	CreateWatch(transport.Request, transport.Watch) func()
 }
@@ -237,12 +237,8 @@ func (o *orchestrator) GetReadOnlyCache() cache.ReadOnlyCache {
 }
 
 // GetDownstreamAggregatedKeys returns the aggregated keys for all requests stored in the downstream response map.
-func (o *orchestrator) GetDownstreamAggregatedKeys() (map[string]bool, error) {
-	keys, err := o.downstreamResponseMap.getAggregatedKeys(&o.mapper)
-	if err != nil {
-		o.logger.With("error", err).Error(context.Background(), "Unable to get keys")
-	}
-	return keys, err
+func (o *orchestrator) GetDownstreamAggregatedKeys() []string {
+	return o.downstreamResponseMap.getAggregatedKeys()
 }
 
 // watchUpstream is intended to be called in a go routine, to receive incoming
