@@ -9,7 +9,6 @@ on:
 env:
   PACKAGEPATH: ${{ github.workspace }}/go/src/github.com/${{ github.repository }}
   GOLANGCI_LINT_VERSION: v1.23.7
-  ACTIONS_ALLOW_UNSECURE_COMMANDS: true
 jobs:
   tests:
     strategy:
