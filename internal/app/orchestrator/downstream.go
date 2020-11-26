@@ -36,18 +36,18 @@ func (d *downstreamResponseMap) addWatch(aggregatedKey string, w transport.Watch
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if _, ok := d.watches[aggregatedKey]; !ok {
-		d.watches[aggregatedKey] = make([]transport.Watch, 0, 10)
+		d.watches[aggregatedKey] = make([]transport.Watch, 0, 1)
 	}
 	d.watches[aggregatedKey] = append(d.watches[aggregatedKey], w)
 }
 
 // get retrieves the channel where responses are set for the specified request.
 func (d *downstreamResponseMap) getSnapshot(aggregatedKey string) ([]transport.Watch, bool) {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	watches, ok := d.watches[aggregatedKey]
 	if ok {
-		d.watches[aggregatedKey] = make([]transport.Watch, 0, 10)
+		d.watches[aggregatedKey] = make([]transport.Watch, 0, 1)
 	}
 
 	return watches, ok

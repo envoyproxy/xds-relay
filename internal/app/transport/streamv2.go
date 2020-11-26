@@ -6,6 +6,7 @@ import (
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 )
 
 var _ Stream = &streamv2{}
@@ -27,15 +28,16 @@ func NewStreamV2(clientStream grpc.ClientStream, req Request, l log.Logger) Stre
 
 func (s *streamv2) SendMsg(version string, nonce string) error {
 	msg := s.initialRequest.GetRaw().V2
-	msg.VersionInfo = version
-	msg.ResponseNonce = nonce
-	msg.ErrorDetail = nil
+	clone := proto.Clone(msg).(*v2.DiscoveryRequest)
+	clone.VersionInfo = version
+	clone.ResponseNonce = nonce
+	clone.ErrorDetail = nil
 	s.logger.With(
-		"request_type", msg.GetTypeUrl(),
-		"request_version", msg.GetVersionInfo(),
-		"request_resource_names", msg.ResourceNames,
+		"request_type", clone.GetTypeUrl(),
+		"request_version", clone.GetVersionInfo(),
+		"request_resource_names", clone.ResourceNames,
 	).Debug(context.Background(), "sent message")
-	return s.grpcClientStream.SendMsg(msg)
+	return s.grpcClientStream.SendMsg(clone)
 }
 
 func (s *streamv2) RecvMsg() (Response, error) {
