@@ -39,6 +39,24 @@ func Test_downstreamResponseMap_get(t *testing.T) {
 	assert.Len(t, responseMap.get("key"), 1)
 }
 
+func Test_downstreamResponseMap_getSnapshot(t *testing.T) {
+	responseMap := newDownstreamResponseMap()
+	responseMap.addWatch("key", transport.NewWatchV2(make(chan<- gcp.Response, 1)))
+	assert.Equal(t, 1, len(responseMap.watches))
+
+	s, ok := responseMap.getSnapshot("key")
+	assert.Len(t, s, 1)
+	assert.True(t, ok)
+
+	s, ok = responseMap.getSnapshot("key")
+	assert.Len(t, s, 0)
+	assert.True(t, ok)
+
+	s, ok = responseMap.getSnapshot("nonexistent")
+	assert.Len(t, s, 0)
+	assert.False(t, ok)
+}
+
 func Test_downstreamResponseMap_delete(t *testing.T) {
 	responseMap := newDownstreamResponseMap()
 	chan1 := make(chan gcp.Response, 1)

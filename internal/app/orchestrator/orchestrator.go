@@ -179,21 +179,18 @@ func (o *orchestrator) CreateWatch(req transport.Request, watch transport.Watch)
 		o.logger.With("error", err).With("aggregated_key", aggregatedKey).Warn(ctx, "failed to fetch aggregated key")
 	}
 
-	cachedResponse := false
-
-	if cached != nil && cached.Resp != nil &&
+	cachedResponse := cached != nil && cached.Resp != nil &&
 		cached.Resp.GetPayloadVersion() != req.GetVersionInfo() &&
-		req.GetError() == nil {
-		cachedResponse = true
+		req.GetError() == nil
+
+	if cachedResponse {
 		// If we have a cached response and the version is different,
 		// immediately push the result to the response channel.
 		err := o.send(cached.Resp, watch, aggregatedKey)
 		if err == nil {
 			metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchFanouts).Inc(1)
 		}
-	}
-
-	if !cachedResponse {
+	} else {
 		// If this is the first time we're seeing the request from the
 		// downstream client, initialize a channel to feed future responses.
 		o.downstreamResponseMap.addWatch(aggregatedKey, watch)
@@ -218,10 +215,10 @@ func (o *orchestrator) CreateWatch(req transport.Request, watch transport.Watch)
 		}
 	}
 
-	if !cachedResponse {
-		return o.onCancelWatch(aggregatedKey, watch)
+	if cachedResponse {
+		return nil
 	}
-	return nil
+	return o.onCancelWatch(aggregatedKey, watch)
 }
 
 // GetReadOnlyCache returns the request/response cache with only read-only methods exposed.
