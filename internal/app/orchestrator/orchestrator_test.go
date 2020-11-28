@@ -60,14 +60,14 @@ func (m mockMultiStreamUpstreamClient) OpenStream(
 	return nil, func() {}
 }
 
-func newMockOrchestrator(t *testing.T, mockScope tally.Scope, mapper mapper.Mapper,
+func newMockOrchestrator(t *testing.T, ctx context.Context, mockScope tally.Scope, mapper mapper.Mapper,
 	upstreamClient upstream.Client) *orchestrator {
 	orchestrator := &orchestrator{
 		logger:                log.MockLogger,
 		scope:                 mockScope,
 		mapper:                mapper,
 		upstreamClient:        upstreamClient,
-		downstreamResponseMap: newDownstreamResponseMap(),
+		downstreamResponseMap: newDownstreamResponseMap(ctx),
 		upstreamResponseMap:   newUpstreamResponseMap(),
 	}
 
@@ -132,8 +132,11 @@ func TestGoldenPath(t *testing.T) {
 	upstreamResponseChannel := make(chan transport.Response)
 	mapper := mapper.NewMock(t)
 	mockScope := stats.NewMockScope("mock_orchestrator")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	orchestrator := newMockOrchestrator(
 		t,
+		ctx,
 		mockScope,
 		mapper,
 		mockSimpleUpstreamClient{
@@ -175,7 +178,6 @@ func TestGoldenPath(t *testing.T) {
 	gotResponse := <-ch
 	assertEqualResponse(t, gotResponse, resp, req)
 
-	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	orchestrator.shutdown(ctx)
 	testutils.AssertSyncMapLen(t, 0, orchestrator.upstreamResponseMap.internal)
@@ -194,8 +196,11 @@ func TestUnaggregatedKey(t *testing.T) {
 	upstreamResponseChannel := make(chan transport.Response)
 	mapper := mapper.NewMock(t)
 	mockScope := stats.NewMockScope("mock_orchestrator")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	orchestrator := newMockOrchestrator(
 		t,
+		ctx,
 		mockScope,
 		mapper,
 		mockSimpleUpstreamClient{
@@ -225,8 +230,11 @@ func TestCachedResponse(t *testing.T) {
 	upstreamResponseChannel := make(chan transport.Response)
 	mapper := mapper.NewMock(t)
 	mockScope := stats.NewMockScope("prefix")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	orchestrator := newMockOrchestrator(
 		t,
+		ctx,
 		mockScope,
 		mapper,
 		mockSimpleUpstreamClient{
@@ -291,7 +299,6 @@ func TestCachedResponse(t *testing.T) {
 	assert.Len(t, orchestrator.downstreamResponseMap.watches, 1)
 	assert.Len(t, orchestrator.downstreamResponseMap.get(key), 0)
 
-	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	orchestrator.shutdown(ctx)
 	testutils.AssertSyncMapLen(t, 0, orchestrator.upstreamResponseMap.internal)
@@ -302,8 +309,11 @@ func TestMultipleWatchersAndUpstreams(t *testing.T) {
 	upstreamResponseChannelCDS := make(chan transport.Response)
 	mapper := mapper.NewMock(t)
 	mockScope := stats.NewMockScope("prefix")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	orchestrator := newMockOrchestrator(
 		t,
+		ctx,
 		mockScope,
 		mapper,
 		mockMultiStreamUpstreamClient{
@@ -383,7 +393,6 @@ func TestMultipleWatchersAndUpstreams(t *testing.T) {
 	assertEqualResponse(t, gotResponseFromChannel2, upstreamResponseLDS, req1)
 	assertEqualResponse(t, gotResponseFromChannel3, upstreamResponseCDS, req3)
 
-	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	orchestrator.shutdown(ctx)
 	testutils.AssertSyncMapLen(t, 0, orchestrator.upstreamResponseMap.internal)
@@ -398,8 +407,10 @@ func TestUpstreamFailure(t *testing.T) {
 	upstreamResponseChannel := make(chan transport.Response)
 	mapper := mapper.NewMock(t)
 	mockScope := stats.NewMockScope("mock_orchestrator")
+	ctx, cancel := context.WithCancel(context.Background())
 	orchestrator := newMockOrchestrator(
 		t,
+		ctx,
 		mockScope,
 		mapper,
 		mockSimpleUpstreamClient{
@@ -424,7 +435,6 @@ func TestUpstreamFailure(t *testing.T) {
 	assert.Nil(t, r)
 	assert.True(t, more)
 
-	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	orchestrator.shutdown(ctx)
 	testutils.AssertSyncMapLen(t, 0, orchestrator.upstreamResponseMap.internal)
@@ -444,8 +454,11 @@ func TestNACKRequest(t *testing.T) {
 	upstreamResponseChannel := make(chan transport.Response)
 	mapper := mapper.NewMock(t)
 	mockScope := stats.NewMockScope("mock_orchestrator")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	orchestrator := newMockOrchestrator(
 		t,
+		ctx,
 		mockScope,
 		mapper,
 		mockSimpleUpstreamClient{
@@ -508,9 +521,6 @@ func TestNACKRequest(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "2", version)
 
-	// If we pass this point, it's safe to assume the respChannel is empty,
-	// otherwise the test would block and not complete.
-	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	orchestrator.shutdown(ctx)
 	testutils.AssertSyncMapLen(t, 0, orchestrator.upstreamResponseMap.internal)
@@ -524,8 +534,11 @@ func BenchmarkGoldenPath(b *testing.B) {
 	upstreamResponseChannel := make(chan transport.Response)
 	mapper := mapper.NewMock(nil)
 	mockScope := stats.NewMockScope("mock_orchestrator")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	orchestrator := newMockOrchestrator(
 		nil,
+		ctx,
 		mockScope,
 		mapper,
 		mockSimpleUpstreamClient{
@@ -564,7 +577,6 @@ func BenchmarkGoldenPath(b *testing.B) {
 		upstreamResponseChannel <- transport.NewResponseV2(&req, &resp)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	orchestrator.shutdown(ctx)
 

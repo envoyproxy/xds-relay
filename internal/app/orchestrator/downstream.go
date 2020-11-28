@@ -12,7 +12,9 @@
 package orchestrator
 
 import (
+	"context"
 	"sync"
+	"time"
 
 	"github.com/envoyproxy/xds-relay/internal/app/transport"
 )
@@ -24,14 +26,35 @@ type downstreamResponseMap struct {
 	watches map[string][]transport.Watch
 }
 
-func newDownstreamResponseMap() downstreamResponseMap {
-	return downstreamResponseMap{
+func newDownstreamResponseMap(ctx context.Context) *downstreamResponseMap {
+	d := downstreamResponseMap{
 		watches: make(map[string][]transport.Watch),
 	}
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(5 * time.Minute):
+				d.mu.Lock()
+				for w := range d.watches {
+					now := d.watches[w]
+					cpy := make([]transport.Watch, 0, len(now))
+					for _, watch := range now {
+						if !watch.IsClosed() {
+							cpy = append(cpy, watch)
+						}
+					}
+					d.watches[w] = cpy
+				}
+				d.mu.Unlock()
+			}
+		}
+	}()
+	return &d
 }
 
-// createWatch initializes a new channel for a request if it doesn't already
-// exist.
+// createWatch initializes a new channel for a request if it doesn't already exist.
 func (d *downstreamResponseMap) addWatch(aggregatedKey string, w transport.Watch) {
 	d.mu.Lock()
 	defer d.mu.Unlock()

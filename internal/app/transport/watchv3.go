@@ -48,3 +48,7 @@ func (w *watchV3) Send(s Response) error {
 		return fmt.Errorf("channel is blocked")
 	}
 }
+
+func (w *watchV3) IsClosed() bool {
+	return w.tombstone
+}

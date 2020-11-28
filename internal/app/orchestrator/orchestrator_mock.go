@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -14,13 +15,15 @@ import (
 )
 
 func NewMock(t *testing.T,
+	ctx context.Context,
 	mapper mapper.Mapper,
 	upstreamClient upstream.Client,
 	scope tally.Scope) Orchestrator {
-	return NewMockOrchestrator(t, mapper, upstreamClient, scope)
+	return NewMockOrchestrator(t, ctx, mapper, upstreamClient, scope)
 }
 
 func NewMockOrchestrator(t *testing.T,
+	ctx context.Context,
 	mapper mapper.Mapper,
 	upstreamClient upstream.Client,
 	scope tally.Scope,
@@ -30,7 +33,7 @@ func NewMockOrchestrator(t *testing.T,
 		scope:                 scope,
 		mapper:                mapper,
 		upstreamClient:        upstreamClient,
-		downstreamResponseMap: newDownstreamResponseMap(),
+		downstreamResponseMap: newDownstreamResponseMap(ctx),
 		upstreamResponseMap:   newUpstreamResponseMap(),
 	}
 

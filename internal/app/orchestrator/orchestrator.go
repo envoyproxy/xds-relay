@@ -68,7 +68,7 @@ type orchestrator struct {
 	logger log.Logger
 	scope  tally.Scope
 
-	downstreamResponseMap downstreamResponseMap
+	downstreamResponseMap *downstreamResponseMap
 	upstreamResponseMap   upstreamResponseMap
 }
 
@@ -88,7 +88,7 @@ func New(
 		scope:                 scope.SubScope(metrics.ScopeOrchestrator),
 		mapper:                mapper,
 		upstreamClient:        upstreamClient,
-		downstreamResponseMap: newDownstreamResponseMap(),
+		downstreamResponseMap: newDownstreamResponseMap(ctx),
 		upstreamResponseMap:   newUpstreamResponseMap(),
 	}
 

@@ -7,4 +7,6 @@ type Watch interface {
 	Send(Response) error
 
 	Close()
+
+	IsClosed() bool
 }

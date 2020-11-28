@@ -12,6 +12,7 @@
 package orchestrator
 
 import (
+	"context"
 	"testing"
 
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
@@ -26,21 +27,27 @@ var (
 )
 
 func Test_downstreamResponseMap_addWatch(t *testing.T) {
-	responseMap := newDownstreamResponseMap()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	responseMap := newDownstreamResponseMap(ctx)
 	assert.Equal(t, 0, len(responseMap.watches))
 	responseMap.addWatch("key", transport.NewWatchV2(make(chan<- gcp.Response, 1)))
 	assert.Equal(t, 1, len(responseMap.watches))
 }
 
 func Test_downstreamResponseMap_get(t *testing.T) {
-	responseMap := newDownstreamResponseMap()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	responseMap := newDownstreamResponseMap(ctx)
 	responseMap.addWatch("key", transport.NewWatchV2(make(chan<- gcp.Response, 1)))
 	assert.Equal(t, 1, len(responseMap.watches))
 	assert.Len(t, responseMap.get("key"), 1)
 }
 
 func Test_downstreamResponseMap_getSnapshot(t *testing.T) {
-	responseMap := newDownstreamResponseMap()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	responseMap := newDownstreamResponseMap(ctx)
 	responseMap.addWatch("key", transport.NewWatchV2(make(chan<- gcp.Response, 1)))
 	assert.Equal(t, 1, len(responseMap.watches))
 
@@ -58,7 +65,9 @@ func Test_downstreamResponseMap_getSnapshot(t *testing.T) {
 }
 
 func Test_downstreamResponseMap_delete(t *testing.T) {
-	responseMap := newDownstreamResponseMap()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	responseMap := newDownstreamResponseMap(ctx)
 	chan1 := make(chan gcp.Response, 1)
 	chan2 := make(chan gcp.Response, 1)
 	watch1 := transport.NewWatchV2(chan1)
@@ -91,7 +100,9 @@ func Test_downstreamResponseMap_delete(t *testing.T) {
 }
 
 func Test_downstreamResponseMap_deleteAll(t *testing.T) {
-	responseMap := newDownstreamResponseMap()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	responseMap := newDownstreamResponseMap(ctx)
 	responseMap.addWatch("key1", transport.NewWatchV2(make(chan<- gcp.Response, 1)))
 	responseMap.addWatch("key2", transport.NewWatchV2(make(chan<- gcp.Response, 1)))
 	responseMap.addWatch("key3", transport.NewWatchV2(make(chan<- gcp.Response, 1)))
