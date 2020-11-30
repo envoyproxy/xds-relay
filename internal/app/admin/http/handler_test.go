@@ -111,7 +111,7 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 		func(m interface{}) error { return nil },
 		stats.NewMockScope("mock"),
 	)
-	orchestrator := orchestrator.NewMock(t, ctx, mapper, client, mockScope)
+	orchestrator := orchestrator.NewMock(ctx, t, mapper, client, mockScope)
 	assert.NotNil(t, orchestrator)
 
 	reqNode := corev2.Node{
@@ -188,7 +188,7 @@ func TestAdminServer_CacheDumpHandler_NotFound(t *testing.T) {
 		func(m interface{}) error { return nil },
 		stats.NewMockScope("mock"),
 	)
-	orchestrator := orchestrator.NewMock(t, ctx, mapper, client, mockScope)
+	orchestrator := orchestrator.NewMock(ctx, t, mapper, client, mockScope)
 	assert.NotNil(t, orchestrator)
 
 	req, err := http.NewRequest("GET", "/cache/cds", nil)

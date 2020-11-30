@@ -60,7 +60,7 @@ func (m mockMultiStreamUpstreamClient) OpenStream(
 	return nil, func() {}
 }
 
-func newMockOrchestrator(t *testing.T, ctx context.Context, mockScope tally.Scope, mapper mapper.Mapper,
+func newMockOrchestrator(ctx context.Context, t *testing.T, mockScope tally.Scope, mapper mapper.Mapper,
 	upstreamClient upstream.Client) *orchestrator {
 	orchestrator := &orchestrator{
 		logger:                log.MockLogger,
@@ -135,8 +135,8 @@ func TestGoldenPath(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	orchestrator := newMockOrchestrator(
-		t,
 		ctx,
+		t,
 		mockScope,
 		mapper,
 		mockSimpleUpstreamClient{
@@ -199,8 +199,8 @@ func TestUnaggregatedKey(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	orchestrator := newMockOrchestrator(
-		t,
 		ctx,
+		t,
 		mockScope,
 		mapper,
 		mockSimpleUpstreamClient{
@@ -233,8 +233,8 @@ func TestCachedResponse(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	orchestrator := newMockOrchestrator(
-		t,
 		ctx,
+		t,
 		mockScope,
 		mapper,
 		mockSimpleUpstreamClient{
@@ -312,8 +312,8 @@ func TestMultipleWatchersAndUpstreams(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	orchestrator := newMockOrchestrator(
-		t,
 		ctx,
+		t,
 		mockScope,
 		mapper,
 		mockMultiStreamUpstreamClient{
@@ -409,8 +409,8 @@ func TestUpstreamFailure(t *testing.T) {
 	mockScope := stats.NewMockScope("mock_orchestrator")
 	ctx, cancel := context.WithCancel(context.Background())
 	orchestrator := newMockOrchestrator(
-		t,
 		ctx,
+		t,
 		mockScope,
 		mapper,
 		mockSimpleUpstreamClient{
@@ -457,8 +457,8 @@ func TestNACKRequest(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	orchestrator := newMockOrchestrator(
-		t,
 		ctx,
+		t,
 		mockScope,
 		mapper,
 		mockSimpleUpstreamClient{
@@ -537,8 +537,8 @@ func BenchmarkGoldenPath(b *testing.B) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	orchestrator := newMockOrchestrator(
-		nil,
 		ctx,
+		nil,
 		mockScope,
 		mapper,
 		mockSimpleUpstreamClient{

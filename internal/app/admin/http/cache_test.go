@@ -47,7 +47,7 @@ func TestAdminServer_EDSDumpHandler(t *testing.T) {
 		func(m interface{}) error { return nil },
 		stats.NewMockScope("mock"),
 	)
-	orchestrator := orchestrator.NewMock(t, ctx, mapper, client, stats.NewMockScope("mock_orchestrator"))
+	orchestrator := orchestrator.NewMock(ctx, t, mapper, client, stats.NewMockScope("mock_orchestrator"))
 
 	respChannel := make(chan gcp.Response, 1)
 	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcp.Request{
@@ -148,7 +148,7 @@ func TestAdminServer_EDSDumpHandler404(t *testing.T) {
 		func(m interface{}) error { return nil },
 		stats.NewMockScope("mock"),
 	)
-	orchestrator := orchestrator.NewMock(t, ctx, mapper, client, stats.NewMockScope("mock_orchestrator"))
+	orchestrator := orchestrator.NewMock(ctx, t, mapper, client, stats.NewMockScope("mock_orchestrator"))
 
 	rr := getResponse(t, "eds", &orchestrator)
 	assert.Equal(t, http.StatusNotFound, rr.Code)
@@ -171,7 +171,7 @@ func TestAdminServer_KeyDumpHandler(t *testing.T) {
 		func(m interface{}) error { return nil },
 		stats.NewMockScope("mock"),
 	)
-	orchestrator := orchestrator.NewMock(t, ctx, mapper, client, stats.NewMockScope("mock_orchestrator"))
+	orchestrator := orchestrator.NewMock(ctx, t, mapper, client, stats.NewMockScope("mock_orchestrator"))
 
 	verifyKeyLen(t, 0, &orchestrator)
 
@@ -231,7 +231,7 @@ func testAdminServerCacheDumpHelper(t *testing.T, urls []string) {
 				func(m interface{}) error { return nil },
 				stats.NewMockScope("mock"),
 			)
-			orchestrator := orchestrator.NewMock(t, ctx, mapper, client, mockScope)
+			orchestrator := orchestrator.NewMock(ctx, t, mapper, client, mockScope)
 			assert.NotNil(t, orchestrator)
 
 			req1Node := corev2.Node{
@@ -328,7 +328,7 @@ func testAdminServerCacheDumpHandlerV3(t *testing.T, urls []string) {
 				func(m interface{}) error { return nil },
 				stats.NewMockScope("mock"),
 			)
-			orchestrator := orchestrator.NewMock(t, ctx, mapper, client, mockScope)
+			orchestrator := orchestrator.NewMock(ctx, t, mapper, client, mockScope)
 			assert.NotNil(t, orchestrator)
 
 			req1Node := envoy_config_core_v3.Node{
@@ -442,7 +442,7 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffix_NotFound(t *testing.T) {
 			func(m interface{}) error { return nil },
 			stats.NewMockScope("mock"),
 		)
-		orchestrator := orchestrator.NewMock(t, ctx, mapper, client, mockScope)
+		orchestrator := orchestrator.NewMock(ctx, t, mapper, client, mockScope)
 		assert.NotNil(t, orchestrator)
 
 		req1Node := corev2.Node{
