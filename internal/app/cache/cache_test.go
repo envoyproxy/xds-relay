@@ -275,3 +275,28 @@ func TestDeleteRequest(t *testing.T) {
 	err = cache.DeleteRequest(testKeyB, transport.NewRequestV2(&testRequestB))
 	assert.NoError(t, err)
 }
+
+func TestDeleteKey(t *testing.T) {
+	cache, err := NewCache(1, testOnEvict, time.Second*60, log.MockLogger, stats.NewMockScope("cache"))
+	assert.NoError(t, err)
+
+	reqA := transport.NewRequestV2(&testRequestA)
+	err = cache.AddRequest(testKeyA, reqA)
+	assert.NoError(t, err)
+
+	res, err := cache.Fetch(testKeyA)
+	assert.NoError(t, err)
+	assert.NotNil(t, res)
+
+	assert.PanicsWithValue(t, panicValues{
+		key:    testKeyA,
+		reason: "testOnEvict called",
+	}, func() {
+		err = cache.DeleteKey(testKeyA)
+		assert.NoError(t, err)
+	})
+
+	res, err = cache.Fetch(testKeyA)
+	assert.Error(t, err)
+	assert.Nil(t, res)
+}

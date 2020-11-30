@@ -169,7 +169,6 @@ func clearCacheHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 			return
 		}
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		_, _ = w.Write([]byte("Only POST is supported\n"))
 	}
 }
 

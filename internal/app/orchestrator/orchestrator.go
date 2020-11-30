@@ -252,7 +252,7 @@ func (o *orchestrator) GetDownstreamAggregatedKeys() (map[string]bool, error) {
 func (o *orchestrator) ClearCacheEntries(keys []string) []error {
 	var errors []error
 	for _, key := range keys {
-		_, err := o.cache.DeleteKey(key)
+		err := o.cache.DeleteKey(key)
 		if err != nil {
 			errors = append(errors, err)
 		}
