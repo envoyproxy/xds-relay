@@ -3,6 +3,7 @@ package handler
 import (
 	"bytes"
 	"context"
+
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	"github.com/envoyproxy/xds-relay/internal/app/transport"
@@ -11,6 +12,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/stretchr/testify/assert"
+
 	"net/http"
 	"net/http/httptest"
 	"testing"
