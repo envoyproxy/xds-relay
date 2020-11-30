@@ -43,6 +43,9 @@ func (w *watchV3) Send(s Response) error {
 	}
 	select {
 	case w.out <- response:
+		w.mu.Lock()
+		w.tombstone = true
+		w.mu.Unlock()
 		return nil
 	default:
 		return fmt.Errorf("channel is blocked")

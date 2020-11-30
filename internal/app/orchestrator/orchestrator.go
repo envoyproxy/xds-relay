@@ -171,7 +171,7 @@ func (o *orchestrator) CreateWatch(req transport.Request, watch transport.Watch)
 		).Debug(ctx, "NACK request")
 		metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorNackWatchCreated).Inc(1)
 	}
-
+	o.downstreamResponseMap.addWatch(aggregatedKey, watch)
 	// Check if we have a cached response first.
 	cached, err := o.cache.Fetch(aggregatedKey)
 	if err != nil {
@@ -190,10 +190,6 @@ func (o *orchestrator) CreateWatch(req transport.Request, watch transport.Watch)
 		if err == nil {
 			metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchFanouts).Inc(1)
 		}
-	} else {
-		// If this is the first time we're seeing the request from the
-		// downstream client, initialize a channel to feed future responses.
-		o.downstreamResponseMap.addWatch(aggregatedKey, watch)
 	}
 
 	// Check if we have a upstream stream open for this aggregated key. If not,

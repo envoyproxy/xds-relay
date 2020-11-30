@@ -19,8 +19,8 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/app/transport"
 )
 
-// downstreamResponseMap is a map of downstream xDS client requests to response
-// channels.
+// downstreamResponseMap is a collection of all downstream xdsClient/envoy sidecar watches
+// grouped by the aggregated key.
 type downstreamResponseMap struct {
 	mu      sync.RWMutex
 	watches map[string][]transport.Watch
