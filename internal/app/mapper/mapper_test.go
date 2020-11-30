@@ -115,6 +115,15 @@ var positiveTests = []TableEntry{
 		},
 	},
 	{
+		Description: "RequestNodeMatch with empty struct value",
+		Parameters: []interface{}{
+			getRequestNodeMetadataStringMatch([]string{"empty-field"}, getRegexMatch("^$")),
+			getResultStringFragment(),
+			clusterTypeURL,
+			stringFragment,
+		},
+	},
+	{
 		Description: "RequestNodeMatch with nested level node metadata exact match",
 		Parameters: []interface{}{
 			getRequestNodeMetadataStringMatch([]string{"nested-field", "f2"}, getExactMatch("v2")),
@@ -1099,7 +1108,7 @@ var emptyFragmentErrorCases = []TableEntry{
 			getRequestNodeIDExactMatch(nodeid),
 			getResultRequestNodeIDFragment(getExactAction()),
 			getDiscoveryRequestWithNode(getNode("", nodecluster, noderegion, nodezone, nodesubzone, nil)),
-			"MatchPredicate Node field cannot be empty",
+			"Cannot map the input to a key",
 		},
 	},
 	{
@@ -1108,7 +1117,7 @@ var emptyFragmentErrorCases = []TableEntry{
 			getRequestNodeClusterExactMatch(nodecluster),
 			getResultRequestNodeIDFragment(getExactAction()),
 			getDiscoveryRequestWithNode(getNode(nodeid, "", noderegion, nodezone, nodesubzone, nil)),
-			"MatchPredicate Node field cannot be empty",
+			"Cannot map the input to a key",
 		},
 	},
 	{
@@ -1262,6 +1271,15 @@ var emptyFragmentErrorCases = []TableEntry{
 			getResourceNameFragment(10, getExactAction()),
 			getDiscoveryRequestWithNode(getNode(nodeid, nodecluster, "", nodezone, nodesubzone, nil)),
 			"ResourceNamesFragment.Element cannot be negative or larger than length",
+		},
+	},
+	{
+		Description: "empty node metadata field",
+		Parameters: []interface{}{
+			getRequestNodeMetadataStringMatch([]string{"empty-field"}, getExactMatch("v2")),
+			getResultStringFragment(),
+			getDiscoveryRequest(),
+			"Cannot map the input to a key",
 		},
 	},
 }
@@ -1853,6 +1871,7 @@ func getNodeMetatada() *structpb.Struct {
 					},
 				},
 			}},
+			"empty-field": {Kind: &StringValue{StringValue: ""}},
 		},
 	}
 }
