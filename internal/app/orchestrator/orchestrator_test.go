@@ -248,7 +248,7 @@ func TestCachedResponse(t *testing.T) {
 	}
 	watchers, err := orchestrator.cache.SetResponse(aggregatedKey, transport.NewResponseV2(&req, &mockResponse))
 	assert.NoError(t, err)
-	assert.Equal(t, 0, len(watchers))
+	assert.Equal(t, 0, getLength(watchers))
 
 	respChannel, cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&req))
 	assert.NotNil(t, respChannel)
@@ -483,7 +483,7 @@ func TestNACKRequest(t *testing.T) {
 	}
 	watchers, err := orchestrator.cache.SetResponse(aggregatedKey, transport.NewResponseV2(&req, &mockResponse))
 	assert.NoError(t, err)
-	assert.Equal(t, 0, len(watchers))
+	assert.Equal(t, 0, getLength(watchers))
 
 	respChannel, cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&req))
 	assert.NotNil(t, respChannel)
