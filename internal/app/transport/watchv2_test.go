@@ -44,35 +44,3 @@ func TestSendFalseWhenBlockedV2(t *testing.T) {
 	err = w.Send(NewResponseV2(discoveryRequestv2, discoveryResponsev2))
 	assert.NotNil(t, err)
 }
-
-func TestCloseSendsNilV2(t *testing.T) {
-	ch := make(chan gcp.Response, 1)
-	defer close(ch)
-	NewWatchV2(ch).Close()
-	resp, ok := <-ch
-	assert.True(t, ok)
-	assert.Nil(t, resp)
-}
-
-func TestSendAfterCloseV2(t *testing.T) {
-	ch := make(chan gcp.Response, 1)
-	defer close(ch)
-	w := NewWatchV2(ch)
-	err := w.Send(NewResponseV2(discoveryRequestv2, discoveryResponsev2))
-	assert.NoError(t, err)
-	<-ch
-	w.Close()
-	select {
-	case r := <-ch:
-		assert.Nil(t, r)
-	default:
-	}
-	err = w.Send(NewResponseV2(discoveryRequestv2, discoveryResponsev2))
-	assert.NoError(t, err)
-
-	select {
-	case <-ch:
-		assert.Fail(t, "should not send more after close")
-	default:
-	}
-}

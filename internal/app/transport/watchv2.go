@@ -2,7 +2,6 @@ package transport
 
 import (
 	"fmt"
-	"sync"
 
 	gcpv2 "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 )
@@ -11,9 +10,7 @@ var _ Watch = &watchV2{}
 
 // WatchV2 is the transport object that takes care of send responses to the xds clients
 type watchV2 struct {
-	out    chan<- gcpv2.Response
-	mu     sync.RWMutex
-	closed bool
+	out chan<- gcpv2.Response
 }
 
 // NewWatchV2 creates a new watch object
@@ -23,23 +20,14 @@ func NewWatchV2(resp chan<- gcpv2.Response) Watch {
 	}
 }
 
-// Close closes the communication with the xds client
-func (w *watchV2) Close() {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	w.closed = true
-	w.out <- nil
-}
-
 // Send sends the xds response over wire
 func (w *watchV2) Send(s Response) error {
-	w.mu.RLock()
-	defer w.mu.RUnlock()
-	if w.closed {
-		return nil
+	var response gcpv2.Response
+	if s != nil {
+		response = &gcpv2.PassthroughResponse{DiscoveryResponse: s.Get().V2, Request: s.GetRequest().V2}
 	}
 	select {
-	case w.out <- &gcpv2.PassthroughResponse{DiscoveryResponse: s.Get().V2, Request: s.GetRequest().V2}:
+	case w.out <- response:
 		return nil
 	default:
 		return fmt.Errorf("channel is blocked")
