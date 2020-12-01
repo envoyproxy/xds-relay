@@ -470,9 +470,6 @@ func getFragmentFromNodeMetadataAction(
 }
 
 func compareString(stringMatch *aggregationv1.StringMatch, nodeValue string) (bool, error) {
-	if nodeValue == "" {
-		return false, fmt.Errorf("MatchPredicate Node field cannot be empty")
-	}
 	exactMatch := stringMatch.GetExactMatch()
 	if exactMatch != "" {
 		return nodeValue == exactMatch, nil

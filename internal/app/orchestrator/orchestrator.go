@@ -10,6 +10,7 @@ import (
 	"context"
 	"strings"
 	"sync"
+	"time"
 
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
 	"github.com/golang/protobuf/ptypes"
@@ -343,6 +344,7 @@ func (o *orchestrator) watchUpstream(
 // fanout pushes the response to the response channels of all open downstream
 // watchers in parallel.
 func (o *orchestrator) fanout(resp transport.Response, watchers *sync.Map, aggregatedKey string) {
+	start := time.Now()
 	var wg sync.WaitGroup
 	watchers.Range(func(watch, value interface{}) bool {
 		wg.Add(1)
@@ -371,9 +373,10 @@ func (o *orchestrator) fanout(resp transport.Response, watchers *sync.Map, aggre
 		}(watch.(transport.Request))
 		return true
 	})
-
+	o.scope.Timer(metrics.TimerFanoutTime).Record(time.Since(start))
 	// Wait for all fanouts to complete.
 	wg.Wait()
+	o.scope.Timer(metrics.TimerSendTime).Record(time.Since(start))
 }
 
 // onCacheEvicted is called when the cache evicts a response due to TTL or
