@@ -212,9 +212,11 @@ func TestUnaggregatedKey(t *testing.T) {
 
 	_ = orchestrator.CreateWatch(req, transport.NewWatchV2(ch))
 	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.watches))
-	r, more := <-ch
-	assert.Nil(t, r)
-	assert.True(t, more)
+	select {
+	case <-ch:
+		assert.Fail(t, "Response is not expected")
+	default:
+	}
 }
 
 func TestCachedResponse(t *testing.T) {
