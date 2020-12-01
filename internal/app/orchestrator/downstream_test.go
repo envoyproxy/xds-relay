@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
+	"github.com/envoyproxy/xds-relay/internal/app/cache"
 	"github.com/envoyproxy/xds-relay/internal/app/transport"
 	"github.com/stretchr/testify/assert"
 )
@@ -79,12 +80,10 @@ func Test_downstreamResponseMap_deleteAll(t *testing.T) {
 	responseMap.createWatch(request2, transport.NewWatchV2(make(chan<- gcp.Response, 1)))
 	responseMap.createWatch(request3, transport.NewWatchV2(make(chan<- gcp.Response, 1)))
 	assert.Equal(t, 3, len(responseMap.watches))
-	responseMap.deleteAll(
-		map[transport.Request]bool{
-			request:  true,
-			request2: true,
-		},
-	)
+	m := cache.NewRequestsStore()
+	m.Set(request)
+	m.Set(request2)
+	responseMap.deleteAll(m)
 	assert.Equal(t, 1, len(responseMap.watches))
 	if _, ok := responseMap.get(request); ok {
 		t.Error("request found, when should be deleted")

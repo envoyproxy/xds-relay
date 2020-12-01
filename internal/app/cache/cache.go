@@ -21,7 +21,7 @@ type Cache interface {
 	Fetch(key string) (*Resource, error)
 
 	// SetResponse sets the cache response and returns the list of requests.
-	SetResponse(key string, resp transport.Response) (map[transport.Request]bool, error)
+	SetResponse(key string, resp transport.Response) (*RequestsStore, error)
 
 	// AddRequest adds the request to the cache.
 	AddRequest(key string, req transport.Request) error
@@ -49,7 +49,7 @@ type cache struct {
 
 type Resource struct {
 	Resp           transport.Response
-	Requests       map[transport.Request]bool
+	Requests       *RequestsStore
 	ExpirationTime time.Time
 }
 
@@ -145,7 +145,7 @@ func (c *cache) Fetch(key string) (*Resource, error) {
 	return &resource, nil
 }
 
-func (c *cache) SetResponse(key string, response transport.Response) (map[transport.Request]bool, error) {
+func (c *cache) SetResponse(key string, response transport.Response) (*RequestsStore, error) {
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
 	metrics.CacheSetSubscope(c.scope, key).Counter(metrics.CacheSetAttempt).Inc(1)
@@ -154,7 +154,7 @@ func (c *cache) SetResponse(key string, response transport.Response) (map[transp
 		resource := Resource{
 			Resp:           response,
 			ExpirationTime: c.getExpirationTime(time.Now()),
-			Requests:       make(map[transport.Request]bool),
+			Requests:       NewRequestsStore(),
 		}
 		c.cache.Add(key, resource)
 		metrics.CacheSetSubscope(c.scope, key).Counter(metrics.CacheSetSuccess).Inc(1)
@@ -162,7 +162,7 @@ func (c *cache) SetResponse(key string, response transport.Response) (map[transp
 			"aggregated_key", key,
 			"response_type", response.GetTypeURL(),
 		).Debug(context.Background(), "set response")
-		return nil, nil
+		return resource.Requests, nil
 	}
 	resource, ok := value.(Resource)
 	if !ok {
@@ -185,8 +185,8 @@ func (c *cache) AddRequest(key string, req transport.Request) error {
 	metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheAddAttempt).Inc(1)
 	value, found := c.cache.Get(key)
 	if !found {
-		requests := make(map[transport.Request]bool)
-		requests[req] = true
+		requests := NewRequestsStore()
+		requests.Set(req)
 		resource := Resource{
 			Requests:       requests,
 			ExpirationTime: c.getExpirationTime(time.Now()),
@@ -205,7 +205,8 @@ func (c *cache) AddRequest(key string, req transport.Request) error {
 		metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheAddError).Inc(1)
 		return fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
-	resource.Requests[req] = true
+
+	resource.Requests.Set(req)
 	c.cache.Add(key, resource)
 	c.logger.With(
 		"aggregated_key", key,
@@ -229,7 +230,7 @@ func (c *cache) DeleteRequest(key string, req transport.Request) error {
 		metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheDeleteError).Inc(1)
 		return fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
-	delete(resource.Requests, req)
+	resource.Requests.Delete(req)
 	c.cache.Add(key, resource)
 	c.logger.With(
 		"aggregated_key", key,

@@ -469,7 +469,7 @@ func TestNACKRequest(t *testing.T) {
 	}
 	watchers, err := orchestrator.cache.SetResponse(aggregatedKey, transport.NewResponseV2(&req, &mockResponse))
 	assert.NoError(t, err)
-	assert.Equal(t, 0, len(watchers))
+	assert.Equal(t, 0, getLength(watchers))
 
 	respChannel := make(chan gcp.Response, 1)
 	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&req), transport.NewWatchV2(respChannel))
