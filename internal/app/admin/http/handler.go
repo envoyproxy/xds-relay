@@ -47,6 +47,12 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 			true,
 		},
 		{
+			"/cache/cds",
+			"print the cds payload for a particular key. usage: `/cds/<key>`",
+			cdsDumpHandler(orchestrator),
+			true,
+		},
+		{
 			"/cache/eds",
 			"print the eds payload for a particular key. usage: `/eds/<key>`",
 			edsDumpHandler(orchestrator),
