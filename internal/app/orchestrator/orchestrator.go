@@ -201,7 +201,7 @@ func (o *orchestrator) CreateWatch(req transport.Request, w transport.Watch) fun
 		// immediately push the result to the response channel.
 		err := watch.Send(cached.Resp)
 		o.downstreamResponseMap.delete(req)
-		o.cache.DeleteRequest(aggregatedKey, req)
+		_ = o.cache.DeleteRequest(aggregatedKey, req)
 
 		if err != nil {
 			// Sanity check that the channel isn't blocked. This shouldn't
@@ -367,7 +367,7 @@ func (o *orchestrator) fanout(resp transport.Response, requests map[transport.Re
 					metrics.OrchestratorWatchErrorsSubscope(o.scope, aggregatedKey).Counter(metrics.ErrorChannelFull).Inc(1)
 					return
 				}
-				o.cache.DeleteRequest(aggregatedKey, req)
+				_ = o.cache.DeleteRequest(aggregatedKey, req)
 
 				o.logger.With(
 					"aggregated_key", aggregatedKey,
@@ -403,7 +403,7 @@ func (o *orchestrator) onCacheEvicted(key string, resource cache.Resource) {
 func (o *orchestrator) onCancelWatch(aggregatedKey string, req transport.Request) func() {
 	return func() {
 		o.downstreamResponseMap.delete(req)
-		o.cache.DeleteRequest(aggregatedKey, req)
+		_ = o.cache.DeleteRequest(aggregatedKey, req)
 		metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchCanceled).Inc(1)
 		if err := o.cache.DeleteRequest(aggregatedKey, req); err != nil {
 			o.logger.With(
