@@ -57,7 +57,6 @@ func (d *downstreamResponseMap) delete(req transport.Request) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if _, ok := d.watches[req]; ok {
-		// wait for all writes to the responseChannel to complete before closing.
 		delete(d.watches, req)
 	}
 }
@@ -69,7 +68,6 @@ func (d *downstreamResponseMap) deleteAll(watchers *cache.RequestsStore) {
 	defer d.mu.Unlock()
 	watchers.ForEach(func(watch transport.Request) {
 		if _, ok := d.watches[watch]; ok {
-			// wait for all writes to the responseChannel to complete before closing.
 			delete(d.watches, watch)
 		}
 	})
