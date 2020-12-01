@@ -397,8 +397,15 @@ func (o *orchestrator) onCacheEvicted(key string, resource cache.Resource) {
 	metrics.OrchestratorCacheEvictSubscope(o.scope, key).Counter(
 		metrics.OrchestratorOnCacheEvictedRequestCount).Inc(int64(getLength(resource.Requests)))
 	o.logger.With("aggregated_key", key).Debug(context.Background(), "cache eviction called")
-	o.downstreamResponseMap.deleteAll(resource.Requests)
 	o.upstreamResponseMap.delete(key)
+	resource.Requests.ForEach(func(req transport.Request) {
+		if w, ok := o.downstreamResponseMap.get(req); ok {
+			go func() {
+				w.Send(nil)
+			}()
+		}
+	})
+	o.downstreamResponseMap.deleteAll(resource.Requests)
 }
 
 // onCancelWatch cleans up the cached watch when called.

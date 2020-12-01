@@ -269,7 +269,7 @@ func TestCachedResponse(t *testing.T) {
 	ch2 := make(chan gcp.Response, 1)
 	cancelWatch2 := orchestrator.CreateWatch(transport.NewRequestV2(req), transport.NewWatchV2(ch2))
 	assert.Nil(t, cancelWatch2)
-	assert.Len(t, orchestrator.downstreamResponseMap.watches, 1)
+	assert.Len(t, orchestrator.downstreamResponseMap.watches, 0)
 	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
 	orchestrator.upstreamResponseMap.internal.Range(func(key, val interface{}) bool {
 		assert.Equal(t, "lds", key.(string))
@@ -330,15 +330,18 @@ func TestMultipleWatchersAndUpstreams(t *testing.T) {
 	}
 
 	respChannel1 := make(chan gcp.Response, 1)
-	cancelWatch1 := orchestrator.CreateWatch(transport.NewRequestV2(req1), transport.NewWatchV2(respChannel1))
+	r1 := transport.NewRequestV2(req1)
+	cancelWatch1 := orchestrator.CreateWatch(r1, transport.NewWatchV2(respChannel1))
 	assert.NotNil(t, respChannel1)
 
 	respChannel2 := make(chan gcp.Response, 1)
-	cancelWatch2 := orchestrator.CreateWatch(transport.NewRequestV2(req2), transport.NewWatchV2(respChannel2))
+	r2 := transport.NewRequestV2(req2)
+	cancelWatch2 := orchestrator.CreateWatch(r2, transport.NewWatchV2(respChannel2))
 	assert.NotNil(t, respChannel2)
 
 	respChannel3 := make(chan gcp.Response, 1)
-	cancelWatch3 := orchestrator.CreateWatch(transport.NewRequestV2(req3), transport.NewWatchV2(respChannel3))
+	r3 := transport.NewRequestV2(req3)
+	cancelWatch3 := orchestrator.CreateWatch(r3, transport.NewWatchV2(respChannel3))
 	assert.NotNil(t, respChannel3)
 
 	upstreamResponseLDS := &v2.DiscoveryResponse{
@@ -367,7 +370,21 @@ func TestMultipleWatchersAndUpstreams(t *testing.T) {
 	gotResponseFromChannel2 := <-respChannel2
 	gotResponseFromChannel3 := <-respChannel3
 
-	assert.Equal(t, 3, len(orchestrator.downstreamResponseMap.watches))
+	for {
+		if _, ok := orchestrator.downstreamResponseMap.get(r1); !ok {
+			break
+		}
+	}
+	for {
+		if _, ok := orchestrator.downstreamResponseMap.get(r2); !ok {
+			break
+		}
+	}
+	for {
+		if _, ok := orchestrator.downstreamResponseMap.get(r3); !ok {
+			break
+		}
+	}
 	testutils.AssertSyncMapLen(t, 2, orchestrator.upstreamResponseMap.internal)
 	orchestrator.upstreamResponseMap.internal.Range(func(key, val interface{}) bool {
 		assert.Contains(t, []string{"lds", "cds"}, key.(string))
