@@ -14,6 +14,7 @@ package orchestrator
 import (
 	"sync"
 
+	"github.com/envoyproxy/xds-relay/internal/app/cache"
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
 	"github.com/envoyproxy/xds-relay/internal/app/transport"
 )
@@ -66,16 +67,16 @@ func (d *downstreamResponseMap) delete(req transport.Request) transport.Watch {
 
 // deleteAll removes all response channels and request entries from the map and
 // closes the corresponding channels.
-func (d *downstreamResponseMap) deleteAll(watchers map[transport.Request]bool) {
+func (d *downstreamResponseMap) deleteAll(watchers *cache.RequestsStore) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	for watch := range watchers {
+	watchers.ForEach(func(watch transport.Request) {
 		if w, ok := d.watches[watch]; ok {
 			// wait for all writes to the responseChannel to complete before closing.
 			w.Close()
 			delete(d.watches, watch)
 		}
-	}
+	})
 }
 
 // getAggregatedKeys returns a list of aggregated keys for all requests in the downstream response map.
