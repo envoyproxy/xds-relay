@@ -73,6 +73,22 @@ func NewMockClientEDS(
 	}
 }
 
+// NewMockClientCDS creates a mock implementation for testing both v2 and v3 eds together
+func NewMockClientCDS(
+	cdsClientV3 clusterservice.ClusterDiscoveryServiceClient,
+	cdsClientV2 v2.ClusterDiscoveryServiceClient,
+	callOptions CallOptions,
+	scope tally.Scope) Client {
+	return &client{
+		cdsClient:   cdsClientV2,
+		cdsClientV3: cdsClientV3,
+		callOptions: callOptions,
+		logger:      log.MockLogger,
+		scope:       scope,
+		shutdown:    make(<-chan struct{}),
+	}
+}
+
 // NewMock creates a mock client implementation for testing
 func NewMock(
 	ctx context.Context,
@@ -130,6 +146,22 @@ func NewMockEDS(
 		ctx,
 		createMockEdsClientV3(errorOnCreate, edsReceiveChanV3, sendCb),
 		createMockEdsClient(errorOnCreate, edsReceiveChanV2, sendCb),
+		callOptions,
+		scope,
+	)
+}
+
+// NewMockCDS creates a mock client implementation for testing v2 and v3 cds together
+func NewMockCDS(
+	callOptions CallOptions,
+	errorOnCreate []error,
+	cdsReceiveChanV3 chan *discoveryv3.DiscoveryResponse,
+	cdsReceiveChanV2 chan *v2.DiscoveryResponse,
+	sendCb func(m interface{}) error,
+	scope tally.Scope) Client {
+	return NewMockClientCDS(
+		createMockCdsClientV3(errorOnCreate, cdsReceiveChanV3, sendCb),
+		createMockCdsClient(errorOnCreate, cdsReceiveChanV2, sendCb),
 		callOptions,
 		scope,
 	)

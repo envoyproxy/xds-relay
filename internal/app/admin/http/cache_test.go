@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,7 @@ import (
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	corev2 "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	endpoint "github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
+	clusterv3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	endpointv3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
@@ -31,6 +33,99 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/uber-go/tally"
 )
+
+func TestAdminServer_CDSDumpHandler(t *testing.T) {
+	mapper := mapper.NewMock(t)
+	upstreamCdsResponseChannel := make(chan *v2.DiscoveryResponse)
+	upstreamCdsResponseChannelV3 := make(chan *discoveryv3.DiscoveryResponse)
+	client := upstream.NewMockCDS(
+		upstream.CallOptions{SendTimeout: time.Second},
+		nil,
+		upstreamCdsResponseChannelV3,
+		upstreamCdsResponseChannel,
+		func(m interface{}) error { return nil },
+		stats.NewMockScope("mock"),
+	)
+	orchestrator := orchestrator.NewMock(t, mapper, client, stats.NewMockScope("mock_orchestrator"))
+
+	respChannel, cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcp.Request{
+		TypeUrl: resourcev2.ClusterType,
+		Node: &corev2.Node{
+			Id:      "test-1",
+			Cluster: "test-prod1",
+		},
+		ResourceNames: []string{"res"},
+	}))
+
+	respChannelv3, cancelWatchv3 := orchestrator.CreateWatch(transport.NewRequestV3(&gcpv3.Request{
+		TypeUrl: resourcev3.ClusterType,
+		Node: &envoy_config_core_v3.Node{
+			Id:      "test-2",
+			Cluster: "test-prod2",
+		},
+		ResourceNames: []string{"res"},
+	}))
+
+
+	cluster := &v2.Cluster{
+		Name: "test-prod1",
+	}
+	clusterv3 := &clusterv3.Cluster{
+		Name: "test-prod2",
+	}
+
+	clusterAny, _ := ptypes.MarshalAny(cluster)
+	upstreamCdsResponseChannel <- &v2.DiscoveryResponse{
+		VersionInfo: "1",
+		TypeUrl:     resourcev2.ClusterType,
+		Resources: []*any.Any{
+			clusterAny,
+		},
+	}
+	clusterAnyV3, _ := ptypes.MarshalAny(clusterv3)
+	upstreamCdsResponseChannelV3 <- &discoveryv3.DiscoveryResponse{
+		VersionInfo: "2",
+		TypeUrl:     resourcev3.ClusterType,
+		Resources: []*any.Any{
+			clusterAnyV3,
+		},
+	}
+
+	<-respChannel.GetChannel().V2
+	<-respChannelv3.GetChannel().V3
+
+	rr := getResponseCDS(t, "test_cds", &orchestrator)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	verifyCdsLen(t, rr, 1)
+
+	rr = getResponseCDS(t, "test_cdsv3", &orchestrator)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	verifyCdsLen(t, rr, 1)
+
+	cancelWatch()
+	cancelWatchv3()
+}
+
+func TestAdminServer_CDSDumpHandler404(t *testing.T) {
+	ctx := context.Background()
+	mapper := mapper.NewMock(t)
+	upstreamCdsResponseChannel := make(chan *v2.DiscoveryResponse)
+	client := upstream.NewMock(
+		ctx,
+		upstream.CallOptions{SendTimeout: time.Second},
+		nil,
+		nil,
+		nil,
+		nil,
+		upstreamCdsResponseChannel,
+		func(m interface{}) error { return nil },
+		stats.NewMockScope("mock"),
+	)
+	orchestrator := orchestrator.NewMock(t, mapper, client, stats.NewMockScope("mock_orchestrator"))
+
+	rr := getResponseCDS(t, "cds", &orchestrator)
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
 
 func TestAdminServer_EDSDumpHandler(t *testing.T) {
 	ctx := context.Background()
@@ -116,11 +211,11 @@ func TestAdminServer_EDSDumpHandler(t *testing.T) {
 	<-respChannel.GetChannel().V2
 	<-respChannelv3.GetChannel().V3
 
-	rr := getResponse(t, "eds", &orchestrator)
+	rr := getResponseEDS(t, "eds", &orchestrator)
 	assert.Equal(t, http.StatusOK, rr.Code)
 	verifyEdsLen(t, rr, 2)
 
-	rr = getResponse(t, "edsv3", &orchestrator)
+	rr = getResponseEDS(t, "edsv3", &orchestrator)
 	assert.Equal(t, http.StatusOK, rr.Code)
 	verifyEdsLen(t, rr, 2)
 
@@ -145,7 +240,7 @@ func TestAdminServer_EDSDumpHandler404(t *testing.T) {
 	)
 	orchestrator := orchestrator.NewMock(t, mapper, client, stats.NewMockScope("mock_orchestrator"))
 
-	rr := getResponse(t, "eds", &orchestrator)
+	rr := getResponseEDS(t, "eds", &orchestrator)
 	assert.Equal(t, http.StatusNotFound, rr.Code)
 }
 
@@ -547,6 +642,14 @@ func verifyCacheOutput(t *testing.T, rr *httptest.ResponseRecorder, cdsFile stri
 	assert.NotNil(t, actualCdsResponse["ExpirationTime"])
 }
 
+func verifyCdsLen(t *testing.T, rr *httptest.ResponseRecorder, len int) {
+	cds := &marshallable.CDS{}
+	err := json.Unmarshal(rr.Body.Bytes(), cds)
+	assert.NoError(t, err)
+	assert.Len(t, cds.Names, len)
+	fmt.Println(cds)
+}
+
 func verifyEdsLen(t *testing.T, rr *httptest.ResponseRecorder, len int) {
 	eds := &marshallable.EDS{}
 	err := json.Unmarshal(rr.Body.Bytes(), eds)
@@ -554,7 +657,17 @@ func verifyEdsLen(t *testing.T, rr *httptest.ResponseRecorder, len int) {
 	assert.Len(t, eds.Endpoints, len)
 }
 
-func getResponse(t *testing.T, key string, o *orchestrator.Orchestrator) *httptest.ResponseRecorder {
+func getResponseCDS(t *testing.T, key string, o *orchestrator.Orchestrator) *httptest.ResponseRecorder {
+	req, err := http.NewRequest("GET", "/cache/cds/"+key, nil)
+	assert.NoError(t, err)
+	rr := httptest.NewRecorder()
+	handler := cdsDumpHandler(o)
+
+	handler.ServeHTTP(rr, req)
+	return rr
+}
+
+func getResponseEDS(t *testing.T, key string, o *orchestrator.Orchestrator) *httptest.ResponseRecorder {
 	req, err := http.NewRequest("GET", "/cache/eds/"+key, nil)
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()

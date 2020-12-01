@@ -106,6 +106,69 @@ func edsDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	}
 }
 
+func cdsDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		cdsKey := filepath.Base(req.URL.Path)
+		if cdsKey == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			s, _ := stringify.InterfaceToString(&marshallable.Error{
+				Message: "Empty key",
+			})
+			_, _ = w.Write([]byte(s))
+		}
+
+		c := orchestrator.Orchestrator.GetReadOnlyCache(*o)
+		resp, err := c.FetchReadOnly(cdsKey)
+		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
+			s, _ := stringify.InterfaceToString(&marshallable.Error{
+				Message: err.Error(),
+			})
+			_, _ = w.Write([]byte(s))
+			return
+		}
+
+		versionedResponse := resp.Resp.Get()
+		m := &marshallable.CDS{
+			Key:     cdsKey,
+			Version: resp.Resp.GetPayloadVersion(),
+			Names:   make([]string, 0),
+		}
+		if versionedResponse.V2 != nil {
+			r2 := marshalResources(versionedResponse.V2.Resources)
+			for _, r := range r2.Clusters {
+				cluster, _ := r.(*v2.Cluster)
+				if cluster == nil {
+					continue
+				}
+				m.Names = append(m.Names, cluster.Name)
+			}
+		} else if versionedResponse.V3 != nil {
+			r3 := marshalResources(versionedResponse.V3.Resources)
+			for _, r := range r3.Clusters {
+				cluster, _ := r.(*clusterv3.Cluster)
+				if cluster == nil {
+					continue
+				}
+				m.Names = append(m.Names, cluster.Name)
+			}
+		}
+
+		x, e := stringify.InterfaceToString(m)
+		if e != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		_, e = w.Write([]byte(x))
+		if e != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
 func keyDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		allKeys, err := orchestrator.Orchestrator.GetDownstreamAggregatedKeys(*o)
