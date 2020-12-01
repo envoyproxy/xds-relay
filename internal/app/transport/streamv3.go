@@ -2,7 +2,6 @@ package transport
 
 import (
 	"context"
-	"sync"
 
 	v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
@@ -15,7 +14,6 @@ type streamv3 struct {
 	grpcClientStream grpc.ClientStream
 	initialRequest   Request
 	logger           log.Logger
-	sendLock         sync.Mutex
 }
 
 // NewStreamV3 creates a new wrapped transport stream
@@ -29,11 +27,9 @@ func NewStreamV3(clientStream grpc.ClientStream, req Request, l log.Logger) Stre
 
 func (s *streamv3) SendMsg(version string, nonce string) error {
 	msg := s.initialRequest.GetRaw().V3
-	s.sendLock.Lock()
 	msg.VersionInfo = version
 	msg.ErrorDetail = nil
 	msg.ResponseNonce = nonce
-	s.sendLock.Unlock()
 	s.logger.With(
 		"request_type", msg.GetTypeUrl(),
 		"request_version", msg.GetVersionInfo(),
