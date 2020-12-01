@@ -2,7 +2,6 @@ package cache
 
 import (
 	"fmt"
-	"sync"
 	"testing"
 	"time"
 
@@ -76,7 +75,7 @@ var testDiscoveryResponse = v2.DiscoveryResponse{
 
 var testResource = Resource{
 	Resp:     transport.NewResponseV2(&v2.DiscoveryRequest{}, &testDiscoveryResponse),
-	Requests: &sync.Map{},
+	Requests: NewRequestsStore(),
 }
 
 func TestAddRequestAndFetch(t *testing.T) {
@@ -144,9 +143,9 @@ func TestAddRequestAndSetResponse(t *testing.T) {
 	requests, err := cache.SetResponse(testKeyA, testResource.Resp)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, getLength(requests))
-	_, ok := requests.Load(reqA)
+	ok := requests.get(reqA)
 	assert.True(t, ok)
-	_, ok = requests.Load(reqB)
+	ok = requests.get(reqB)
 	assert.True(t, ok)
 
 	resource, err := cache.Fetch(testKeyA)
@@ -279,11 +278,8 @@ func TestDeleteRequest(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func getLength(m *sync.Map) int {
+func getLength(m *RequestsStore) int {
 	count := 0
-	m.Range(func(key, value interface{}) bool {
-		count++
-		return true
-	})
+	m.ForEach(func(transport.Request) { count++ })
 	return count
 }

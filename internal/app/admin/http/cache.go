@@ -222,14 +222,12 @@ func hasWildcardSuffix(key string) bool {
 func resourceToPayload(key string, resource cache.Resource) []marshallableResource {
 	var marshallableResources []marshallableResource
 	var requests []types.Resource
-	resource.Requests.Range(func(key, value interface{}) bool {
-		request := key.(transport.Request)
+	resource.Requests.ForEach(func(request transport.Request) {
 		if request.GetRaw().V2 != nil {
 			requests = append(requests, request.GetRaw().V2)
 		} else {
 			requests = append(requests, request.GetRaw().V3)
 		}
-		return true
 	})
 
 	marshallableResources = append(marshallableResources, marshallableResource{

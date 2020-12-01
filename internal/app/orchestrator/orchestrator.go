@@ -343,10 +343,10 @@ func (o *orchestrator) watchUpstream(
 
 // fanout pushes the response to the response channels of all open downstream
 // watchers in parallel.
-func (o *orchestrator) fanout(resp transport.Response, watchers *sync.Map, aggregatedKey string) {
+func (o *orchestrator) fanout(resp transport.Response, watchers *cache.RequestsStore, aggregatedKey string) {
 	start := time.Now()
 	var wg sync.WaitGroup
-	watchers.Range(func(watch, value interface{}) bool {
+	watchers.ForEach(func(key transport.Request) {
 		wg.Add(1)
 		go func(watch transport.Request) {
 			defer wg.Done()
@@ -370,9 +370,9 @@ func (o *orchestrator) fanout(resp transport.Response, watchers *sync.Map, aggre
 				).Debug(context.Background(), "response sent")
 				metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchFanouts).Inc(1)
 			}
-		}(watch.(transport.Request))
-		return true
+		}(key)
 	})
+
 	o.scope.Timer(metrics.TimerFanoutTime).Record(time.Since(start))
 	// Wait for all fanouts to complete.
 	wg.Wait()
@@ -417,11 +417,8 @@ func isNackRequest(req transport.Request) bool {
 	return req.GetError() != nil
 }
 
-func getLength(m *sync.Map) int {
+func getLength(m *cache.RequestsStore) int {
 	count := 0
-	m.Range(func(key, value interface{}) bool {
-		count++
-		return true
-	})
+	m.ForEach(func(key transport.Request) { count++ })
 	return count
 }

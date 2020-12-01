@@ -12,10 +12,10 @@
 package orchestrator
 
 import (
-	"sync"
 	"testing"
 
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
+	"github.com/envoyproxy/xds-relay/internal/app/cache"
 	"github.com/envoyproxy/xds-relay/internal/app/transport"
 	"github.com/stretchr/testify/assert"
 )
@@ -80,10 +80,10 @@ func Test_downstreamResponseMap_deleteAll(t *testing.T) {
 	responseMap.createWatch(request2)
 	responseMap.createWatch(request3)
 	assert.Equal(t, 3, len(responseMap.watches))
-	var m sync.Map
-	m.Store(request, struct{}{})
-	m.Store(request2, struct{}{})
-	responseMap.deleteAll(&m)
+	m := cache.NewRequestsStore()
+	m.Set(request)
+	m.Set(request2)
+	responseMap.deleteAll(m)
 	assert.Equal(t, 1, len(responseMap.watches))
 	if _, ok := responseMap.get(request); ok {
 		t.Error("request found, when should be deleted")
