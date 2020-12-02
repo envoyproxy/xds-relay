@@ -32,11 +32,6 @@ import (
 	"github.com/uber-go/tally"
 )
 
-const (
-	nodeID  = "test-1"
-	cluster = "test-prod"
-)
-
 func TestAdminServer_EDSDumpHandler(t *testing.T) {
 	ctx := context.Background()
 	mapper := mapper.NewMock(t)
