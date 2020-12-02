@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -560,11 +561,11 @@ func TestOpenStreamShouldSendTheNextRequestWithUpdatedVersionAndNonceV3(t *testi
 func TestOpenStreamShouldRetryWhenSendMsgBlocks(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	responseChan := make(chan *v2.DiscoveryResponse)
-	first := true
+	first := int64(0)
 	response2 := &v2.DiscoveryResponse{VersionInfo: "2"}
 	client := createMockClientWithResponse(ctx, time.Nanosecond, responseChan, func(m interface{}) error {
-		if first {
-			first = false
+		atomic.AddInt64(&first, 1)
+		if atomic.LoadInt64(&first) == 1 {
 			<-ctx.Done()
 			return nil
 		}
@@ -595,11 +596,11 @@ func TestOpenStreamShouldRetryWhenSendMsgBlocksV3(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	responseChan := make(chan *discoveryv3.DiscoveryResponse)
-	first := true
+	first := int64(0)
 	response2 := &discoveryv3.DiscoveryResponse{VersionInfo: "2"}
 	client := createMockClientWithResponseV3(ctx, time.Nanosecond, responseChan, func(m interface{}) error {
-		if first {
-			first = false
+		atomic.AddInt64(&first, 1)
+		if atomic.LoadInt64(&first) == 1 {
 			<-ctx.Done()
 			return nil
 		}
