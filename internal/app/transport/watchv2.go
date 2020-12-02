@@ -38,6 +38,7 @@ func (w *watchV2) Send(s Response) error {
 	}
 	select {
 	case w.out <- response:
+		w.done = true
 		return nil
 	default:
 		return fmt.Errorf("channel is blocked")
