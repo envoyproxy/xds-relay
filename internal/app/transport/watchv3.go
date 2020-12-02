@@ -34,7 +34,7 @@ func (w *watchV3) Send(s Response) error {
 	if s != nil {
 		response = &gcpv3.PassthroughResponse{DiscoveryResponse: s.Get().V3, Request: s.GetRequest().V3}
 	}
-	w.done = true
+
 	select {
 	case w.out <- response:
 		w.done = true

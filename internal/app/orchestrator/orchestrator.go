@@ -209,7 +209,7 @@ func (o *orchestrator) CreateWatch(req transport.Request, w transport.Watch) fun
 			// continue to create the watch.
 			o.logger.With("aggregated_key", aggregatedKey, "error", err).Warn(context.Background(),
 				"failed to push cached response")
-			metrics.OrchestratorWatchErrorsSubscope(o.scope, aggregatedKey).Counter(metrics.ErrorChannelFull + "1").Inc(1)
+			metrics.OrchestratorWatchErrorsSubscope(o.scope, aggregatedKey).Counter(metrics.ErrorChannelFull).Inc(1)
 		} else {
 			metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchFanouts).Inc(1)
 		}
@@ -401,7 +401,7 @@ func (o *orchestrator) onCacheEvicted(key string, resource cache.Resource) {
 	resource.Requests.ForEach(func(req transport.Request) {
 		if w, ok := o.downstreamResponseMap.get(req); ok {
 			go func() {
-				w.Send(nil)
+				_ = w.Send(nil)
 			}()
 		}
 	})

@@ -56,9 +56,7 @@ func (d *downstreamResponseMap) get(req transport.Request) (transport.Watch, boo
 func (d *downstreamResponseMap) delete(req transport.Request) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	if _, ok := d.watches[req]; ok {
-		delete(d.watches, req)
-	}
+	delete(d.watches, req)
 }
 
 // deleteAll removes all response channels and request entries from the map and
@@ -67,9 +65,7 @@ func (d *downstreamResponseMap) deleteAll(watchers *cache.RequestsStore) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	watchers.ForEach(func(watch transport.Request) {
-		if _, ok := d.watches[watch]; ok {
-			delete(d.watches, watch)
-		}
+		delete(d.watches, watch)
 	})
 }
 

@@ -35,12 +35,35 @@ func TestSendSuccessfulV2(t *testing.T) {
 	wg.Wait()
 }
 
-func TestSendFalseWhenBlockedV2(t *testing.T) {
+func TestSendErrorWhenBlockedV2(t *testing.T) {
+	ch := make(chan gcp.Response)
+	w := NewWatchV2(ch)
+	err := w.Send(NewResponseV2(discoveryRequestv2, discoveryResponsev2))
+	assert.Error(t, err)
+}
+
+func TestSendAllowsOneResponseV2(t *testing.T) {
 	ch := make(chan gcp.Response, 1)
-	defer close(ch)
 	w := NewWatchV2(ch)
 	err := w.Send(NewResponseV2(discoveryRequestv2, discoveryResponsev2))
 	assert.NoError(t, err)
+
+	<-ch
 	err = w.Send(NewResponseV2(discoveryRequestv2, discoveryResponsev2))
-	assert.NotNil(t, err)
+	assert.NoError(t, err)
+	select {
+	case <-ch:
+		assert.Fail(t, "Response is not expected")
+	default:
+	}
+}
+
+func TestSendAllowsNilResponseV2(t *testing.T) {
+	ch := make(chan gcp.Response, 1)
+	w := NewWatchV2(ch)
+	err := w.Send(nil)
+	assert.NoError(t, err)
+
+	resp := <-ch
+	assert.Nil(t, resp)
 }

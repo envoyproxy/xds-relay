@@ -491,7 +491,8 @@ func TestNACKRequest(t *testing.T) {
 	assert.Equal(t, 0, getLength(watchers))
 
 	respChannel := make(chan gcp.Response, 1)
-	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&req), transport.NewWatchV2(respChannel))
+	r := transport.NewRequestV2(&req)
+	cancelWatch := orchestrator.CreateWatch(r, transport.NewWatchV2(respChannel))
 	assert.NotNil(t, respChannel)
 	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.watches))
 	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
@@ -528,7 +529,10 @@ func TestNACKRequest(t *testing.T) {
 	orchestrator.shutdown(ctx)
 	testutils.AssertSyncMapLen(t, 0, orchestrator.upstreamResponseMap.internal)
 
-	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.watches))
+	for {
+		if _, ok := orchestrator.downstreamResponseMap.get(r); !ok {
+			break
+		}
+	}
 	cancelWatch()
-	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.watches))
 }
