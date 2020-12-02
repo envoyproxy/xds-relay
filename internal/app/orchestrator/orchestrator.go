@@ -128,23 +128,22 @@ func New(
 func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func()) {
 	ctx := context.Background()
 
-	// If this is the first time we're seeing the request from the
-	// downstream client, initialize a channel to feed future responses.
-	watch := o.downstreamResponseMap.createWatch(req)
-
 	aggregatedKey, err := o.mapper.GetKey(req)
 	if err != nil {
+		// TODO (https://github.com/envoyproxy/xds-relay/issues/56)
+		// Support unnaggregated keys.
 		// Can't map the request to an aggregated key. Log error and return.
 		o.logger.With(
 			"error", err,
 			"request_type", req.GetTypeURL(),
 			"node_id", req.GetNodeID(),
 		).Error(ctx, "failed to map to aggregated key")
-
-		// TODO (https://github.com/envoyproxy/xds-relay/issues/56)
-		// Support unnaggregated keys.
-		return o.downstreamResponseMap.delete(req), nil
+		return nil, nil
 	}
+
+	// If this is the first time we're seeing the request from the
+	// downstream client, initialize a channel to feed future responses.
+	watch := o.downstreamResponseMap.createWatch(req, metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey))
 
 	o.logger.With(
 		"node_id", req.GetNodeID(),

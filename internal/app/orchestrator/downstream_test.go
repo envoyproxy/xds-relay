@@ -17,6 +17,7 @@ import (
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	"github.com/envoyproxy/xds-relay/internal/app/cache"
 	"github.com/envoyproxy/xds-relay/internal/app/transport"
+	"github.com/envoyproxy/xds-relay/internal/pkg/stats"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,19 +25,20 @@ var (
 	mockRequest = gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
 	}
+	mockScope = stats.NewMockScope("mockDownstream")
 )
 
 func Test_downstreamResponseMap_createWatch(t *testing.T) {
 	responseMap := newDownstreamResponseMap()
 	assert.Equal(t, 0, len(responseMap.watches))
-	responseMap.createWatch(transport.NewRequestV2(&mockRequest))
+	responseMap.createWatch(transport.NewRequestV2(&mockRequest), mockScope)
 	assert.Equal(t, 1, len(responseMap.watches))
 }
 
 func Test_downstreamResponseMap_get(t *testing.T) {
 	responseMap := newDownstreamResponseMap()
 	request := transport.NewRequestV2(&mockRequest)
-	responseMap.createWatch(request)
+	responseMap.createWatch(request, mockScope)
 	assert.Equal(t, 1, len(responseMap.watches))
 	if _, ok := responseMap.get(request); !ok {
 		t.Error("request not found")
@@ -49,8 +51,8 @@ func Test_downstreamResponseMap_delete(t *testing.T) {
 	request2 := transport.NewRequestV2(&gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Cluster",
 	})
-	responseMap.createWatch(request)
-	responseMap.createWatch(request2)
+	responseMap.createWatch(request, mockScope)
+	responseMap.createWatch(request2, mockScope)
 	assert.Equal(t, 2, len(responseMap.watches))
 	if _, ok := responseMap.get(request); !ok {
 		t.Error("request not found")
@@ -76,9 +78,9 @@ func Test_downstreamResponseMap_deleteAll(t *testing.T) {
 	request3 := transport.NewRequestV2(&gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.RouteConfiguration",
 	})
-	responseMap.createWatch(request)
-	responseMap.createWatch(request2)
-	responseMap.createWatch(request3)
+	responseMap.createWatch(request, mockScope)
+	responseMap.createWatch(request2, mockScope)
+	responseMap.createWatch(request3, mockScope)
 	assert.Equal(t, 3, len(responseMap.watches))
 	m := cache.NewRequestsStore()
 	m.Set(request)

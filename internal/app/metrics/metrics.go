@@ -27,6 +27,7 @@ const (
 	OrchestratorNackWatchCreated = "created_nack" // counter, # of watches created per aggregated key in NACK requests
 	OrchestratorWatchCanceled    = "canceled"     // counter, # of watch cancels initiated per aggregated key
 	OrchestratorWatchFanouts     = "fanout"       // counter, # of responses pushed downstream
+	OrchestratorWatchDequeued    = "dequeued"     // counter, # of responses dequeued from the response channel
 
 	// scope: .orchestrator.$aggregated_key.cache_evict.*
 	ScopeOrchestratorCacheEvict            = "cache_evict"
