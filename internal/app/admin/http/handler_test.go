@@ -232,7 +232,7 @@ func TestGetQuery_Empty(t *testing.T) {
 
 func TestGetQuery_Malformed(t *testing.T) {
 	isVerbose := getQueryValue(url.Values{
-		"verbose": []string{"abc"},
+		"verbose":   []string{"abc"},
 		"something": []string{"true"},
 	})
 	assert.False(t, isVerbose)

@@ -183,8 +183,8 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 type marshallableResource struct {
 	Key            string
 	Resp           *marshalledDiscoveryResponse
-	Requests       []types.Resource`json:",omitempty"`
-	NumRequests    int`json:",omitempty"`
+	Requests       []types.Resource `json:",omitempty"`
+	NumRequests    int              `json:",omitempty"`
 	ExpirationTime time.Time
 }
 
