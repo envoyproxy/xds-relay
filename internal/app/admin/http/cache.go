@@ -150,6 +150,7 @@ func keyDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		cacheKey := getParam(req.URL.Path)
+		isVerbose := getQueryValue(req.URL.Query())
 		c := orchestrator.Orchestrator.GetReadOnlyCache(*o)
 		var keysToPrint []string
 
@@ -175,14 +176,15 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 			// Otherwise return the cache entry corresponding to the given key.
 			keysToPrint = []string{cacheKey}
 		}
-		printCacheEntries(keysToPrint, c, w)
+		printCacheEntries(keysToPrint, c, w, isVerbose)
 	}
 }
 
 type marshallableResource struct {
 	Key            string
 	Resp           *marshalledDiscoveryResponse
-	Requests       []types.Resource
+	Requests       []types.Resource`json:",omitempty"`
+	NumRequests    int`json:",omitempty"`
 	ExpirationTime time.Time
 }
 
@@ -190,12 +192,12 @@ type marshallableCache struct {
 	Cache []marshallableResource
 }
 
-func printCacheEntries(keys []string, cache cache.ReadOnlyCache, w http.ResponseWriter) {
+func printCacheEntries(keys []string, cache cache.ReadOnlyCache, w http.ResponseWriter, isVerbose bool) {
 	resp := marshallableCache{}
 	for _, key := range keys {
 		resource, err := cache.FetchReadOnly(key)
 		if err == nil {
-			resp.Cache = append(resp.Cache, resourceToPayload(key, resource)...)
+			resp.Cache = append(resp.Cache, resourceToPayload(key, resource, isVerbose)...)
 		}
 	}
 	resourceString, err := stringify.InterfaceToString(resp)
@@ -219,7 +221,7 @@ func hasWildcardSuffix(key string) bool {
 // In order to marshal a Resource from the cache to JSON to be printed,
 // the map of requests is converted to a slice of just the keys,
 // since the bool value is meaningless.
-func resourceToPayload(key string, resource cache.Resource) []marshallableResource {
+func resourceToPayload(key string, resource cache.Resource, isVerbose bool) []marshallableResource {
 	var marshallableResources []marshallableResource
 	var requests []types.Resource
 	resource.Requests.ForEach(func(request transport.Request) {
@@ -229,13 +231,18 @@ func resourceToPayload(key string, resource cache.Resource) []marshallableResour
 			requests = append(requests, request.GetRaw().V3)
 		}
 	})
-
-	marshallableResources = append(marshallableResources, marshallableResource{
+	marshallableResource := marshallableResource{
 		Key:            key,
 		Resp:           marshalDiscoveryResponse(resource.Resp),
-		Requests:       requests,
 		ExpirationTime: resource.ExpirationTime,
-	})
+	}
+
+	if isVerbose {
+		marshallableResource.Requests = requests
+	} else {
+		marshallableResource.NumRequests = len(requests)
+	}
+	marshallableResources = append(marshallableResources, marshallableResource)
 
 	return marshallableResources
 }

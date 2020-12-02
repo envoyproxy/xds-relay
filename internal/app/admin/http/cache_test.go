@@ -203,7 +203,7 @@ func TestAdminServer_KeyDumpHandler(t *testing.T) {
 	cancelWatch2()
 }
 
-func testAdminServerCacheDumpHelper(t *testing.T, urls []string) {
+func testAdminServerCacheDumpHelper(t *testing.T, isVerbose bool, urls []string) {
 	for _, url := range urls {
 		t.Run(url, func(t *testing.T) {
 			ctx := context.Background()
@@ -292,14 +292,14 @@ func testAdminServerCacheDumpHelper(t *testing.T, urls []string) {
 			handler.ServeHTTP(rr, req)
 			assert.Equal(t, http.StatusOK, rr.Code)
 
-			verifyCacheOutput(t, rr, "testdata/entire_cachev2_cds.json", "testdata/entire_cachev2_lds.json")
+			verifyCacheOutput(t, rr, isVerbose, "testdata/entire_cachev2_cds.json", "testdata/entire_cachev2_lds.json")
 			cancelLDSWatch()
 			cancelCDSWatch()
 		})
 	}
 }
 
-func testAdminServerCacheDumpHandlerV3(t *testing.T, urls []string) {
+func testAdminServerCacheDumpHandlerV3(t *testing.T, isVerbose bool, urls []string) {
 	for _, url := range urls {
 		t.Run(url, func(t *testing.T) {
 			ctx := context.Background()
@@ -387,7 +387,7 @@ func testAdminServerCacheDumpHandlerV3(t *testing.T, urls []string) {
 
 			handler.ServeHTTP(rr, req)
 			assert.Equal(t, http.StatusOK, rr.Code)
-			verifyCacheOutput(t, rr, "testdata/entire_cachev3_cds.json", "testdata/entire_cachev3_lds.json")
+			verifyCacheOutput(t, rr, isVerbose, "testdata/entire_cachev3_cds.json", "testdata/entire_cachev3_lds.json")
 
 			cancelLDSWatch()
 			cancelCDSWatch()
@@ -396,19 +396,19 @@ func testAdminServerCacheDumpHandlerV3(t *testing.T, urls []string) {
 }
 
 func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
-	testAdminServerCacheDumpHelper(t, []string{"/cache", "/cache/", "/cache/*"})
+	testAdminServerCacheDumpHelper(t, false, []string{"/cache", "/cache/", "/cache/*"})
 }
 
 func TestAdminServer_CacheDumpHandler_EntireCacheV3(t *testing.T) {
-	testAdminServerCacheDumpHandlerV3(t, []string{"/cache", "/cache/", "/cache/*"})
+	testAdminServerCacheDumpHandlerV3(t, false, []string{"/cache", "/cache/", "/cache/*"})
 }
 
 func TestAdminServer_CacheDumpHandler_WildcardSuffix(t *testing.T) {
-	testAdminServerCacheDumpHelper(t, []string{"/cache/t*", "/cache/tes*", "/cache/test*"})
+	testAdminServerCacheDumpHelper(t, false, []string{"/cache/t*", "/cache/tes*", "/cache/test*"})
 }
 
 func TestAdminServer_CacheDumpHandler_WildcardSuffixV3(t *testing.T) {
-	testAdminServerCacheDumpHandlerV3(t, []string{"/cache/t*", "/cache/tes*", "/cache/test*"})
+	testAdminServerCacheDumpHandlerV3(t, false, []string{"/cache/t*", "/cache/tes*", "/cache/test*"})
 }
 
 func TestAdminServer_CacheDumpHandler_WildcardSuffix_NotFound(t *testing.T) {
@@ -507,7 +507,15 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffix_NotFound(t *testing.T) {
 	}
 }
 
-func verifyCacheOutput(t *testing.T, rr *httptest.ResponseRecorder, cdsFile string, ldsFile string) {
+func TestAdminServer_CacheDumpHandler_VerboseCache(t *testing.T) {
+	testAdminServerCacheDumpHelper(t, true, []string{"/cache/test*?verbose=true"})
+}
+
+func TestAdminServer_CacheDumpHandler_SuccinctCache(t *testing.T) {
+	testAdminServerCacheDumpHelper(t, false, []string{"/cache/*?verbose=false"})
+}
+
+func verifyCacheOutput(t *testing.T, rr *httptest.ResponseRecorder, isVerbose bool, cdsFile string, ldsFile string) {
 	var actualResponse map[string]interface{}
 	err := json.Unmarshal(rr.Body.Bytes(), &actualResponse)
 	assert.NoError(t, err)
@@ -541,8 +549,17 @@ func verifyCacheOutput(t *testing.T, rr *httptest.ResponseRecorder, cdsFile stri
 	assert.Equal(t, expectedCdsResponse["Key"], actualCdsResponse["Key"])
 	assert.Equal(t, expectedLdsResponse["Resp"], actualLdsResponse["Resp"])
 	assert.Equal(t, expectedCdsResponse["Resp"], actualCdsResponse["Resp"])
-	assert.Equal(t, len(actualLdsResponse["Requests"].([]interface{})), 1)
-	assert.Equal(t, len(actualCdsResponse["Requests"].([]interface{})), 1)
+	if isVerbose {
+		assert.NotContains(t, actualLdsResponse, "NumRequests")
+		assert.NotContains(t, actualCdsResponse, "NumRequests")
+		assert.Equal(t, len(actualLdsResponse["Requests"].([]interface{})), 1)
+		assert.Equal(t, len(actualCdsResponse["Requests"].([]interface{})), 1)
+	} else {
+		assert.NotContains(t, actualLdsResponse, "Requests")
+		assert.NotContains(t, actualCdsResponse, "Requests")
+		assert.Equal(t, actualLdsResponse["NumRequests"], float64(1))
+		assert.Equal(t, actualCdsResponse["NumRequests"], float64(1))
+	}
 	assert.NotNil(t, actualLdsResponse["ExpirationTime"])
 	assert.NotNil(t, actualCdsResponse["ExpirationTime"])
 }

@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -215,6 +216,26 @@ func TestGetParam_Malformed(t *testing.T) {
 	path := "127.0.0.1:6070"
 	cacheKey := getParam(path)
 	assert.Equal(t, "", cacheKey)
+}
+
+func TestGetQuery(t *testing.T) {
+	isVerbose := getQueryValue(url.Values{
+		"verbose": []string{"true"},
+	})
+	assert.True(t, isVerbose)
+}
+
+func TestGetQuery_Empty(t *testing.T) {
+	isVerbose := getQueryValue(url.Values{})
+	assert.False(t, isVerbose)
+}
+
+func TestGetQuery_Malformed(t *testing.T) {
+	isVerbose := getQueryValue(url.Values{
+		"verbose": []string{"abc"},
+		"something": []string{"true"},
+	})
+	assert.False(t, isVerbose)
 }
 
 func TestAdminServer_LogLevelHandler(t *testing.T) {

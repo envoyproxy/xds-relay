@@ -22,6 +22,7 @@
         "Nonce": "",
         "ControlPlane": null
       },
+      "NumRequests": "1",
       "Requests": [
         {
           "version_info": "2",

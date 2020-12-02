@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/pprof"
+	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
@@ -147,6 +149,15 @@ func getParam(path string) string {
 		return splitPath[2]
 	}
 	return ""
+}
+
+func getQueryValue(values url.Values) bool {
+	verbose := values.Get("verbose")
+	isVerbose, err := strconv.ParseBool(verbose)
+	if err == nil {
+		return isVerbose
+	}
+	return false
 }
 
 func logLevelHandler(l log.Logger) http.HandlerFunc {
