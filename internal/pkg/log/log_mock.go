@@ -6,7 +6,7 @@ import (
 )
 
 // MockLogger mocks a very basic debug logger.
-var MockLogger = New("debug", os.Stderr)
+var MockLogger = New("error", os.Stderr)
 
 // NewMock returns an instance of Logger implemented using the Zap logging framework.
 func NewMock(logLevel string, writeTo io.Writer) Logger {
