@@ -96,6 +96,12 @@ const (
 	CacheDeleteAttempt = "attempt" // counter, # of cache delete requests called
 	CacheDeleteSuccess = "success" // counter, # of cache delete requests succeeded
 	CacheDeleteError   = "error"   // counter, # of errors while calling cache delete
+
+	// scope: .cache.$aggregated_key.delete_key.*
+	ScopeCacheDeleteKey   = "delete_key"
+	CacheDeleteKeyAttempt = "attempt" // counter, # of cache delete key requests called
+	CacheDeleteKeySuccess = "success" // counter, # of cache delete key requests succeeded
+	CacheDeleteKeyError   = "error"   // counter, # of errors while calling cache delete key
 )
 
 // .mapper
@@ -161,4 +167,11 @@ func CacheAddRequestSubscope(parent tally.Scope, aggregatedKey string) tally.Sco
 // ex: .cache.delete_request+key=$aggregated_key
 func CacheDeleteRequestSubscope(parent tally.Scope, aggregatedKey string) tally.Scope {
 	return parent.SubScope(ScopeCacheDelete).Tagged(map[string]string{TagName: aggregatedKey})
+}
+
+// CacheDeleteKeySubscope gets the cache delete key subscope and adds the aggregated key
+// as a point tag.
+// ex: .cache.delete_key+key=$aggregated_key
+func CacheDeleteKeySubscope(parent tally.Scope, aggregatedKey string) tally.Scope {
+	return parent.SubScope(ScopeCacheDeleteKey).Tagged(map[string]string{TagName: aggregatedKey})
 }

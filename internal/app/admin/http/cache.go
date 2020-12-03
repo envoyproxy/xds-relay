@@ -151,31 +151,24 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		cacheKey := getParam(req.URL.Path)
 		c := orchestrator.Orchestrator.GetReadOnlyCache(*o)
-		var keysToPrint []string
-
-		// If wildcard suffix provided, output all cache entries that match given prefix.
-		// If no key is provided, output the entire cache.
-		if hasWildcardSuffix(cacheKey) {
-			// Retrieve all keys
-			allKeys, err := orchestrator.Orchestrator.GetDownstreamAggregatedKeys(*o)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				fmt.Fprintf(w, "error in getting cache keys: %s", err.Error())
-				return
-			}
-
-			// Find keys that match prefix of wildcard
-			rootCacheKeyName := strings.TrimSuffix(cacheKey, "*")
-			for potentialMatchKey := range allKeys {
-				if strings.HasPrefix(potentialMatchKey, rootCacheKeyName) {
-					keysToPrint = append(keysToPrint, potentialMatchKey)
-				}
-			}
-		} else {
-			// Otherwise return the cache entry corresponding to the given key.
-			keysToPrint = []string{cacheKey}
+		keysToPrint, err := getRelevantKeys(o, cacheKey, w)
+		if err == nil {
+			printCacheEntries(keysToPrint, c, w)
 		}
-		printCacheEntries(keysToPrint, c, w)
+	}
+}
+
+func clearCacheHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		if req.Method == http.MethodPost {
+			cacheKey := getParam(req.URL.Path)
+			keysToClear, err := getRelevantKeys(o, cacheKey, w)
+			if err == nil {
+				clearCacheEntries(keysToClear, o, w)
+			}
+			return
+		}
+		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
 }
 
@@ -188,6 +181,35 @@ type marshallableResource struct {
 
 type marshallableCache struct {
 	Cache []marshallableResource
+}
+
+func getRelevantKeys(o *orchestrator.Orchestrator, key string, w http.ResponseWriter) ([]string, error) {
+	var relevantKeys []string
+	// If wildcard suffix provided, retrieve all cache keys that match the given prefix.
+	// If no key is provided, retrieve all keys.
+	if hasWildcardSuffix(key) {
+		// Retrieve all keys
+		allKeys, err := orchestrator.Orchestrator.GetDownstreamAggregatedKeys(*o)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			errMessage, _ := stringify.InterfaceToString(&marshallable.Error{
+				Message: fmt.Sprintf("error in retrieving downstream aggregated keys: %s", err.Error()),
+			})
+			_, _ = w.Write([]byte(errMessage))
+			return nil, err
+		}
+		// Find keys that match prefix of wildcard
+		rootCacheKeyName := strings.TrimSuffix(key, "*")
+		for potentialMatchKey := range allKeys {
+			if strings.HasPrefix(potentialMatchKey, rootCacheKeyName) {
+				relevantKeys = append(relevantKeys, potentialMatchKey)
+			}
+		}
+	} else {
+		// Otherwise return singular key.
+		relevantKeys = []string{key}
+	}
+	return relevantKeys, nil
 }
 
 func printCacheEntries(keys []string, cache cache.ReadOnlyCache, w http.ResponseWriter) {
@@ -207,6 +229,20 @@ func printCacheEntries(keys []string, cache cache.ReadOnlyCache, w http.Response
 
 	if len(resp.Cache) > 0 {
 		fmt.Fprintf(w, "%s\n", resourceString)
+	}
+}
+
+func clearCacheEntries(keys []string, o *orchestrator.Orchestrator, w http.ResponseWriter) {
+	errors := (*o).ClearCacheEntries(keys)
+	if len(errors) > 0 {
+		var aggregatedError string
+		for _, err := range errors {
+			aggregatedError += err.Error()
+		}
+		errMessage, _ := stringify.InterfaceToString(&marshallable.Error{
+			Message: aggregatedError,
+		})
+		_, _ = w.Write([]byte(errMessage))
 	}
 }
 
