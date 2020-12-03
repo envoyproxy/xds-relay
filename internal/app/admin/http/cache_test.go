@@ -66,7 +66,6 @@ func TestAdminServer_CDSDumpHandler(t *testing.T) {
 		ResourceNames: []string{"res"},
 	}))
 
-
 	cluster := &v2.Cluster{
 		Name: "test-prod1",
 	}
