@@ -41,6 +41,12 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 			true,
 		},
 		{
+			"/cache/clear",
+			"clear cache entry for a given key. Omitting the key clears all cache entries. usage: `/clear_cache/<key>`",
+			clearCacheHandler(orchestrator),
+			true,
+		},
+		{
 			"/cache",
 			"print cache entry for a given key. Omitting the key outputs all cache entries. usage: `/cache/<key>`",
 			cacheDumpHandler(orchestrator),
@@ -177,7 +183,6 @@ func logLevelHandler(l log.Logger) http.HandlerFunc {
 			fmt.Fprintf(w, "Current log level: %s\n", l.GetLevel())
 		} else {
 			w.WriteHeader(http.StatusMethodNotAllowed)
-			fmt.Fprintf(w, "Only POST is supported\n")
 		}
 	}
 }
