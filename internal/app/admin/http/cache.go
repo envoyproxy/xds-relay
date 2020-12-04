@@ -106,6 +106,46 @@ func edsDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	}
 }
 
+func versionHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		key := filepath.Base(req.URL.Path)
+		if key == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			s, _ := stringify.InterfaceToString(&marshallable.Error{
+				Message: "Empty key",
+			})
+			_, _ = w.Write([]byte(s))
+		}
+
+		c := orchestrator.Orchestrator.GetReadOnlyCache(*o)
+		resp, err := c.FetchReadOnly(key)
+		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
+			s, _ := stringify.InterfaceToString(&marshallable.Error{
+				Message: err.Error(),
+			})
+			_, _ = w.Write([]byte(s))
+			return
+		}
+
+		version := &marshallable.Version{
+			Version: resp.Resp.GetPayloadVersion(),
+		}
+		x, e := stringify.InterfaceToString(version)
+		if e != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		_, e = w.Write([]byte(x))
+		if e != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
 func keyDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		allKeys, err := orchestrator.Orchestrator.GetDownstreamAggregatedKeys(*o)

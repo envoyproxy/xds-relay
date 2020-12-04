@@ -49,7 +49,7 @@ fragments:
             types:
               - "type.googleapis.com/envoy.config.cluster.v3.Cluster"
         result:
-          string_fragment: "cds"
+          string_fragment: "cdsv3"
       - match:
           request_type_match:
             types:
