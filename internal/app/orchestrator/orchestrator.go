@@ -57,6 +57,8 @@ type Orchestrator interface {
 
 	GetDownstreamAggregatedKeys() (map[string]bool, error)
 
+	ClearCacheEntries(keys []string) []error
+
 	CreateWatch(transport.Request) (transport.Watch, func())
 }
 
@@ -245,6 +247,17 @@ func (o *orchestrator) GetDownstreamAggregatedKeys() (map[string]bool, error) {
 		o.logger.With("error", err).Error(context.Background(), "Unable to get keys")
 	}
 	return keys, err
+}
+
+func (o *orchestrator) ClearCacheEntries(keys []string) []error {
+	var errors []error
+	for _, key := range keys {
+		err := o.cache.DeleteKey(key)
+		if err != nil {
+			errors = append(errors, err)
+		}
+	}
+	return errors
 }
 
 // watchUpstream is intended to be called in a go routine, to receive incoming

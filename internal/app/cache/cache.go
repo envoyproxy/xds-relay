@@ -29,6 +29,9 @@ type Cache interface {
 	// DeleteRequest removes the given request from any cache entries it's present in.
 	DeleteRequest(key string, req transport.Request) error
 
+	// DeleteKey removes the given key from cache.
+	DeleteKey(key string) error
+
 	// GetReadOnlyCache returns a copy of the cache that only exposes read-only methods in its interface.
 	GetReadOnlyCache() ReadOnlyCache
 }
@@ -220,14 +223,14 @@ func (c *cache) AddRequest(key string, req transport.Request) error {
 func (c *cache) DeleteRequest(key string, req transport.Request) error {
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
-	metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheDeleteAttempt).Inc(1)
+	metrics.CacheDeleteRequestSubscope(c.scope, key).Counter(metrics.CacheDeleteAttempt).Inc(1)
 	value, found := c.cache.Get(key)
 	if !found {
 		return nil
 	}
 	resource, ok := value.(Resource)
 	if !ok {
-		metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheDeleteError).Inc(1)
+		metrics.CacheDeleteRequestSubscope(c.scope, key).Counter(metrics.CacheDeleteError).Inc(1)
 		return fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
 	resource.Requests.Delete(req)
@@ -237,7 +240,21 @@ func (c *cache) DeleteRequest(key string, req transport.Request) error {
 		"node_id", req.GetNodeID(),
 		"request_type", req.GetTypeURL(),
 	).Debug(context.Background(), "request deleted")
-	metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheDeleteSuccess).Inc(1)
+	metrics.CacheDeleteRequestSubscope(c.scope, key).Counter(metrics.CacheDeleteSuccess).Inc(1)
+	return nil
+}
+
+func (c *cache) DeleteKey(key string) error {
+	c.cacheMu.Lock()
+	defer c.cacheMu.Unlock()
+	metrics.CacheDeleteKeySubscope(c.scope, key).Counter(metrics.CacheDeleteKeyAttempt).Inc(1)
+	_, found := c.cache.Get(key)
+	if !found {
+		metrics.CacheDeleteKeySubscope(c.scope, key).Counter(metrics.CacheDeleteKeyError).Inc(1)
+		return fmt.Errorf(fmt.Sprintf("unable to delete entry for nonexistent key: %s", key))
+	}
+	c.cache.Remove(key)
+	metrics.CacheDeleteKeySubscope(c.scope, key).Counter(metrics.CacheDeleteKeySuccess).Inc(1)
 	return nil
 }
 
