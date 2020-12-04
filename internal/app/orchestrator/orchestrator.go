@@ -199,9 +199,9 @@ func (o *orchestrator) CreateWatch(req transport.Request, w transport.Watch) fun
 	if cachedResponse {
 		// If we have a cached response and the version is different,
 		// immediately push the result to the response channel.
-		err := watch.Send(cached.Resp)
 		_ = o.cache.DeleteRequest(aggregatedKey, req)
 		o.downstreamResponseMap.delete(req)
+		err := watch.Send(cached.Resp)
 
 		if err != nil {
 			// Sanity check that the channel isn't blocked. This shouldn't
@@ -357,6 +357,8 @@ func (o *orchestrator) fanout(resp transport.Response, watchers *cache.RequestsS
 			defer wg.Done()
 			// TODO https://github.com/envoyproxy/xds-relay/issues/119
 			if channel, ok := o.downstreamResponseMap.get(req); ok {
+				_ = o.cache.DeleteRequest(aggregatedKey, req)
+				o.downstreamResponseMap.delete(req)
 				if err := channel.Send(resp); err != nil {
 					// If the channel is blocked, we simply drop subsequent
 					// requests and error. Alternative possibilities are
@@ -365,10 +367,7 @@ func (o *orchestrator) fanout(resp transport.Response, watchers *cache.RequestsS
 					o.logger.With("aggregated_key", aggregatedKey).With("node_id", req.GetNodeID()).
 						Error(context.Background(), "channel blocked during fanout")
 					metrics.OrchestratorWatchErrorsSubscope(o.scope, aggregatedKey).Counter(metrics.ErrorChannelFull).Inc(1)
-					return
 				}
-				_ = o.cache.DeleteRequest(aggregatedKey, req)
-				o.downstreamResponseMap.delete(req)
 
 				o.logger.With(
 					"aggregated_key", aggregatedKey,
