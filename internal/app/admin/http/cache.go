@@ -106,7 +106,7 @@ func edsDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	}
 }
 
-func cdsDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
+func versionHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		cdsKey := filepath.Base(req.URL.Path)
 		if cdsKey == "" {
@@ -128,39 +128,8 @@ func cdsDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 			return
 		}
 
-		versionedResponse := resp.Resp.Get()
-		m := &marshallable.CDS{
-			Key:     cdsKey,
-			Version: resp.Resp.GetPayloadVersion(),
-			Names:   make([]string, 0),
-		}
-		if versionedResponse.V2 != nil {
-			r2 := marshalResources(versionedResponse.V2.Resources)
-			for _, r := range r2.Clusters {
-				cluster, _ := r.(*v2.Cluster)
-				if cluster == nil {
-					continue
-				}
-				m.Names = append(m.Names, cluster.Name)
-			}
-		} else if versionedResponse.V3 != nil {
-			r3 := marshalResources(versionedResponse.V3.Resources)
-			for _, r := range r3.Clusters {
-				cluster, _ := r.(*clusterv3.Cluster)
-				if cluster == nil {
-					continue
-				}
-				m.Names = append(m.Names, cluster.Name)
-			}
-		}
-
-		x, e := stringify.InterfaceToString(m)
-		if e != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		_, e = w.Write([]byte(x))
+		version := resp.Resp.GetPayloadVersion()
+		_, e := w.Write([]byte(version))
 		if e != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
