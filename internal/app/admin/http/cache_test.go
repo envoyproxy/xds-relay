@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -95,11 +94,19 @@ func TestAdminServer_CDSDumpHandler(t *testing.T) {
 
 	rr := getResponseCDS(t, "test_cds", &orchestrator)
 	assert.Equal(t, http.StatusOK, rr.Code)
-	verifyCdsLen(t, rr, 1)
+	verifyCds(t, rr, &marshallable.CDS{
+		Key:     "test_cds",
+		Version: "1",
+		Names:   []string{"test-prod1"},
+	})
 
 	rr = getResponseCDS(t, "test_cdsv3", &orchestrator)
 	assert.Equal(t, http.StatusOK, rr.Code)
-	verifyCdsLen(t, rr, 1)
+	verifyCds(t, rr, &marshallable.CDS{
+		Key:     "test_cdsv3",
+		Version: "2",
+		Names:   []string{"test-prod2"},
+	})
 
 	cancelWatch()
 	cancelWatchv3()
@@ -1081,12 +1088,11 @@ func verifyCacheOutput(t *testing.T, rr *httptest.ResponseRecorder, cdsFile stri
 	assert.NotNil(t, actualCdsResponse["ExpirationTime"])
 }
 
-func verifyCdsLen(t *testing.T, rr *httptest.ResponseRecorder, len int) {
+func verifyCds(t *testing.T, rr *httptest.ResponseRecorder, expected *marshallable.CDS) {
 	cds := &marshallable.CDS{}
 	err := json.Unmarshal(rr.Body.Bytes(), cds)
 	assert.NoError(t, err)
-	assert.Len(t, cds.Names, len)
-	fmt.Println(cds)
+	assert.Equal(t, cds, expected)
 }
 
 func verifyEdsLen(t *testing.T, rr *httptest.ResponseRecorder, len int) {

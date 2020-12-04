@@ -73,7 +73,7 @@ func NewMockClientEDS(
 	}
 }
 
-// NewMockClientCDS creates a mock implementation for testing both v2 and v3 eds together
+// NewMockClientCDS creates a mock implementation for testing both v2 and v3 cds together
 func NewMockClientCDS(
 	cdsClientV3 clusterservice.ClusterDiscoveryServiceClient,
 	cdsClientV2 v2.ClusterDiscoveryServiceClient,
