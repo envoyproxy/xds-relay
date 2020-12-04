@@ -77,8 +77,11 @@ func TestAdminServer_VersionHandler(t *testing.T) {
 	handler := versionHandler(&orchestrator)
 	handler.ServeHTTP(rr, req)
 
+	version := &marshallable.Version{}
+	err = json.Unmarshal(rr.Body.Bytes(), version)
+	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Equal(t, "123", rr.Body.String())
+	assert.Equal(t, "123", version.Version)
 	cancelWatch()
 }
 

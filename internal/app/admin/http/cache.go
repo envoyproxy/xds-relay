@@ -108,8 +108,8 @@ func edsDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 
 func versionHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		cdsKey := filepath.Base(req.URL.Path)
-		if cdsKey == "" {
+		key := filepath.Base(req.URL.Path)
+		if key == "" {
 			w.WriteHeader(http.StatusBadRequest)
 			s, _ := stringify.InterfaceToString(&marshallable.Error{
 				Message: "Empty key",
@@ -118,7 +118,7 @@ func versionHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 		}
 
 		c := orchestrator.Orchestrator.GetReadOnlyCache(*o)
-		resp, err := c.FetchReadOnly(cdsKey)
+		resp, err := c.FetchReadOnly(key)
 		if err != nil {
 			w.WriteHeader(http.StatusNotFound)
 			s, _ := stringify.InterfaceToString(&marshallable.Error{
@@ -128,8 +128,16 @@ func versionHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 			return
 		}
 
-		version := resp.Resp.GetPayloadVersion()
-		_, e := w.Write([]byte(version))
+		version := &marshallable.Version{
+			Version: resp.Resp.GetPayloadVersion(),
+		}
+		x, e := stringify.InterfaceToString(version)
+		if e != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		_, e = w.Write([]byte(x))
 		if e != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return

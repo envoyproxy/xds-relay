@@ -11,3 +11,7 @@ type EDS struct {
 type Key struct {
 	Names []string
 }
+
+type Version struct {
+	Version string
+}
