@@ -185,26 +185,6 @@ type marshallableCache struct {
 	Cache []marshallableResource
 }
 
-func printCacheEntries(keys []string, cache cache.ReadOnlyCache, w http.ResponseWriter, isVerbose bool) {
-	resp := marshallableCache{}
-	for _, key := range keys {
-		resource, err := cache.FetchReadOnly(key)
-		if err == nil {
-			resp.Cache = append(resp.Cache, resourceToPayload(key, resource, isVerbose)...)
-		}
-	}
-	resourceString, err := stringify.InterfaceToString(resp)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "unable to convert resource to string.\n")
-		return
-	}
-
-	if len(resp.Cache) > 0 {
-		fmt.Fprintf(w, "%s\n", resourceString)
-	}
-}
-
 func getRelevantKeys(o *orchestrator.Orchestrator, key string, w http.ResponseWriter) ([]string, error) {
 	var relevantKeys []string
 	// If wildcard suffix provided, retrieve all cache keys that match the given prefix.
@@ -232,6 +212,26 @@ func getRelevantKeys(o *orchestrator.Orchestrator, key string, w http.ResponseWr
 		relevantKeys = []string{key}
 	}
 	return relevantKeys, nil
+}
+
+func printCacheEntries(keys []string, cache cache.ReadOnlyCache, w http.ResponseWriter, isVerbose bool) {
+	resp := marshallableCache{}
+	for _, key := range keys {
+		resource, err := cache.FetchReadOnly(key)
+		if err == nil {
+			resp.Cache = append(resp.Cache, resourceToPayload(key, resource, isVerbose)...)
+		}
+	}
+	resourceString, err := stringify.InterfaceToString(resp)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "unable to convert resource to string.\n")
+		return
+	}
+
+	if len(resp.Cache) > 0 {
+		fmt.Fprintf(w, "%s\n", resourceString)
+	}
 }
 
 func clearCacheEntries(keys []string, o *orchestrator.Orchestrator, w http.ResponseWriter) {
