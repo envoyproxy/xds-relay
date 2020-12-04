@@ -989,16 +989,14 @@ func verifyCacheOutput(t *testing.T, rr *httptest.ResponseRecorder, isVerbose bo
 	assert.Equal(t, expectedCdsResponse["Key"], actualCdsResponse["Key"])
 	assert.Equal(t, expectedLdsResponse["Resp"], actualLdsResponse["Resp"])
 	assert.Equal(t, expectedCdsResponse["Resp"], actualCdsResponse["Resp"])
+	assert.Equal(t, actualLdsResponse["NumRequests"], float64(1))
+	assert.Equal(t, actualCdsResponse["NumRequests"], float64(1))
 	if isVerbose {
-		assert.NotContains(t, actualLdsResponse, "NumRequests")
-		assert.NotContains(t, actualCdsResponse, "NumRequests")
 		assert.Equal(t, len(actualLdsResponse["Requests"].([]interface{})), 1)
 		assert.Equal(t, len(actualCdsResponse["Requests"].([]interface{})), 1)
 	} else {
 		assert.NotContains(t, actualLdsResponse, "Requests")
 		assert.NotContains(t, actualCdsResponse, "Requests")
-		assert.Equal(t, actualLdsResponse["NumRequests"], float64(1))
-		assert.Equal(t, actualCdsResponse["NumRequests"], float64(1))
 	}
 	assert.NotNil(t, actualLdsResponse["ExpirationTime"])
 	assert.NotNil(t, actualCdsResponse["ExpirationTime"])

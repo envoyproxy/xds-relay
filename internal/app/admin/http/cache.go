@@ -270,13 +270,12 @@ func resourceToPayload(key string, resource cache.Resource, isVerbose bool) []ma
 	marshallableResource := marshallableResource{
 		Key:            key,
 		Resp:           marshalDiscoveryResponse(resource.Resp),
+		NumRequests:    len(requests),
 		ExpirationTime: resource.ExpirationTime,
 	}
 
 	if isVerbose {
 		marshallableResource.Requests = requests
-	} else {
-		marshallableResource.NumRequests = len(requests)
 	}
 	marshallableResources = append(marshallableResources, marshallableResource)
 
