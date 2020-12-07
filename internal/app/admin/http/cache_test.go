@@ -12,6 +12,7 @@ import (
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	corev2 "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	endpoint "github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
+	clusterv3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	endpointv3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
@@ -31,6 +32,84 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/uber-go/tally"
 )
+
+func TestAdminServer_VersionHandler(t *testing.T) {
+	ctx := context.Background()
+	mapper := mapper.NewMock(t)
+	upstreamResponseChannel := make(chan *discoveryv3.DiscoveryResponse)
+	mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
+	client := upstream.NewMockV3(
+		ctx,
+		upstream.CallOptions{SendTimeout: time.Second},
+		nil,
+		nil,
+		nil,
+		nil,
+		upstreamResponseChannel,
+		func(m interface{}) error { return nil },
+		stats.NewMockScope("mock"),
+	)
+	orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
+
+	respChannel, cancelWatch := orchestrator.CreateWatch(transport.NewRequestV3(&gcpv3.Request{
+		TypeUrl: resourcev3.ClusterType,
+		Node: &envoy_config_core_v3.Node{
+			Id:      "test-1",
+			Cluster: "test-prod",
+		},
+		ResourceNames: []string{"res"},
+	}))
+
+	clusterAny, _ := ptypes.MarshalAny(&clusterv3.Cluster{})
+
+	upstreamResponseChannel <- &discoveryv3.DiscoveryResponse{
+		VersionInfo: "123",
+		TypeUrl:     resourcev3.ClusterType,
+		Resources: []*any.Any{
+			clusterAny,
+		},
+	}
+	<-respChannel.GetChannel().V3
+
+	req, err := http.NewRequest("GET", "/cache/version/test_cdsv3", nil)
+	assert.NoError(t, err)
+	rr := httptest.NewRecorder()
+	handler := versionHandler(&orchestrator)
+	handler.ServeHTTP(rr, req)
+
+	version := &marshallable.Version{}
+	err = json.Unmarshal(rr.Body.Bytes(), version)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, "123", version.Version)
+	cancelWatch()
+}
+
+func TestAdminServer_VersionHandler404(t *testing.T) {
+	ctx := context.Background()
+	mapper := mapper.NewMock(t)
+	upstreamCdsResponseChannel := make(chan *v2.DiscoveryResponse)
+	client := upstream.NewMock(
+		ctx,
+		upstream.CallOptions{SendTimeout: time.Second},
+		nil,
+		nil,
+		nil,
+		nil,
+		upstreamCdsResponseChannel,
+		func(m interface{}) error { return nil },
+		stats.NewMockScope("mock"),
+	)
+	orchestrator := orchestrator.NewMock(t, mapper, client, stats.NewMockScope("mock_orchestrator"))
+
+	req, err := http.NewRequest("GET", "/cache/version/miss", nil)
+	assert.NoError(t, err)
+	rr := httptest.NewRecorder()
+	handler := versionHandler(&orchestrator)
+
+	handler.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
 
 func TestAdminServer_EDSDumpHandler(t *testing.T) {
 	ctx := context.Background()
