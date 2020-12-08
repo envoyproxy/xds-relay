@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -561,14 +562,17 @@ func TestOpenStreamShouldRetryWhenSendMsgBlocks(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	responseChan := make(chan *v2.DiscoveryResponse)
 	first := true
+	var firstMutex sync.Mutex
 	response2 := &v2.DiscoveryResponse{VersionInfo: "2"}
 	client := createMockClientWithResponse(ctx, time.Nanosecond, responseChan, func(m interface{}) error {
+		firstMutex.Lock()
 		if first {
 			first = false
+			firstMutex.Unlock()
 			<-ctx.Done()
 			return nil
 		}
-
+		firstMutex.Unlock()
 		select {
 		case <-ctx.Done():
 			return nil
@@ -596,14 +600,17 @@ func TestOpenStreamShouldRetryWhenSendMsgBlocksV3(t *testing.T) {
 	defer cancel()
 	responseChan := make(chan *discoveryv3.DiscoveryResponse)
 	first := true
+	var firstMutex sync.Mutex
 	response2 := &discoveryv3.DiscoveryResponse{VersionInfo: "2"}
 	client := createMockClientWithResponseV3(ctx, time.Nanosecond, responseChan, func(m interface{}) error {
+		firstMutex.Lock()
 		if first {
 			first = false
+			firstMutex.Unlock()
 			<-ctx.Done()
 			return nil
 		}
-
+		firstMutex.Unlock()
 		select {
 		case <-ctx.Done():
 			return nil
