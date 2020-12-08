@@ -9,6 +9,8 @@ import (
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	cachev3 "github.com/envoyproxy/go-control-plane/pkg/cache/v3"
 	gcpv3 "github.com/envoyproxy/go-control-plane/pkg/cache/v3"
+	resourcev2 "github.com/envoyproxy/go-control-plane/pkg/resource/v2"
+	resourcev3 "github.com/envoyproxy/go-control-plane/pkg/resource/v3"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -25,12 +27,12 @@ const (
 
 var discoveryResponsev2 = &discoveryv2.DiscoveryResponse{}
 var discoveryResponsev3 = &discoveryv3.DiscoveryResponse{}
-var discoveryResponse2v2 = &discoveryv2.DiscoveryResponse{TypeUrl: "type.googleapis.com/envoy.api.v2.Listener"}
-var discoveryResponse2v3 = &discoveryv3.DiscoveryResponse{TypeUrl: "type.googleapis.com/envoy.api.v3.Listener"}
+var discoveryResponse2v2 = &discoveryv2.DiscoveryResponse{TypeUrl: resourcev2.ListenerType}
+var discoveryResponse2v3 = &discoveryv3.DiscoveryResponse{TypeUrl: resourcev3.ListenerType}
 var discoveryRequestv2 = &gcp.Request{}
 var discoveryRequestv3 = &gcpv3.Request{}
-var discoveryRequest2v2 = &gcp.Request{TypeUrl: "type.googleapis.com/envoy.api.v2.Listener"}
-var discoveryRequest2v3 = &gcpv3.Request{TypeUrl: "type.googleapis.com/envoy.api.v3.Listener"}
+var discoveryRequest2v2 = &gcp.Request{TypeUrl: resourcev2.ListenerType}
+var discoveryRequest2v3 = &gcpv3.Request{TypeUrl: resourcev3.ListenerType}
 var mockScope = stats.NewMockScope("mockwatch")
 
 var _ = Describe("TestWatch", func() {
