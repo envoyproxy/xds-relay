@@ -208,8 +208,10 @@ func TestUnaggregatedKey(t *testing.T) {
 	assert.Error(t, err)
 
 	respChannel, _ := orchestrator.CreateWatch(req)
-	assert.Nil(t, respChannel)
+	assert.NotNil(t, respChannel)
 	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.watches))
+	_, more := <-respChannel.GetChannel().V2
+	assert.False(t, more)
 }
 
 func TestCachedResponse(t *testing.T) {
