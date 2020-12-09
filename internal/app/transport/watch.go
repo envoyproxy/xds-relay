@@ -19,6 +19,8 @@ type Watch interface {
 	Close()
 	GetChannel() *ChannelVersion
 	// Send is a mutex protected function to send responses to the downstream sidecars.
-	// It provides guarantee to never panic when calling in tandem with Close from separate goroutines.
+	// It provides guarantee to never panic when called in tandem with Close from separate
+	// goroutines. This also guarantees that stale responses are dropped in the event that a
+	// newer response arrives.
 	Send(Response) error
 }

@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
+
+	"github.com/envoyproxy/xds-relay/internal/pkg/stats"
 )
 
 const (
@@ -125,8 +127,9 @@ func TestGetRaw(t *testing.T) {
 func TestCreateWatch(t *testing.T) {
 	requestv2 := NewRequestV2(&requestV2)
 	requestv3 := NewRequestV3(&requestV3)
-	assert.NotNil(t, requestv2.CreateWatch().GetChannel().V2)
-	assert.NotNil(t, requestv2.CreateWatch().GetChannel().V2)
-	assert.Nil(t, requestv2.CreateWatch().GetChannel().V3)
-	assert.Nil(t, requestv3.CreateWatch().GetChannel().V2)
+	scope := stats.NewMockScope("mockwatch")
+	assert.NotNil(t, requestv2.CreateWatch(scope).GetChannel().V2)
+	assert.NotNil(t, requestv2.CreateWatch(scope).GetChannel().V2)
+	assert.Nil(t, requestv2.CreateWatch(scope).GetChannel().V3)
+	assert.Nil(t, requestv3.CreateWatch(scope).GetChannel().V2)
 }

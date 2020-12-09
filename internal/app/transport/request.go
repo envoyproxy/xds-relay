@@ -4,6 +4,7 @@ import (
 	discoveryv2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	discoveryv3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	structpb "github.com/golang/protobuf/ptypes/struct"
+	"github.com/uber-go/tally"
 	status "google.golang.org/genproto/googleapis/rpc/status"
 )
 
@@ -32,5 +33,5 @@ type Request interface {
 	GetLocality() *Locality
 	GetResponseNonce() string
 	GetRaw() *RequestVersion
-	CreateWatch() Watch
+	CreateWatch(scope tally.Scope) Watch
 }

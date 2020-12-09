@@ -17,6 +17,7 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/app/cache"
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
 	"github.com/envoyproxy/xds-relay/internal/app/transport"
+	"github.com/uber-go/tally"
 )
 
 // downstreamResponseMap is a map of downstream xDS client requests to response
@@ -34,11 +35,11 @@ func newDownstreamResponseMap() downstreamResponseMap {
 
 // createWatch initializes a new channel for a request if it doesn't already
 // exist.
-func (d *downstreamResponseMap) createWatch(req transport.Request) transport.Watch {
+func (d *downstreamResponseMap) createWatch(req transport.Request, scope tally.Scope) transport.Watch {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if _, ok := d.watches[req]; !ok {
-		d.watches[req] = req.CreateWatch()
+		d.watches[req] = req.CreateWatch(scope)
 	}
 	return d.watches[req]
 }
