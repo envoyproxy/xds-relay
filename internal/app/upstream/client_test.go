@@ -158,7 +158,7 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServer(t *testing.T) {
 	var message *v2.DiscoveryRequest
 	responseChan := make(chan *v2.DiscoveryResponse)
 	wait := make(chan bool)
-	first := true
+	var first int32 = 0
 	client := NewMock(
 		ctx,
 		CallOptions{SendTimeout: time.Nanosecond},
@@ -169,9 +169,8 @@ func TestOpenStreamShouldSendTheFirstRequestToOriginServer(t *testing.T) {
 		responseChan,
 		func(m interface{}) error {
 			message = m.(*v2.DiscoveryRequest)
-			if first {
+			if atomic.CompareAndSwapInt32(&first, 0, 1) {
 				close(wait)
-				first = false
 			}
 			return nil
 		},
