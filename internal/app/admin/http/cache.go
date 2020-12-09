@@ -201,7 +201,11 @@ func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 func clearCacheHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Method == http.MethodPost {
-			cacheKey := getParam(req.URL.Path)
+			var cacheKey string
+			splitPath := strings.SplitN(req.URL.Path, "/", 4)
+			if len(splitPath) == 4 {
+				cacheKey = splitPath[3]
+			}
 			keysToClear, err := getRelevantKeys(o, cacheKey, w)
 			if err == nil {
 				clearCacheEntries(keysToClear, o, w)

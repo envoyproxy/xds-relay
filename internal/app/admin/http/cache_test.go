@@ -747,7 +747,7 @@ func TestAdminServer_ClearCacheHandler(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, len(cacheKeys), 1)
 
-	req, err := http.NewRequest("POST", "/clear_cache/test_lds", nil)
+	req, err := http.NewRequest("POST", "/cache/clear/test_lds", nil)
 	assert.NoError(t, err)
 
 	rr := httptest.NewRecorder()
@@ -783,7 +783,7 @@ func TestAdminServer_ClearCacheHandler_NotFound(t *testing.T) {
 	orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
 	assert.NotNil(t, orchestrator)
 
-	req, err := http.NewRequest("POST", "/clear_cache/cds", nil)
+	req, err := http.NewRequest("POST", "/cache/clear/cds", nil)
 	assert.NoError(t, err)
 
 	rr := httptest.NewRecorder()
@@ -902,15 +902,15 @@ func testAdminServerClearCacheHelper(t *testing.T, urls []string, expectedCacheC
 }
 
 func TestAdminServer_ClearCacheHandler_EntireCache(t *testing.T) {
-	testAdminServerClearCacheHelper(t, []string{"/clear_cache", "/clear_cache/", "/clear_cache/*"}, 0)
+	testAdminServerClearCacheHelper(t, []string{"/cache/clear", "/cache/clear/", "/cache/clear/*"}, 0)
 }
 
 func TestAdminServer_ClearCacheHandler_WildcardSuffix(t *testing.T) {
-	testAdminServerClearCacheHelper(t, []string{"/clear_cache/t*", "/clear_cache/tes*", "/clear_cache/test*"}, 0)
+	testAdminServerClearCacheHelper(t, []string{"/cache/clear/t*", "/cache/clear/tes*", "/cache/clear/test*"}, 0)
 }
 
 func TestAdminServer_ClearCacheHandler_WildcardSuffix_NotFound(t *testing.T) {
-	testAdminServerClearCacheHelper(t, []string{"/clear_cache/b*", "/clear_cache/tesa*", "/clear_cache/t*est*"}, 2)
+	testAdminServerClearCacheHelper(t, []string{"/cache/clear/b*", "/cache/clear/tesa*", "/cache/clear/t*est*"}, 2)
 }
 
 // V3 Clear Cache Handler tests
@@ -1019,11 +1019,11 @@ func testAdminServerClearCacheHelperV3(t *testing.T, urls []string) {
 }
 
 func TestAdminServer_ClearCacheHandler_EntireCacheV3(t *testing.T) {
-	testAdminServerClearCacheHelperV3(t, []string{"/clear_cache", "/clear_cache/", "/clear_cache/*"})
+	testAdminServerClearCacheHelperV3(t, []string{"/cache/clear", "/cache/clear/", "/cache/clear/*"})
 }
 
 func TestAdminServer_ClearCacheHandler_WildcardSuffixV3(t *testing.T) {
-	testAdminServerClearCacheHelperV3(t, []string{"/clear_cache/t*", "/clear_cache/tes*", "/clear_cache/test*"})
+	testAdminServerClearCacheHelperV3(t, []string{"/cache/clear/t*", "/cache/clear/tes*", "/cache/clear/test*"})
 }
 
 func verifyCacheOutput(t *testing.T, rr *httptest.ResponseRecorder, cdsFile string, ldsFile string) {
