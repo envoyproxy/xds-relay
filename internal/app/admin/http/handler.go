@@ -24,9 +24,11 @@ type Handler struct {
 	redirect    bool
 }
 
-const logURL = "/log_level"
-const cacheURL = "/cache"
-const clearURL = "/cache/clear"
+const (
+	logURL   = "/log_level"
+	cacheURL = "/cache"
+	clearURL = "/cache/clear"
+)
 
 func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 	orchestrator *orchestrator.Orchestrator,
