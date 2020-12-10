@@ -14,7 +14,7 @@ install: ## Installs dependencies
 
 .PHONY: unit
 unit: ## Run all unit tests with coverage report
-	go test -v -cover -race ./...
+	go test -v -cover ./...
 
 .PHONY: integration-tests
 integration-tests:  ## Run integration tests
