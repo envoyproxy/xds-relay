@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/pprof"
+	"path/filepath"
 	"strings"
 
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
@@ -23,6 +24,12 @@ type Handler struct {
 	redirect    bool
 }
 
+const (
+	logURL   = "/log_level"
+	cacheURL = "/cache"
+	clearURL = "/cache/clear"
+)
+
 func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 	orchestrator *orchestrator.Orchestrator,
 	weboff chan bool,
@@ -41,13 +48,13 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 			true,
 		},
 		{
-			"/cache/clear",
+			clearURL,
 			"clear cache entry for a given key. Omitting the key clears all cache entries. usage: `/cache/clear/<key>`",
 			clearCacheHandler(orchestrator),
 			true,
 		},
 		{
-			"/cache",
+			cacheURL,
 			"print cache entry for a given key. Omitting the key outputs all cache entries. usage: `/cache/<key>`",
 			cacheDumpHandler(orchestrator),
 			true,
@@ -71,7 +78,7 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 			true,
 		},
 		{
-			"/log_level",
+			logURL,
 			"update the log level to `debug`, `info`, `warn`, or `error`. " +
 				"Omitting the level outputs the current log level. usage: `/log_level/<level>`",
 			logLevelHandler(logger),
@@ -152,19 +159,16 @@ func configDumpHandler(bootstrapConfig *bootstrapv1.Bootstrap) http.HandlerFunc 
 	}
 }
 
-func getParam(path string) string {
-	// Assumes that the URL is of the format `address/endpoint/parameter` and returns `parameter`.
-	splitPath := strings.SplitN(path, "/", 3)
-	if len(splitPath) == 3 {
-		return splitPath[2]
-	}
-	return ""
+func getParam(path string, prefix string) string {
+	path = strings.TrimPrefix(path, prefix)
+	_, param := filepath.Split(path)
+	return param
 }
 
 func logLevelHandler(l log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Method == "POST" {
-			logLevel := getParam(req.URL.Path)
+			logLevel := getParam(req.URL.Path, logURL)
 
 			// If no key is provided, output the current log level.
 			if logLevel == "" {

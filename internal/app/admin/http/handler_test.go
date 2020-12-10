@@ -84,20 +84,19 @@ func TestAdminServer_ConfigDumpHandler(t *testing.T) {
 }
 
 func TestGetParam(t *testing.T) {
-	path := "127.0.0.1:6070/cache/foo_production_*"
-	cacheKey := getParam(path)
+	path := "/cache/foo_production_*"
+	cacheKey := getParam(path, "/cache")
 	assert.Equal(t, "foo_production_*", cacheKey)
 }
 
 func TestGetParam_Empty(t *testing.T) {
-	path := "127.0.0.1:6070/cache/"
-	cacheKey := getParam(path)
+	prefix := "/cache"
+	path := "/cache/"
+	cacheKey := getParam(path, prefix)
 	assert.Equal(t, "", cacheKey)
-}
 
-func TestGetParam_Malformed(t *testing.T) {
-	path := "127.0.0.1:6070"
-	cacheKey := getParam(path)
+	path = "/cache"
+	cacheKey = getParam(path, prefix)
 	assert.Equal(t, "", cacheKey)
 }
 
@@ -113,7 +112,7 @@ func TestAdminServer_LogLevelHandler(t *testing.T) {
 	assert.Contains(t, output, "foo")
 	assert.NotContains(t, output, "bar")
 
-	req, err := http.NewRequest("POST", "/log_level/debug", nil)
+	req, err := http.NewRequest("POST", logURL+"/debug", nil)
 	assert.NoError(t, err)
 
 	rr := httptest.NewRecorder()
@@ -126,7 +125,7 @@ func TestAdminServer_LogLevelHandler(t *testing.T) {
 	output = buf.String()
 	assert.Contains(t, output, "bar")
 
-	req, err = http.NewRequest("POST", "/log_level/info", nil)
+	req, err = http.NewRequest("POST", logURL+"/info", nil)
 	assert.NoError(t, err)
 
 	handler.ServeHTTP(rr, req)
@@ -140,7 +139,7 @@ func TestAdminServer_LogLevelHandler(t *testing.T) {
 }
 
 func TestAdminServer_LogLevelHandler_GetLevel(t *testing.T) {
-	for _, url := range []string{"/log_level", "/log_level/"} {
+	for _, url := range []string{logURL, logURL} {
 		var buf bytes.Buffer
 		logger := log.NewMock("error", &buf)
 		assert.Equal(t, 0, buf.Len())
@@ -155,7 +154,7 @@ func TestAdminServer_LogLevelHandler_GetLevel(t *testing.T) {
 		assert.Equal(t, http.StatusOK, rr.Code)
 		assert.Equal(t, rr.Body.String(), "Current log level: error\n")
 
-		req, err = http.NewRequest("POST", "/log_level/info", nil)
+		req, err = http.NewRequest("POST", logURL+"/info", nil)
 		assert.NoError(t, err)
 
 		handler.ServeHTTP(rr, req)
