@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/pprof"
+	"path/filepath"
 	"strings"
 
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
@@ -152,19 +153,16 @@ func configDumpHandler(bootstrapConfig *bootstrapv1.Bootstrap) http.HandlerFunc 
 	}
 }
 
-func getParam(path string) string {
-	// Assumes that the URL is of the format `address/endpoint/parameter` and returns `parameter`.
-	splitPath := strings.SplitN(path, "/", 3)
-	if len(splitPath) == 3 {
-		return splitPath[2]
-	}
-	return ""
+func getParam(path string, prefix string) string {
+	path = strings.TrimPrefix(path, prefix)
+	_, param := filepath.Split(path)
+	return param
 }
 
 func logLevelHandler(l log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Method == "POST" {
-			logLevel := getParam(req.URL.Path)
+			logLevel := getParam(req.URL.Path, "/log_level")
 
 			// If no key is provided, output the current log level.
 			if logLevel == "" {

@@ -3,7 +3,6 @@ package handler
 import (
 	"bytes"
 	"context"
-
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	"github.com/envoyproxy/xds-relay/internal/app/transport"
@@ -12,7 +11,6 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/stretchr/testify/assert"
-
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -84,20 +82,19 @@ func TestAdminServer_ConfigDumpHandler(t *testing.T) {
 }
 
 func TestGetParam(t *testing.T) {
-	path := "127.0.0.1:6070/cache/foo_production_*"
-	cacheKey := getParam(path)
+	path := "/cache/foo_production_*"
+	cacheKey := getParam(path, "/cache")
 	assert.Equal(t, "foo_production_*", cacheKey)
 }
 
 func TestGetParam_Empty(t *testing.T) {
-	path := "127.0.0.1:6070/cache/"
-	cacheKey := getParam(path)
+	prefix := "/cache"
+	path := "/cache/"
+	cacheKey := getParam(path, prefix)
 	assert.Equal(t, "", cacheKey)
-}
 
-func TestGetParam_Malformed(t *testing.T) {
-	path := "127.0.0.1:6070"
-	cacheKey := getParam(path)
+	path = "/cache"
+	cacheKey = getParam(path, prefix)
 	assert.Equal(t, "", cacheKey)
 }
 
