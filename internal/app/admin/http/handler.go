@@ -24,6 +24,10 @@ type Handler struct {
 	redirect    bool
 }
 
+const logUrl = "/log_level"
+const cacheUrl = "/cache"
+const clearUrl = "/cache/clear"
+
 func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 	orchestrator *orchestrator.Orchestrator,
 	weboff chan bool,
@@ -42,13 +46,13 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 			true,
 		},
 		{
-			"/cache/clear",
+			clearUrl,
 			"clear cache entry for a given key. Omitting the key clears all cache entries. usage: `/cache/clear/<key>`",
 			clearCacheHandler(orchestrator),
 			true,
 		},
 		{
-			"/cache",
+			cacheUrl,
 			"print cache entry for a given key. Omitting the key outputs all cache entries. usage: `/cache/<key>`",
 			cacheDumpHandler(orchestrator),
 			true,
@@ -72,7 +76,7 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 			true,
 		},
 		{
-			"/log_level",
+			logUrl,
 			"update the log level to `debug`, `info`, `warn`, or `error`. " +
 				"Omitting the level outputs the current log level. usage: `/log_level/<level>`",
 			logLevelHandler(logger),
@@ -162,7 +166,7 @@ func getParam(path string, prefix string) string {
 func logLevelHandler(l log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Method == "POST" {
-			logLevel := getParam(req.URL.Path, "/log_level")
+			logLevel := getParam(req.URL.Path, logUrl)
 
 			// If no key is provided, output the current log level.
 			if logLevel == "" {
