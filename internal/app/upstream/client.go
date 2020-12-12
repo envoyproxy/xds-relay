@@ -169,7 +169,7 @@ func (m *client) handleStreamsWithRetry(
 		scope  tally.Scope
 	)
 	for {
-		childCtx, cancel := context.WithCancel(ctx)
+		childCtx, cancel := context.WithTimeout(ctx, time.Minute)
 		select {
 		case _, ok := <-m.shutdown:
 			if !ok {
