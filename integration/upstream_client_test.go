@@ -170,6 +170,7 @@ func TestClientContextCancellationShouldCloseAllResponseChannels(t *testing.T) {
 		upstream.CallOptions{SendTimeout: time.Minute},
 		log.MockLogger,
 		stats.NewMockScope("mock"),
+		0,
 	)
 	respCh1, _ := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{
 		TypeUrl: resource.ClusterType,
@@ -235,6 +236,7 @@ func setup(
 		upstream.CallOptions{SendTimeout: time.Minute},
 		logger,
 		scope,
+		0,
 	)
 	if err != nil {
 		logger.Error(ctx, "NewClient failed %s", err.Error())

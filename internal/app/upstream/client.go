@@ -68,6 +68,7 @@ type client struct {
 	scope  tally.Scope
 
 	shutdown <-chan struct{}
+	timeout int64
 }
 
 // CallOptions contains grpc client call options
@@ -97,6 +98,7 @@ func New(
 	callOptions CallOptions,
 	logger log.Logger,
 	scope tally.Scope,
+	timeout int64,
 ) (Client, error) {
 	namedLogger := logger.Named("upstream_client")
 	namedLogger.With("address", url).Info(ctx, "Initiating upstream connection")
@@ -138,6 +140,7 @@ func New(
 		logger:      namedLogger,
 		scope:       subScope,
 		shutdown:    shutdownSignal,
+		timeout:	 timeout,
 	}, nil
 }
 
@@ -167,9 +170,15 @@ func (m *client) handleStreamsWithRetry(
 		stream transport.Stream
 		err    error
 		scope  tally.Scope
+		childCtx context.Context
+		cancel context.CancelFunc
 	)
 	for {
-		childCtx, cancel := context.WithCancel(ctx)
+		if m.timeout != 0 {
+			childCtx, cancel = context.WithTimeout(ctx, time.Duration(m.timeout) * time.Second)
+		} else {
+			childCtx, cancel = context.WithCancel(ctx)
+		}
 		select {
 		case _, ok := <-m.shutdown:
 			if !ok {

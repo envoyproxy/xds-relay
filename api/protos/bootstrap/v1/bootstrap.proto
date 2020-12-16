@@ -47,6 +47,10 @@ message Upstream {
     // From https://developers.google.com/protocol-buffers/docs/reference/java/com/google/protobuf/Duration
     // Duration only lets us represent time in 's'
     string keep_alive_time = 2;
+
+    // Timeout in seconds for upstream connection stream.
+    // If unset defaults to no timeout.
+    int64 timeout = 3;
 }
 
 // [#next-free-field: 3]
