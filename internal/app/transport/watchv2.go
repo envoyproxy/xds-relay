@@ -31,6 +31,9 @@ func newWatchV2(scope tally.Scope) Watch {
 func (w *watchV2) Close() {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	if w.closed {
+		return
+	}
 	w.closed = true
 	close(w.out)
 }
