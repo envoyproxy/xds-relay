@@ -22,7 +22,8 @@ func NewMockClient(
 	edsClient v2.EndpointDiscoveryServiceClient,
 	cdsClient v2.ClusterDiscoveryServiceClient,
 	callOptions CallOptions,
-	scope tally.Scope) Client {
+	scope tally.Scope,
+	timeout int64) Client {
 	return &client{
 		ldsClient:   ldsClient,
 		rdsClient:   rdsClient,
@@ -32,6 +33,7 @@ func NewMockClient(
 		logger:      log.MockLogger,
 		scope:       scope,
 		shutdown:    make(<-chan struct{}),
+		timeout:	 timeout,
 	}
 }
 
@@ -43,7 +45,8 @@ func NewMockClientV3(
 	edsClient endpointservice.EndpointDiscoveryServiceClient,
 	cdsClient clusterservice.ClusterDiscoveryServiceClient,
 	callOptions CallOptions,
-	scope tally.Scope) Client {
+	scope tally.Scope,
+	timeout int64) Client {
 	return &client{
 		ldsClientV3: ldsClient,
 		rdsClientV3: rdsClient,
@@ -53,6 +56,7 @@ func NewMockClientV3(
 		logger:      log.MockLogger,
 		scope:       scope,
 		shutdown:    make(<-chan struct{}),
+		timeout:	 timeout,
 	}
 }
 
@@ -83,7 +87,8 @@ func NewMock(
 	edsReceiveChan chan *v2.DiscoveryResponse,
 	cdsReceiveChan chan *v2.DiscoveryResponse,
 	sendCb func(m interface{}) error,
-	scope tally.Scope) Client {
+	scope tally.Scope,
+	timeout int64) Client {
 	return NewMockClient(
 		ctx,
 		createMockLdsClient(errorOnCreate, ldsReceiveChan, sendCb),
@@ -92,6 +97,7 @@ func NewMock(
 		createMockCdsClient(errorOnCreate, cdsReceiveChan, sendCb),
 		callOptions,
 		scope,
+		timeout,
 	)
 }
 
@@ -105,7 +111,8 @@ func NewMockV3(
 	edsReceiveChan chan *discoveryv3.DiscoveryResponse,
 	cdsReceiveChan chan *discoveryv3.DiscoveryResponse,
 	sendCb func(m interface{}) error,
-	scope tally.Scope) Client {
+	scope tally.Scope,
+	timeout int64) Client {
 	return NewMockClientV3(
 		ctx,
 		createMockLdsClientV3(errorOnCreate, ldsReceiveChan, sendCb),
@@ -114,6 +121,7 @@ func NewMockV3(
 		createMockCdsClientV3(errorOnCreate, cdsReceiveChan, sendCb),
 		callOptions,
 		scope,
+		timeout,
 	)
 }
 
