@@ -378,7 +378,8 @@ func TestStreamShouldRetryWhenTimeoutMet(t *testing.T) {
 	defer done()
 	for {
 		var val int64 = 0
-		if scope.Snapshot().Counters() != nil && scope.Snapshot().Counters()["mock.lds.stream_retry+key=aggregated_key"] != nil{
+		if scope.Snapshot().Counters() != nil &&
+			scope.Snapshot().Counters()["mock.lds.stream_retry+key=aggregated_key"] != nil {
 			val = scope.Snapshot().Counters()["mock.lds.stream_retry+key=aggregated_key"].Value()
 		}
 		if val > 0 {
@@ -405,7 +406,8 @@ func TestStreamShouldRetryWhenTimeoutMetV3(t *testing.T) {
 	defer done()
 	for {
 		var val int64 = 0
-		if scope.Snapshot().Counters() != nil && scope.Snapshot().Counters()["mock.lds.stream_retry+key=aggregated_key"] != nil{
+		if scope.Snapshot().Counters() != nil &&
+			scope.Snapshot().Counters()["mock.lds.stream_retry+key=aggregated_key"] != nil {
 			val = scope.Snapshot().Counters()["mock.lds.stream_retry+key=aggregated_key"].Value()
 		}
 		if val > 0 {
@@ -415,7 +417,6 @@ func TestStreamShouldRetryWhenTimeoutMetV3(t *testing.T) {
 	done()
 	cancel()
 }
-
 
 func TestOpenStreamShouldRetryIfSendFailsV3(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())

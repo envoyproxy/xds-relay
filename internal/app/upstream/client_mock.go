@@ -33,7 +33,7 @@ func NewMockClient(
 		logger:      log.MockLogger,
 		scope:       scope,
 		shutdown:    make(<-chan struct{}),
-		timeout:	 timeout,
+		timeout:     timeout,
 	}
 }
 
@@ -56,7 +56,7 @@ func NewMockClientV3(
 		logger:      log.MockLogger,
 		scope:       scope,
 		shutdown:    make(<-chan struct{}),
-		timeout:	 timeout,
+		timeout:     timeout,
 	}
 }
 

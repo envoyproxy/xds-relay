@@ -68,7 +68,7 @@ type client struct {
 	scope  tally.Scope
 
 	shutdown <-chan struct{}
-	timeout int64
+	timeout  int64
 }
 
 // CallOptions contains grpc client call options
@@ -140,7 +140,7 @@ func New(
 		logger:      namedLogger,
 		scope:       subScope,
 		shutdown:    shutdownSignal,
-		timeout:	 timeout,
+		timeout:     timeout,
 	}, nil
 }
 
@@ -166,16 +166,16 @@ func (m *client) handleStreamsWithRetry(
 	respCh chan transport.Response,
 	aggregatedKey string) {
 	var (
-		s      grpc.ClientStream
-		stream transport.Stream
-		err    error
-		scope  tally.Scope
+		s        grpc.ClientStream
+		stream   transport.Stream
+		err      error
+		scope    tally.Scope
 		childCtx context.Context
-		cancel context.CancelFunc
+		cancel   context.CancelFunc
 	)
 	for {
 		if m.timeout != 0 {
-			childCtx, cancel = context.WithTimeout(ctx, time.Duration(m.timeout) * time.Second)
+			childCtx, cancel = context.WithTimeout(ctx, time.Duration(m.timeout)*time.Second)
 		} else {
 			childCtx, cancel = context.WithCancel(ctx)
 		}
