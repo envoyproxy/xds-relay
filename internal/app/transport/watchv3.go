@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	gcpv3 "github.com/envoyproxy/go-control-plane/pkg/cache/v3"
-	"github.com/envoyproxy/xds-relay/internal/app/metrics"
 	"github.com/uber-go/tally"
 )
 
@@ -49,20 +48,12 @@ func (w *watchV3) Send(s Response) error {
 		return nil
 	}
 
-	// Drop the older response currently in the transport queue, so that we
-	// always send the latest response. Normally, we should hit the default
-	// case (channel is empty), but there are times when the response fanout
-	// is slower than receiving of a new upstream response.
-	select {
-	case <-w.out:
-		w.scope.Counter(metrics.OrchestratorWatchDequeued).Inc(1)
-	default:
-	}
-
 	select {
 	case w.out <- &gcpv3.PassthroughResponse{DiscoveryResponse: s.Get().V3, Request: s.GetRequest().V3}:
 		return nil
 	default:
+		w.closed = true
+		close(w.out)
 		// sanity check, should never happen because of the dequeue above.
 		return fmt.Errorf("channel is blocked")
 	}
