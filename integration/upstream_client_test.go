@@ -150,37 +150,6 @@ func TestServerShutdownShouldCloseResponseChannel(t *testing.T) {
 	verifyConnectivityLevel(t, scope, connectivity.TransientFailure)
 }
 
-
-func TestStreamTimeoutShouldCloseStreamAndReconnect(t *testing.T) {
-	serverCtx, cancel := context.WithCancel(context.Background())
-
-	snapshotsv2, configv2 := createSnapshotCache(updates, log.MockLogger)
-	snapshotsv2, configv2 := createSnapshotCache(updates, log.MockLogger)
-	cb := gcptestv2.Callbacks{Signal: make(chan struct{})}
-	scope := stats.NewMockScope("mock")
-	_, _, err := setup(serverCtx, false, log.MockLogger, scope, snapshotsv2, configv2, &cb, 0)
-	if err != nil {
-		assert.Fail(t, "Setup failed: %s", err.Error())
-		return
-	}
-	clientCtx, clientCancel := context.WithCancel(context.Background())
-	client, err := upstream.New(
-		clientCtx,
-		strings.Join([]string{"127.0.0.1", strconv.Itoa(originServerPort)}, ":"),
-		upstream.CallOptions{SendTimeout: time.Minute},
-		log.MockLogger,
-		stats.NewMockScope("mock"),
-		3,
-	)
-	respCh1, _ := client.OpenStream(transport.NewRequestV2(&v2.DiscoveryRequest{
-		TypeUrl: resource.ClusterType,
-		Node: &corev2.Node{
-			Id: nodeID,
-		},
-	}), "aggregated_key")
-	// TODO: wait greater than 'timeout' seconds and test the stream was recreated.
-}
-
 func TestClientContextCancellationShouldCloseAllResponseChannels(t *testing.T) {
 	serverCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
