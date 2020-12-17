@@ -309,8 +309,6 @@ func (m *Upstream) Validate() error {
 
 	// no validation rules for KeepAliveTime
 
-	// no validation rules for Timeout
-
 	return nil
 }
 
