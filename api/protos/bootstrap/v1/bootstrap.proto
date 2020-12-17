@@ -48,7 +48,7 @@ message Upstream {
     // Duration only lets us represent time in 's'
     string keep_alive_time = 2;
 
-    // Timeout in seconds for upstream connection stream.
+    // Timeout in milliseconds for upstream connection stream.
     // If unset defaults to no timeout.
     int64 timeout = 3;
 }
