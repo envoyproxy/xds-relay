@@ -16,7 +16,7 @@ To get started:
 
 In this example we're going to run an instance of a management server that emits xDS data every 10 seconds which will be relayed by an instance of `xds-relay` to 2 instances of envoy.
 
-The goal of this example is to have the envoy instances mapped to the same key in `xds-relay`, namely the cache key `cluster1_cds`.
+The goal of this example is to have the envoy instances mapped to the same key in `xds-relay`, namely the cache key `staging_cds`.
 
 ### Requirements
 
@@ -51,8 +51,8 @@ You're now ready to run `xds-relay` locally. Open another window in your termina
 #### Two envoy instances
 As a final step, it's time to connect 2 envoy clients to `xds-relay`. If you do not have envoy installed, you can use [getenvoy](https://www.getenvoy.io/install/envoy/) to install the binary for your OS. You're going to find 2 files named `envoy-bootstrap-1.yaml` and `envoy-bootstrap-2.yaml` that we're going to use to connect the envoy instances to `xds-relay`. Open 2 terminal windows and run:
 
-    envoy -c example/config-files/envoy-bootstrap-1.yaml # on the first window
-    envoy -c example/config-files/envoy-bootstrap-2.yaml # on the second window
+    envoy --base-id 0 -c example/config-files/envoy-bootstrap-1.yaml # on the first window
+    envoy --base-id 1 -c example/config-files/envoy-bootstrap-2.yaml # on the second window
 
 And voilà! You should be seeing logs flowing in both the terminal window where you're running `xds-relay` and on each of the envoy ones. 
 
@@ -60,12 +60,12 @@ And voilà! You should be seeing logs flowing in both the terminal window where 
 
 We expose the contents of the cache in `xds-relay` via an endpoint, so we can use that to verify what are the contents of the cache for the keys being requested by the two envoy clients:
 
-    curl -s 0:6070/cache/cluster1_cds | jq '(.Cache[0].Resp.Resources.Clusters | map({"name": .name})) as $resp_clusters | (.Cache[0].Requests | map({"version_info": .version_info, "node.id": .node.id, "node.cluster": .node.cluster})) as $reqs | {"response": {"version": .Cache[0].Resp.VersionInfo, "clusters": $resp_clusters}, "requests": $reqs}'
+    curl -s 0:6070/cache/staging_cds | jq '(.Cache[0].Resp.Resources.Clusters | map({"name": .name})) as $resp_clusters | (.Cache[0].Requests | map({"version_info": .version_info, "node.id": .node.id, "node.cluster": .node.cluster})) as $reqs | {"response": {"version": .Cache[0].Resp.VersionInfo, "clusters": $resp_clusters}, "requests": $reqs}'
 
 Sample result:
 
 ``` shellsession
-❯ curl -s 0:6070/cache/cluster1_cds | jq '(.Cache[0].Resp.Resources.Clusters | map({"name": .name})) as $resp_clusters | (.Cache[0].Requests | map({"version_info": .version_info, "node.id": .node.id, "node.cluster": .node.cluster})) as $reqs | {"response": {"version": .Cache[0].Resp.VersionInfo, "clusters": $resp_clusters}, "requests": $reqs}'
+❯ curl -s 0:6070/cache/staging_cds | jq '(.Cache[0].Resp.Resources.Clusters | map({"name": .name})) as $resp_clusters | (.Cache[0].Requests | map({"version_info": .version_info, "node.id": .node.id, "node.cluster": .node.cluster})) as $reqs | {"response": {"version": .Cache[0].Resp.VersionInfo, "clusters": $resp_clusters}, "requests": $reqs}'
 {
   "response": {
     "version": "v66936",
