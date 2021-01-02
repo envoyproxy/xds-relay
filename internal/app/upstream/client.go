@@ -374,6 +374,10 @@ func getKeepaliveParams(ctx context.Context, logger log.Logger, c CallOptions) k
 		Time:                5 * time.Minute,
 	}
 
+	if c.UpstreamKeepaliveTimeout == "" {
+		return keepaliveClientParams
+	}
+
 	t, e := time.ParseDuration(c.UpstreamKeepaliveTimeout)
 	if e != nil {
 		logger.Warn(ctx, "Keepalive time parsing failed")
