@@ -3,10 +3,10 @@ fragments:
       - match:
           request_type_match:
             types:
-              - "type.googleapis.com/envoy.api.v2.Listener"
-              - "type.googleapis.com/envoy.api.v2.Cluster"
-              - "type.googleapis.com/envoy.api.v2.ClusterLoadAssignment"
-              - "type.googleapis.com/envoy.api.v2.RouteConfiguration"
+              - "type.googleapis.com/envoy.config.listener.v3.Listener"
+              - "type.googleapis.com/envoy.config.cluster.v3.Cluster"
+              - "type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment"
+              - "type.googleapis.com/envoy.config.route.v3.RouteConfiguration"
         result:
           request_node_fragment:
             cluster_action:
@@ -15,32 +15,32 @@ fragments:
       - match:
           request_type_match:
             types:
-              - "type.googleapis.com/envoy.api.v2.Listener"
+              - "type.googleapis.com/envoy.config.listener.v3.Listener"
         result:
           string_fragment: "lds"
       - match:
           request_type_match:
             types:
-              - "type.googleapis.com/envoy.api.v2.Cluster"
+              - "type.googleapis.com/envoy.config.cluster.v3.Cluster"
         result:
           string_fragment: "cds"
       - match:
           request_type_match:
             types:
-              - "type.googleapis.com/envoy.api.v2.ClusterLoadAssignment"
+              - "type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment"
         result:
           string_fragment: "eds"
       - match:
           request_type_match:
             types:
-              - "type.googleapis.com/envoy.api.v2.RouteConfiguration"
+              - "type.googleapis.com/envoy.config.route.v3.RouteConfiguration"
         result:
           string_fragment: "rds"
   - rules:
       - match:
           request_type_match:
             types:
-              - "type.googleapis.com/envoy.api.v2.RouteConfiguration"
+              - "type.googleapis.com/envoy.config.route.v3.RouteConfiguration"
         result:
           resource_names_fragment:
             element: 0
