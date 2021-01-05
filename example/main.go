@@ -10,17 +10,20 @@ import (
 
 	"google.golang.org/grpc"
 
-	api "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v2"
-	"github.com/envoyproxy/go-control-plane/pkg/cache/v2"
-	xds "github.com/envoyproxy/go-control-plane/pkg/server/v2"
-	gcpresourcev2 "github.com/envoyproxy/go-control-plane/pkg/test/resource/v2"
+	clusterservice "github.com/envoyproxy/go-control-plane/envoy/service/cluster/v3"
+	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
+	endpointservice "github.com/envoyproxy/go-control-plane/envoy/service/endpoint/v3"
+	listenerservice "github.com/envoyproxy/go-control-plane/envoy/service/listener/v3"
+	routeservice "github.com/envoyproxy/go-control-plane/envoy/service/route/v3"
+	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
+	xds "github.com/envoyproxy/go-control-plane/pkg/server/v3"
+	gcpresourcev3 "github.com/envoyproxy/go-control-plane/pkg/test/resource/v3"
 )
 
 func generateTestSnapshotNewVersion(snapshotCache cache.SnapshotCache) {
 	// infinite loop where we wait for some time and override objects in the cache
 
-	snapshotConfig := gcpresourcev2.TestSnapshot{
+	snapshotConfig := gcpresourcev3.TestSnapshot{
 		Xds:              "xds",
 		UpstreamPort:     uint32(12000),
 		BasePort:         uint32(9000),
@@ -59,10 +62,10 @@ func runServer(snapshotCache cache.SnapshotCache, port int) {
 	listener, _ := net.Listen("tcp", fmt.Sprintf(":%d", port))
 
 	discovery.RegisterAggregatedDiscoveryServiceServer(grpcServer, server)
-	api.RegisterEndpointDiscoveryServiceServer(grpcServer, server)
-	api.RegisterClusterDiscoveryServiceServer(grpcServer, server)
-	api.RegisterRouteDiscoveryServiceServer(grpcServer, server)
-	api.RegisterListenerDiscoveryServiceServer(grpcServer, server)
+	endpointservice.RegisterEndpointDiscoveryServiceServer(grpcServer, server)
+	clusterservice.RegisterClusterDiscoveryServiceServer(grpcServer, server)
+	routeservice.RegisterRouteDiscoveryServiceServer(grpcServer, server)
+	listenerservice.RegisterListenerDiscoveryServiceServer(grpcServer, server)
 
 	if err := grpcServer.Serve(listener); err != nil {
 		fmt.Println("something went wrong in the server")

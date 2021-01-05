@@ -164,7 +164,7 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 				stopMutex.Unlock()
 			}
 		case sig := <-sigs:
-			logger.Info(ctx, "received interrupt signal:", sig.String())
+			logger.With("signal", sig.String()).Info(ctx, "received interrupt signal")
 			logger.Info(ctx, "initiating admin server shutdown")
 			if shutdownErr := adminServer.Shutdown(ctx); shutdownErr != nil {
 				logger.With("error", shutdownErr).Error(ctx, "admin shutdown error: ", shutdownErr.Error())
