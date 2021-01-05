@@ -386,7 +386,6 @@ func TestStreamShouldRetryWhenTimeoutMet(t *testing.T) {
 			break
 		}
 	}
-	done()
 	cancel()
 }
 
@@ -414,7 +413,6 @@ func TestStreamShouldRetryWhenTimeoutMetV3(t *testing.T) {
 			break
 		}
 	}
-	done()
 	cancel()
 }
 
