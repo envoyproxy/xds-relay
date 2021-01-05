@@ -223,7 +223,7 @@ func (x *Server) GetAddress() *SocketAddress {
 	return nil
 }
 
-// [#next-free-field: 3]
+// [#next-free-field: 4]
 type Upstream struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -239,7 +239,7 @@ type Upstream struct {
 	// From https://developers.google.com/protocol-buffers/docs/reference/java/com/google/protobuf/Duration
 	// Duration only lets us represent time in 's'
 	KeepAliveTime string `protobuf:"bytes,2,opt,name=keep_alive_time,json=keepAliveTime,proto3" json:"keep_alive_time,omitempty"`
-	// Timeout in milliseconds for upstream connection stream.
+	// Timeout in seconds for upstream connection stream.
 	// If unset defaults to no timeout.
 	Timeout int64 `protobuf:"varint,3,opt,name=timeout,proto3" json:"timeout,omitempty"`
 }
