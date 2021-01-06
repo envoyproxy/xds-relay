@@ -190,7 +190,7 @@ func keyDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		cacheKey := getParam(req.URL.Path, cacheURL)
-		isVerbose := getQueryValue(req.URL.Query())
+		isVerbose, _ := getBoolQueryValue(req.URL.Query(), "verbose")
 		c := orchestrator.Orchestrator.GetReadOnlyCache(*o)
 		keysToPrint, err := getRelevantKeys(o, cacheKey, w)
 		if err == nil {

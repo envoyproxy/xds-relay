@@ -100,24 +100,27 @@ func TestGetParam_Empty(t *testing.T) {
 	assert.Equal(t, "", cacheKey)
 }
 
-func TestGetQuery(t *testing.T) {
-	isVerbose := getQueryValue(url.Values{
+func TestGetBoolQuery(t *testing.T) {
+	isVerbose, err := getBoolQueryValue(url.Values{
 		"verbose": []string{"true"},
-	})
+	}, "verbose")
 	assert.True(t, isVerbose)
+	assert.NoError(t, err)
 }
 
-func TestGetQuery_Empty(t *testing.T) {
-	isVerbose := getQueryValue(url.Values{})
-	assert.False(t, isVerbose)
+func TestGetBoolQuery_Empty(t *testing.T) {
+	queryValue, err := getBoolQueryValue(url.Values{}, "abc")
+	assert.False(t, queryValue)
+	assert.Error(t, err)
 }
 
-func TestGetQuery_Malformed(t *testing.T) {
-	isVerbose := getQueryValue(url.Values{
+func TestGetBoolQuery_Malformed(t *testing.T) {
+	isVerbose, err := getBoolQueryValue(url.Values{
 		"verbose":   []string{"abc"},
 		"something": []string{"true"},
-	})
+	}, "verbose")
 	assert.False(t, isVerbose)
+	assert.Error(t, err)
 }
 
 func TestAdminServer_LogLevelHandler(t *testing.T) {

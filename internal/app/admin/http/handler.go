@@ -167,13 +167,13 @@ func getParam(path string, prefix string) string {
 	return param
 }
 
-func getQueryValue(values url.Values) bool {
-	verbose := values.Get("verbose")
+func getBoolQueryValue(values url.Values, key string) (bool, error) {
+	verbose := values.Get(key)
 	isVerbose, err := strconv.ParseBool(verbose)
 	if err == nil {
-		return isVerbose
+		return isVerbose, nil
 	}
-	return false
+	return false, err
 }
 
 func logLevelHandler(l log.Logger) http.HandlerFunc {
