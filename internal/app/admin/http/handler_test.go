@@ -3,6 +3,10 @@ package handler
 import (
 	"bytes"
 	"context"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"testing"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
@@ -12,10 +16,6 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/stretchr/testify/assert"
-
-	"net/http"
-	"net/http/httptest"
-	"testing"
 )
 
 func TestAdminServer_DefaultHandler(t *testing.T) {
@@ -98,6 +98,29 @@ func TestGetParam_Empty(t *testing.T) {
 	path = "/cache"
 	cacheKey = getParam(path, prefix)
 	assert.Equal(t, "", cacheKey)
+}
+
+func TestGetBoolQuery(t *testing.T) {
+	isVerbose, err := getBoolQueryValue(url.Values{
+		"verbose": []string{"true"},
+	}, "verbose")
+	assert.True(t, isVerbose)
+	assert.NoError(t, err)
+}
+
+func TestGetBoolQuery_Empty(t *testing.T) {
+	queryValue, err := getBoolQueryValue(url.Values{}, "abc")
+	assert.False(t, queryValue)
+	assert.Error(t, err)
+}
+
+func TestGetBoolQuery_Malformed(t *testing.T) {
+	isVerbose, err := getBoolQueryValue(url.Values{
+		"verbose":   []string{"abc"},
+		"something": []string{"true"},
+	}, "verbose")
+	assert.False(t, isVerbose)
+	assert.Error(t, err)
 }
 
 func TestAdminServer_LogLevelHandler(t *testing.T) {
