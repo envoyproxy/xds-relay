@@ -376,13 +376,17 @@ func TestStreamShouldRetryWhenTimeoutMet(t *testing.T) {
 			Node:    &core.Node{},
 		}), "aggregated_key")
 	defer done()
-	for {
+	for start := time.Now(); ; {
 		var val int64 = 0
 		if scope.Snapshot().Counters() != nil &&
 			scope.Snapshot().Counters()["mock.lds.stream_retry+key=aggregated_key"] != nil {
 			val = scope.Snapshot().Counters()["mock.lds.stream_retry+key=aggregated_key"].Value()
 		}
 		if val > 0 {
+			break
+		}
+		if time.Since(start) >= time.Second * 5 {
+			t.Fail()
 			break
 		}
 	}
@@ -403,13 +407,17 @@ func TestStreamShouldRetryWhenTimeoutMetV3(t *testing.T) {
 		}), "aggregated_key")
 
 	defer done()
-	for {
+	for start := time.Now(); ; {
 		var val int64 = 0
 		if scope.Snapshot().Counters() != nil &&
 			scope.Snapshot().Counters()["mock.lds.stream_retry+key=aggregated_key"] != nil {
 			val = scope.Snapshot().Counters()["mock.lds.stream_retry+key=aggregated_key"].Value()
 		}
 		if val > 0 {
+			break
+		}
+		if time.Since(start) >= time.Second * 5 {
+			t.Fail()
 			break
 		}
 	}
