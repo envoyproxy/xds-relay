@@ -385,7 +385,7 @@ func TestStreamShouldRetryWhenTimeoutMet(t *testing.T) {
 		if val > 0 {
 			break
 		}
-		if time.Since(start) >= time.Second * 5 {
+		if time.Since(start) >= time.Second*5 {
 			t.Fail()
 			break
 		}
@@ -416,7 +416,7 @@ func TestStreamShouldRetryWhenTimeoutMetV3(t *testing.T) {
 		if val > 0 {
 			break
 		}
-		if time.Since(start) >= time.Second * 5 {
+		if time.Since(start) >= time.Second*5 {
 			t.Fail()
 			break
 		}
