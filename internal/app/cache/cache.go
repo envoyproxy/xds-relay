@@ -164,6 +164,7 @@ func (c *cache) SetResponse(key string, response transport.Response) (*RequestsS
 		c.logger.With(
 			"aggregated_key", key,
 			"response_type", response.GetTypeURL(),
+			"response_version", response.GetPayloadVersion(),
 		).Debug(context.Background(), "set response")
 		return resource.Requests, nil
 	}
@@ -176,7 +177,9 @@ func (c *cache) SetResponse(key string, response transport.Response) (*RequestsS
 	resource.ExpirationTime = c.getExpirationTime(time.Now())
 	c.cache.Add(key, resource)
 	c.logger.With(
-		"aggregated_key", key, "response_type", response.GetTypeURL(),
+		"aggregated_key", key,
+		"response_type", response.GetTypeURL(),
+		"response_version", response.GetPayloadVersion(),
 	).Debug(context.Background(), "set response")
 	metrics.CacheSetSubscope(c.scope, key).Counter(metrics.CacheSetSuccess).Inc(1)
 	return resource.Requests, nil
@@ -199,6 +202,7 @@ func (c *cache) AddRequest(key string, req transport.Request) error {
 			"aggregated_key", key,
 			"node_id", req.GetNodeID(),
 			"request_type", req.GetTypeURL(),
+			"request_version", req.GetVersionInfo(),
 		).Debug(context.Background(), "request added")
 		metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheAddSuccess).Inc(1)
 		return nil
@@ -215,6 +219,7 @@ func (c *cache) AddRequest(key string, req transport.Request) error {
 		"aggregated_key", key,
 		"node_id", req.GetNodeID(),
 		"request_type", req.GetTypeURL(),
+		"request_version", req.GetVersionInfo(),
 	).Debug(context.Background(), "request added")
 	metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheAddSuccess).Inc(1)
 	return nil
@@ -239,6 +244,7 @@ func (c *cache) DeleteRequest(key string, req transport.Request) error {
 		"aggregated_key", key,
 		"node_id", req.GetNodeID(),
 		"request_type", req.GetTypeURL(),
+		"request_version", req.GetVersionInfo(),
 	).Debug(context.Background(), "request deleted")
 	metrics.CacheDeleteRequestSubscope(c.scope, key).Counter(metrics.CacheDeleteSuccess).Inc(1)
 	return nil

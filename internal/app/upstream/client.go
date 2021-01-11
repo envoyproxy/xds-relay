@@ -175,7 +175,7 @@ func (m *client) handleStreamsWithRetry(
 			if !ok {
 				cancel()
 				close(respCh)
-				m.logger.With("aggregated_key", aggregatedKey).Info(ctx, "stream shutdown")
+				m.logger.With("aggregated_key", aggregatedKey).Debug(ctx, "stream shutdown")
 				return
 			}
 		case <-ctx.Done():
@@ -184,7 +184,7 @@ func (m *client) handleStreamsWithRetry(
 			// The shutdown can be called by the caller in many cases, during app shutdown/ttl expiry, etc
 			cancel()
 			close(respCh)
-			m.logger.With("aggregated_key", aggregatedKey).Info(ctx, "context cancelled")
+			m.logger.With("aggregated_key", aggregatedKey).Debug(ctx, "context cancelled")
 			return
 		default:
 			switch request.GetTypeURL() {
@@ -276,7 +276,7 @@ func send(
 				return
 			}
 			logger.With("aggregated_key", aggregatedKey,
-				"version", sig.version).Debug(ctx, "sending to upstream")
+				"version", sig.version).Debug(ctx, "sending version and nonce to upstream")
 			// Ref: https://github.com/grpc/grpc-go/issues/1229#issuecomment-302755717
 			// Call SendMsg in a timeout because it can block in some cases.
 			err := util.DoWithTimeout(ctx, func() error {
@@ -288,6 +288,7 @@ func send(
 			}
 		case <-ctx.Done():
 			_ = stream.CloseSend()
+			logger.With("aggregated_key", aggregatedKey).Debug(ctx, "send() context done")
 			return
 		}
 	}
@@ -314,11 +315,13 @@ func recv(
 
 		select {
 		case <-ctx.Done():
+			logger.With("aggregated_key", aggregatedKey,
+				"version", resp.GetPayloadVersion()).Debug(ctx, "recv() context done")
 			return
 		default:
 			response <- resp
 			logger.With("aggregated_key", aggregatedKey,
-				"version", resp.GetPayloadVersion()).Debug(ctx, "Received from upstream")
+				"version", resp.GetPayloadVersion()).Debug(ctx, "Received response from upstream")
 			signal <- &version{version: resp.GetPayloadVersion(), nonce: resp.GetNonce()}
 		}
 	}
