@@ -5,7 +5,7 @@ import (
 	"log"
 
 	"github.com/envoyproxy/xds-relay/internal/app/server"
-	yamlproto "github.com/envoyproxy/xds-relay/internal/pkg/util/yamlproto"
+	"github.com/envoyproxy/xds-relay/internal/pkg/util/yamlproto"
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
 	"github.com/spf13/cobra"
