@@ -378,7 +378,7 @@ func (o *orchestrator) fanout(resp transport.Response, watchers *cache.RequestsS
 					"node_id", watch.GetNodeID(),
 					"response_version", resp.GetPayloadVersion(),
 					"response_type", resp.GetTypeURL(),
-				).Debug(context.Background(), "response sent")
+				).Debug(context.Background(), "response sent to downstream watcher")
 				metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchFanouts).Inc(1)
 			}
 		}(key)
