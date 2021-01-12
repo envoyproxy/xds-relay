@@ -150,6 +150,7 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 		"node_id", req.GetNodeID(),
 		"request_type", req.GetTypeURL(),
 		"request_version", req.GetVersionInfo(),
+		"resource", req.GetResourceNames(),
 		"nonce", req.GetResponseNonce(),
 		"error", req.GetError(),
 		"aggregated_key", aggregatedKey,
