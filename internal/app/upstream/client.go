@@ -166,12 +166,15 @@ func (m *client) handleStreamsWithRetry(
 	respCh chan transport.Response,
 	aggregatedKey string) {
 	var (
-		s        grpc.ClientStream
-		stream   transport.Stream
-		err      error
-		scope    tally.Scope
+		s      grpc.ClientStream
+		stream transport.Stream
+		err    error
+		scope  tally.Scope
+
+		// childCtx completion signifies that the the client has closed the stream.
 		childCtx context.Context
-		cancel   context.CancelFunc
+		// cancel is called during shutdown or clean up operations from the caller. This will close the child context.
+		cancel context.CancelFunc
 	)
 	for {
 		if m.timeout != 0 {
@@ -282,6 +285,8 @@ func send(
 		select {
 		case sig, ok := <-signal:
 			if !ok {
+				logger.With("aggregated_key", aggregatedKey).Debug(ctx, "send() chan closed")
+				ctx.Done()
 				return
 			}
 			logger.With("aggregated_key", aggregatedKey,
@@ -344,6 +349,7 @@ func handleError(ctx context.Context, logger log.Logger, key string, errMsg stri
 		// Context was cancelled, hence this is not an erroneous scenario.
 		// Context is cancelled only when shutdown is called or any of the send/recv goroutines error out.
 		// The shutdown can be called by the caller in many cases, during app shutdown/ttl expiry, etc
+		logger.With("aggregated_key", key).Debug(ctx, "context cancelled")
 	default:
 		logger.With("aggregated_key", key).Error(ctx, "%s: %s", errMsg, err.Error())
 	}
