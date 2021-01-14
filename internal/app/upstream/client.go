@@ -286,7 +286,7 @@ func send(
 		case sig, ok := <-signal:
 			if !ok {
 				logger.With("aggregated_key", aggregatedKey).Debug(ctx, "send() chan closed")
-				ctx.Done()
+				cancelFunc()
 				return
 			}
 			logger.With("aggregated_key", aggregatedKey,
