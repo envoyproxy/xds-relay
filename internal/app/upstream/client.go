@@ -3,6 +3,7 @@ package upstream
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -69,6 +70,7 @@ type client struct {
 
 	shutdown <-chan struct{}
 	timeout  int64
+	jitter  int64
 }
 
 // CallOptions contains grpc client call options
@@ -99,6 +101,7 @@ func New(
 	logger log.Logger,
 	scope tally.Scope,
 	timeout int64,
+	jitter int64,
 ) (Client, error) {
 	namedLogger := logger.Named("upstream_client")
 	namedLogger.With("address", url).Info(ctx, "Initiating upstream connection")
@@ -141,6 +144,7 @@ func New(
 		scope:       subScope,
 		shutdown:    shutdownSignal,
 		timeout:     timeout,
+		jitter:     jitter,
 	}, nil
 }
 
@@ -175,7 +179,12 @@ func (m *client) handleStreamsWithRetry(
 	)
 	for {
 		if m.timeout != 0 {
-			childCtx, cancel = context.WithTimeout(ctx, time.Duration(m.timeout)*time.Second)
+			timeout := m.timeout
+			if m.jitter>0  && m.jitter<timeout{
+				timeout = m.timeout-rand.Int63n(m.jitter)
+			}
+			m.logger.With("aggregated_key", aggregatedKey).Debug(ctx, "Connecting to upstream with timeout: %ds", timeout)
+			childCtx, cancel = context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
 		} else {
 			childCtx, cancel = context.WithCancel(ctx)
 		}
