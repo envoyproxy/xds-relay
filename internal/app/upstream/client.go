@@ -310,6 +310,8 @@ func send(
 
 // recv is an infinite loop which blocks on RecvMsg.
 // The only ways to exit the goroutine is by cancelling the context or when an error occurs.
+// response channel is used by the caller (orchestrator) to propagate responses to downstream clients.
+// signal channel is read by send() in order to send an ACK to the upstream client.
 func recv(
 	ctx context.Context,
 	complete func(),
@@ -321,6 +323,7 @@ func recv(
 	aggregatedKey string) {
 	defer complete()
 	for {
+		logger.With("aggregated_key", aggregatedKey).Debug(ctx, "recv(): listening for message")
 		resp, err := stream.RecvMsg()
 		if err != nil {
 			handleError(ctx, logger, aggregatedKey, "Error in RecvMsg", cancelFunc, err)
