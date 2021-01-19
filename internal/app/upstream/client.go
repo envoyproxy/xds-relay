@@ -285,12 +285,15 @@ func send(
 		select {
 		case sig, ok := <-signal:
 			if !ok {
+				// This shouldn't happen since the signal channel is only closed during garbage
+				// collection, but in the case of an erroneous error, cancelling allows recv() to
+				// exit cleanly.
 				logger.With("aggregated_key", aggregatedKey).Debug(ctx, "send() chan closed")
 				cancelFunc()
 				return
 			}
 			logger.With("aggregated_key", aggregatedKey,
-				"version", sig.version).Debug(ctx, "sending version and nonce to upstream")
+				"version", sig.version).Debug(ctx, "sending version and nonce to upstream (ACK)")
 			// Ref: https://github.com/grpc/grpc-go/issues/1229#issuecomment-302755717
 			// Call SendMsg in a timeout because it can block in some cases.
 			err := util.DoWithTimeout(ctx, func() error {
@@ -336,10 +339,16 @@ func recv(
 				"version", resp.GetPayloadVersion()).Debug(ctx, "recv() context done")
 			return
 		default:
-			response <- resp
 			logger.With("aggregated_key", aggregatedKey,
-				"version", resp.GetPayloadVersion()).Debug(ctx, "Received response from upstream")
-			signal <- &version{version: resp.GetPayloadVersion(), nonce: resp.GetNonce()}
+				"version", resp.GetPayloadVersion()).Debug(ctx, "received response from upstream")
+			// recv() will be blocking if the response channel is blocked from the receiver
+			// (orchestrator). Timeout after 5 seconds. TODO make receive timeout configurable
+			select {
+			case response <- resp:
+				signal <- &version{version: resp.GetPayloadVersion(), nonce: resp.GetNonce()}
+			case <-time.After(5 * time.Second):
+				handleError(ctx, logger, aggregatedKey, "recv() blocked on receiver", cancelFunc, err)
+			}
 		}
 	}
 }
