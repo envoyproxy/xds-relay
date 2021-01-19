@@ -310,7 +310,7 @@ func (o *orchestrator) watchUpstream(
 				// TODO if set fails, we may need to retry upstream as well.
 				// Currently the fallback is to rely on a future response, but
 				// that probably isn't ideal.
-				// https://github.com/envoyproxy/xds-relay/issues/70s
+				// https://github.com/envoyproxy/xds-relay/issues/70
 				//
 				// If we fail to cache the new response, log and return the old one.
 				o.logger.With("error", err).With("aggregated_key", aggregatedKey).
@@ -388,6 +388,11 @@ func (o *orchestrator) fanout(resp transport.Response, watchers *cache.RequestsS
 	o.scope.Timer(metrics.TimerFanoutTime).Record(time.Since(start))
 	// Wait for all fanouts to complete.
 	wg.Wait()
+	o.logger.With(
+		"aggregated_key", aggregatedKey,
+		"response_type", resp.GetTypeURL(),
+		"response_version", resp.GetPayloadVersion(),
+	).Debug(context.Background(), "response fanout complete")
 	o.scope.Timer(metrics.TimerSendTime).Record(time.Since(start))
 }
 
