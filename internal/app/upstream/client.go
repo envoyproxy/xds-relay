@@ -186,6 +186,7 @@ func (m *client) handleStreamsWithRetry(
 			m.logger.With("aggregated_key", aggregatedKey).Debug(ctx, "Connecting to upstream with timeout: %ds", timeout)
 			childCtx, cancel = context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
 		} else {
+			m.logger.With("aggregated_key", aggregatedKey).Debug(ctx, "Connecting to upstream without timeout")
 			childCtx, cancel = context.WithCancel(ctx)
 		}
 		select {
