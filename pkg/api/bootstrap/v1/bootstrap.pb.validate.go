@@ -311,6 +311,8 @@ func (m *Upstream) Validate() error {
 
 	// no validation rules for Timeout
 
+	// no validation rules for Jitter
+
 	return nil
 }
 
