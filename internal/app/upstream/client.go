@@ -179,14 +179,8 @@ func (m *client) handleStreamsWithRetry(
 	)
 	for {
 		if m.timeout != 0 {
-			timeout := m.timeout
-			if m.jitter > 0 && m.jitter < timeout {
-				timeout = m.timeout - rand.Int63n(m.jitter)
-			}
-			m.logger.With("aggregated_key", aggregatedKey).Debug(ctx, "Connecting to upstream with timeout: %ds", timeout)
-			childCtx, cancel = context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
+			childCtx, cancel = context.WithTimeout(ctx, time.Duration(m.timeout + rand.Int63n(m.jitter))*time.Second)
 		} else {
-			m.logger.With("aggregated_key", aggregatedKey).Debug(ctx, "Connecting to upstream without timeout")
 			childCtx, cancel = context.WithCancel(ctx)
 		}
 		select {
