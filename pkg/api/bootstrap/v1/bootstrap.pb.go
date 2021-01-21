@@ -243,8 +243,8 @@ type Upstream struct {
 	// If unset defaults to no timeout.
 	Timeout int64 `protobuf:"varint,3,opt,name=timeout,proto3" json:"timeout,omitempty"`
 	// Jitter in seconds for upstream connection. Used with timeout to reset connections without overloading
-	// the upstream server. Jitter is the lower tolerance for random variation in the timeout. e.g. timeout=15,
-	// jitter=5 -> connectionTimeout is rand Int 10 and 15.
+	// the upstream server. Jitter is the upper tolerance for random variation in the timeout. e.g. timeout=15,
+	// jitter=5 -> connectionTimeout is rand Int 15 and 20.
 	// If unset defaults to no jitter.
 	Jitter int64 `protobuf:"varint,4,opt,name=jitter,proto3" json:"jitter,omitempty"`
 }
