@@ -53,8 +53,8 @@ message Upstream {
     int64 timeout = 3;
 
     // Jitter in seconds for upstream connection. Used with timeout to reset connections without overloading
-    // the upstream server. Jitter is the lower tolerance for random variation in the timeout. e.g. timeout=15,
-    // jitter=5 -> connectionTimeout is rand Int 10 and 15.
+    // the upstream server. Jitter is the upper tolerance for random variation in the timeout. e.g. timeout=15,
+    // jitter=5 -> connectionTimeout is rand Int 15 and 20.
     // If unset defaults to no jitter.
     int64 jitter = 4;
 
