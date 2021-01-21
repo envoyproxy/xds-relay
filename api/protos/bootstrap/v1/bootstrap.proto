@@ -34,7 +34,7 @@ message Server {
     SocketAddress address = 1 [(validate.rules).message.required = true];
 }
 
-// [#next-free-field: 4]
+// [#next-free-field: 5]
 message Upstream {
     // The address for the upstream cluster.
     SocketAddress address = 1 [(validate.rules).message.required = true];
@@ -51,6 +51,13 @@ message Upstream {
     // Timeout in seconds for upstream connection stream.
     // If unset defaults to no timeout.
     int64 timeout = 3;
+
+    // Jitter in seconds for upstream connection. Used with timeout to reset connections without overloading
+    // the upstream server. Jitter is the upper tolerance for random variation in the timeout. e.g. timeout=15,
+    // jitter=5 -> connectionTimeout is rand Int 15 and 20.
+    // If unset defaults to no jitter.
+    int64 jitter = 4;
+
 }
 
 // [#next-free-field: 3]
