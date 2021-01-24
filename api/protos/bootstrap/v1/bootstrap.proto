@@ -48,16 +48,16 @@ message Upstream {
     // Duration only lets us represent time in 's'
     string keep_alive_time = 2;
 
-    // Timeout in seconds for upstream connection stream.
+    // Timeout for upstream connection stream.
     // If unset defaults to no timeout.
-    int64 timeout = 3;
+    // Usage example: 2m to represent 2 minutes.
+    string stream_timeout = 3;
 
-    // Jitter in seconds for upstream connection. Used with timeout to reset connections without overloading
-    // the upstream server. Jitter is the upper tolerance for random variation in the timeout. e.g. timeout=15,
-    // jitter=5 -> connectionTimeout is rand Int 15 and 20.
+    // Jitter for upstream connection stream timeouts. Used with timeout to reset streams without overloading
+    // the upstream server. Jitter is the upper tolerance for random variation in the timeout. e.g. timeout=15s,
+    // jitter=5s -> stream timeout is a random value between 15s and 20s.
     // If unset defaults to no jitter.
-    int64 jitter = 4;
-
+    string stream_timeout_jitter = 4;
 }
 
 // [#next-free-field: 3]
