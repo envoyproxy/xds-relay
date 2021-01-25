@@ -50,6 +50,7 @@ message Upstream {
 
     // Timeout for upstream connection stream.
     // If unset defaults to no timeout.
+    // A new stream will be opened (retried) after the timeout is hit.
     // Usage example: 2m to represent 2 minutes.
     string stream_timeout = 3;
 
@@ -58,6 +59,87 @@ message Upstream {
     // jitter=5s -> stream timeout is a random value between 15s and 20s.
     // If unset defaults to no jitter.
     string stream_timeout_jitter = 4;
+
+    // Optional. Maximum timeout for blocked gRPC sends.
+    // If this timeout is reached, the stream will be disconnected and re-opened.
+    //
+    // The value of gRPC send timeout is generally,
+    // min(stream_timeout - stream_open_duration, stream_send_max_timeout)
+    //
+    // A stream_send_min_timeout buffer is added for short final send timeout values to prevent
+    // scenarios where the stream deadline is reached too quickly. The complete accuracy of the
+    // value is therefore,
+    // stream send timeout = max(stream_send_min_timeout, min(stream_timeout - stream_open_duration, stream_send_max_timeout))
+    //
+    // If unset, the stream_timeout value is used.
+    //
+    // Examples:
+    //
+    // Ex 1:
+    //   stream_timeout = 15m
+    //   stream_send_max_timeout = 5m
+    //   stream_send_min_timeout = 1m
+    //   ... 1m in send blocks
+    //       final send timeout = max(1m, min(15m - 1m, 5m)) = 5m
+    //   ... 11m in send blocks
+    //       final send timeout = max(1m, min(15m - 11m, 5m)) = 4m
+    //   ... 14.5m in send blocks
+    //       A 1m buffer is added for short final send timeout values to prevent scenarios where
+    //       the stream deadline is reached too quickly.
+    //       final send timeout = max(1m, min(15m - 14.5m, 5m)) = 1m
+    //
+    // Ex 2:
+    //   stream_timeout = 5m
+    //   stream_send_max_timeout = 10m
+    //   stream_send_min_timeout = "" // not configured
+    //   ... 1m in send blocks
+    //       final send timeout = min(5m - 1m, 10m) = 4m
+    //   ... 4m in send blocks
+    //       final send timeout = min(5m - 4m, 10m) = 1m
+    //   ... > 5m in send blocks will never occur because of the 5m stream timeout
+    //
+    // Ex 3:
+    //   stream_timeout = "" // not configured
+    //   stream_send_max_timeout = 5m
+    //   stream_send_min_timeout = 4m
+    //   ... in all send block scenarios,
+    //       final send timeout = max(4m, 5m) = 5m
+    //
+    // Ex 4:
+    //   stream_timeout = 10m
+    //   stream_send_max_timeout = "" // not configured
+    //   stream_send_min_timeout = 1m
+    //   ... in all send block scenarios,
+    //       final send timeout = max(1m, 10m) = 10m
+    //
+    string stream_send_max_timeout = 5;
+
+    // Optional. Used in conjunction with stream_send_max_timeout.
+    // Refer to document for stream_send_max_timeout.
+    // This value must not be > stream_send_max_timeout. Server enforced.
+    string stream_send_min_timeout = 6;
+
+    // Optional. Maximum timeout for blocked gRPC recvs.
+    // If this timeout is reached, a NACK will be sent to the upstream server with the same
+    // version and nounce as the prior attempted send.
+    //
+    // The value of gRPC recv timeout is generally,
+    // min(stream_timeout - stream_open_duration, stream_recv_max_timeout)
+    //
+    // A stream_recv_min_timeout buffer is added for short final recv timeout values to prevent
+    // scenarios where the stream deadline is reached too quickly. The complete accuracy of the
+    // value is therefore,
+    // stream recv timeout = max(stream_recv_min_timeout, min(stream_timeout - stream_open_duration, stream_recv_max_timeout))
+    //
+    // If unset, the stream_timeout value is used.
+    //
+    // Please refer to stream_send_max_timeout for examples, replacing send with recv.
+    string stream_recv_max_timeout = 7;
+
+    // Optional. Used in conjunction with stream_recv_max_timeout.
+    // Refer to document for stream_recv_max_timeout.
+    // This value must not be > stream_recv_max_timeout. Server enforced.
+    string stream_recv_min_timeout = 8;
 }
 
 // [#next-free-field: 3]

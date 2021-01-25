@@ -313,6 +313,14 @@ func (m *Upstream) Validate() error {
 
 	// no validation rules for StreamTimeoutJitter
 
+	// no validation rules for StreamSendMaxTimeout
+
+	// no validation rules for StreamSendMinTimeout
+
+	// no validation rules for StreamRecvMaxTimeout
+
+	// no validation rules for StreamRecvMinTimeout
+
 	return nil
 }
 
