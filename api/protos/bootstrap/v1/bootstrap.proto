@@ -34,7 +34,7 @@ message Server {
     SocketAddress address = 1 [(validate.rules).message.required = true];
 }
 
-// [#next-free-field: 5]
+// [#next-free-field: 6]
 message Upstream {
     // The address for the upstream cluster.
     SocketAddress address = 1 [(validate.rules).message.required = true];
@@ -58,6 +58,10 @@ message Upstream {
     // jitter=5s -> stream timeout is a random value between 15s and 20s.
     // If unset defaults to no jitter.
     string stream_timeout_jitter = 4;
+
+    // Extra string field to provide xds-relay related node metadata to management server if needed. This is
+    // added to the NodeMetadata field of the xds request passed upstream.
+    string request_node_metadata = 5;
 }
 
 // [#next-free-field: 3]

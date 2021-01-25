@@ -93,6 +93,8 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	panicOnError(ctx, logger, err, "failed to parse upstream stream jitter")
 	upstreamConnTimeout, err := util.StringToDuration(bootstrapConfig.OriginServer.KeepAliveTime, 5*time.Minute)
 	panicOnError(ctx, logger, err, "failed to parse upstream connection timeout")
+	//TODO: set proto
+	upstreamNodeMetadata := bootstrapConfig.OriginServer.String()
 	upstreamClient, err := upstream.New(
 		ctx,
 		upstreamAddress,
@@ -100,6 +102,7 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 			StreamTimeout:        upstreamStreamTimeout,
 			StreamTimeoutJitter:  upstreamStreamJitter,
 			ConnKeepaliveTimeout: upstreamConnTimeout,
+			NodeMetadata:         upstreamNodeMetadata,
 		},
 		logger,
 		scope,
