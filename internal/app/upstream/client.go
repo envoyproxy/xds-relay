@@ -3,12 +3,10 @@ package upstream
 import (
 	"context"
 	"fmt"
+	"math"
 	"math/rand"
 	"sync"
 	"time"
-
-	"github.com/envoyproxy/xds-relay/internal/app/metrics"
-	"github.com/envoyproxy/xds-relay/internal/app/transport"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	clusterservice "github.com/envoyproxy/go-control-plane/envoy/service/cluster/v3"
@@ -17,17 +15,17 @@ import (
 	routeservice "github.com/envoyproxy/go-control-plane/envoy/service/route/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/resource/v2"
 	resourcev3 "github.com/envoyproxy/go-control-plane/pkg/resource/v3"
-	"github.com/envoyproxy/xds-relay/internal/pkg/log"
-	"github.com/envoyproxy/xds-relay/internal/pkg/util"
 	"github.com/uber-go/tally"
+	code "google.golang.org/genproto/googleapis/rpc/code"
+	status "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
-)
 
-// UnsupportedResourceError is a custom error for unsupported typeURL
-type UnsupportedResourceError struct {
-	TypeURL string
-}
+	"github.com/envoyproxy/xds-relay/internal/app/metrics"
+	"github.com/envoyproxy/xds-relay/internal/app/transport"
+	"github.com/envoyproxy/xds-relay/internal/pkg/log"
+	"github.com/envoyproxy/xds-relay/internal/pkg/util"
+)
 
 // Client handles the requests and responses from the origin server.
 // The xds client handles each xds request on a separate stream,
@@ -73,9 +71,6 @@ type client struct {
 
 // CallOptions contains grpc client call options
 type CallOptions struct {
-	// Timeout is the time to wait on a blocking grpc SendMsg.
-	SendTimeout time.Duration
-
 	// StreamTimeout is the time to wait before closing and reopening the gRPC stream.
 	// If this is set to the Time.IsZero() value (ex: 0s), no stream timeout will be set unless
 	// gRPC is blocked on Send/Recv message. If blocked, the maximum of StreamBlockedTimeout or
@@ -85,6 +80,42 @@ type CallOptions struct {
 	// herd of streams being reopened.
 	StreamTimeoutJitter time.Duration
 
+	// StreamSendMaxTimeout is the maximum timeout for blocked gRPC sends.
+	// If this timeout is reached, the stream will be closed and retried immediately.
+	//
+	// The final stream send time value is calculated using the formula:
+	// max(StreamSendMinTimeout, min(StreamTimeout - StreamUpDuration, StreamSendMaxTimeout))
+	//
+	// If unset, the StreamTimeout value is used.
+	//
+	// Examples
+	//   stream_timeout = 15m
+	//   stream_send_max_timeout = 5m
+	//   stream_send_min_timeout = 1m
+	//   ... 1m in send blocks
+	//       final send timeout = max(1m, min(15m - 1m, 5m)) = 5m
+	//   ... 11m in send blocks
+	//       final send timeout = max(1m, min(15m - 11m, 5m)) = 4m
+	//   ... 14.5m in send blocks
+	//       A 1m buffer is added for short final send timeout values to prevent scenarios where
+	//       the stream deadline is reached too quickly.
+	//       final send timeout = max(1m, min(15m - 14.5m, 5m)) = 1m
+	StreamSendMaxTimeout time.Duration
+	StreamSendMinTimeout time.Duration
+
+	// StreamRecvMaxTimeout is the maximum timeout for blocked gRPC receives.
+	// If this timeout is reached, a NACK will be sent to the upstream server with the same
+	// version and nounce as the prior attempted send.
+	//
+	// The final stream send time value is calculated using the formula:
+	// max(StreamRecvMinTimeout, min(StreamTimeout - StreamUpDuration, StreamRecvMaxTimeout))
+	//
+	// If unset, the StreamTimeout value is used.
+	//
+	// Please refer to StreamSendMaxTimeout for an example, replacing send with recv.
+	StreamRecvMaxTimeout time.Duration
+	StreamRecvMinTimeout time.Duration
+
 	// ConnKeepaliveTimeout is the gRPC connection keep-alive timeout.
 	// Based on https://github.com/grpc/grpc-go/blob/v1.32.x/keepalive/keepalive.go#L27-L45
 	// If unset this defaults to 5 minutes.
@@ -92,8 +123,9 @@ type CallOptions struct {
 }
 
 type version struct {
-	version string
-	nonce   string
+	version     string
+	nonce       string
+	errorDetail *status.Status
 }
 
 // New creates a grpc connection with an upstream origin server.
@@ -175,14 +207,15 @@ func (m *client) handleStreamsWithRetry(
 	ctx context.Context,
 	request transport.Request,
 	respCh chan transport.Response,
-	aggregatedKey string) {
+	aggregatedKey string,
+) {
 	var (
 		s      grpc.ClientStream
 		stream transport.Stream
 		err    error
 		scope  tally.Scope
 
-		// childCtx completion signifies that the the client has closed the stream.
+		// childCtx captures the duration for which the stream is open.
 		childCtx context.Context
 		// cancel is called during shutdown or clean up operations from the caller. This will close the child context.
 		cancel context.CancelFunc
@@ -190,7 +223,8 @@ func (m *client) handleStreamsWithRetry(
 	for {
 		if m.callOptions.StreamTimeout != 0*time.Second {
 			timeout := m.callOptions.getStreamTimeout()
-			m.logger.With("aggregated_key", aggregatedKey).Debug(ctx, "Connecting to upstream with timeout: %ds", timeout.Seconds())
+			m.logger.With("aggregated_key", aggregatedKey).Debug(ctx,
+				"Connecting to upstream with timeout: %ds", timeout.Seconds())
 			childCtx, cancel = context.WithTimeout(ctx, timeout)
 		} else {
 			m.logger.With("aggregated_key", aggregatedKey).Debug(ctx, "Connecting to upstream with timeout")
@@ -264,15 +298,11 @@ func (m *client) handleStreamsWithRetry(
 			signal := make(chan *version, 1)
 			m.logger.With("request_type", request.GetTypeURL(), "aggregated_key", aggregatedKey).Info(ctx, "stream opened")
 			scope.Counter(metrics.UpstreamStreamOpened).Inc(1)
-			// The xds protocol https://www.envoyproxy.io/docs/envoy/latest/api-docs/xds_protocol#ack
-			// specifies that the first request be empty nonce and empty version.
-			// The origin server will respond with the latest version.
-			signal <- &version{nonce: "", version: ""}
 			var wg sync.WaitGroup
 			wg.Add(2)
 
 			go send(childCtx, wg.Done, m.logger, cancel, stream, signal, m.callOptions, aggregatedKey)
-			go recv(childCtx, wg.Done, cancel, m.logger, respCh, stream, signal, aggregatedKey)
+			go recv(childCtx, wg.Done, cancel, m.logger, respCh, stream, signal, m.callOptions, aggregatedKey)
 
 			wg.Wait()
 			scope.Counter(metrics.UpstreamStreamRetry).Inc(1)
@@ -294,10 +324,23 @@ func send(
 	stream transport.Stream,
 	signal chan *version,
 	callOptions CallOptions,
-	aggregatedKey string) {
+	aggregatedKey string,
+) {
 	defer complete()
+	var (
+		priorVersion string
+		err          error
+	)
+	// The xds protocol https://www.envoyproxy.io/docs/envoy/latest/api-docs/xds_protocol#ack
+	// specifies that the first request be empty nonce and empty version.
+	// The origin server will respond with the latest version.
+	signal <- &version{nonce: "", version: ""}
 	for {
 		select {
+		case <-ctx.Done():
+			_ = stream.CloseSend()
+			logger.With("aggregated_key", aggregatedKey, "err", ctx.Err()).Debug(ctx, "send(): context done")
+			return
 		case sig, ok := <-signal:
 			if !ok {
 				// This shouldn't happen since the signal channel is only closed during garbage
@@ -307,22 +350,32 @@ func send(
 				cancelFunc()
 				return
 			}
-			logger.With("aggregated_key", aggregatedKey,
-				"version", sig.version).Debug(ctx, "send(): sending version and nonce to upstream (ACK)")
+			if sig.errorDetail != nil {
+				// Following xDS protocol, NACKs must contain the last request version.
+				sig.version = priorVersion
+			}
+			logger.With("aggregated_key", aggregatedKey, "version", sig.version, "nonce", sig.nonce,
+				"error_details", sig.errorDetail).Debug(ctx, "send(): sending version and nonce to upstream")
 			// Ref: https://github.com/grpc/grpc-go/issues/1229#issuecomment-302755717
 			// Call SendMsg in a timeout because it can block in some cases.
-			err := util.DoWithTimeout(ctx, func() error {
-				return stream.SendMsg(sig.version, sig.nonce)
-			}, callOptions.SendTimeout)
+			sendTimeout := callOptions.getFinalSendTimeout(ctx)
+			if sendTimeout <= 0*time.Second {
+				err = stream.SendMsg(sig.version, sig.nonce, sig.errorDetail)
+			} else {
+				err = util.DoWithTimeout(ctx, func() error {
+					return stream.SendMsg(sig.version, sig.nonce, sig.errorDetail)
+				}, sendTimeout)
+			}
 			if err != nil {
+				// If send timeout occurs, there is nothing that can be done from the upstream
+				// management plane, close the stream and reopen.
+				if err == context.DeadlineExceeded {
+				}
 				handleError(ctx, logger, aggregatedKey, "send(): error", cancelFunc, err)
 				return
 			}
+			priorVersion = sig.version
 			logger.With("aggregated_key", aggregatedKey, "version", sig.version).Debug(ctx, "send(): complete")
-		case <-ctx.Done():
-			_ = stream.CloseSend()
-			logger.With("aggregated_key", aggregatedKey).Debug(ctx, "send(): context done")
-			return
 		}
 	}
 }
@@ -339,22 +392,45 @@ func recv(
 	response chan transport.Response,
 	stream transport.Stream,
 	signal chan *version,
-	aggregatedKey string) {
+	callOptions CallOptions,
+	aggregatedKey string,
+) {
 	defer complete()
+	var (
+		err  error
+		resp transport.Response
+	)
 	for {
-		logger.With("aggregated_key", aggregatedKey).Debug(ctx, "recv(): listening for message")
-		resp, err := stream.RecvMsg()
-		if err != nil {
-			handleError(ctx, logger, aggregatedKey, "recv(): error", cancelFunc, err)
-			return
-		}
-
 		select {
 		case <-ctx.Done():
 			logger.With("aggregated_key", aggregatedKey,
 				"version", resp.GetPayloadVersion()).Debug(ctx, "recv(): context done")
 			return
 		default:
+			logger.With("aggregated_key", aggregatedKey).Debug(ctx, "recv(): listening for message")
+			// Ref: https://github.com/grpc/grpc-go/issues/1229#issuecomment-302755717
+			// Call RecvMsg in a timeout because it can block in some cases.
+			recvTimeout := callOptions.getFinalRecvTimeout(ctx)
+			if recvTimeout <= 0*time.Second {
+				resp, err = stream.RecvMsg()
+			} else {
+				resp, err = stream.RecvMsgWithTimeout(ctx, recvTimeout)
+			}
+			if err != nil {
+				if err == context.DeadlineExceeded {
+					// In the event that Recv reaches its timeout, inform send() to send a
+					// NACK to the upstream server.
+					signal <- &version{
+						errorDetail: &status.Status{
+							Code:    code.Code_value[code.Code_DEADLINE_EXCEEDED.String()],
+							Message: "Recv timeout exceeded",
+						}}
+					continue
+				}
+				handleError(ctx, logger, aggregatedKey, "recv(): error", cancelFunc, err)
+				return
+			}
+
 			logger.With("aggregated_key", aggregatedKey,
 				"version", resp.GetPayloadVersion()).Debug(ctx, "recv(): received response from upstream")
 			// recv() will be blocking if the response channel is blocked from the receiver
@@ -382,6 +458,50 @@ func (co CallOptions) getStreamTimeout() time.Duration {
 	return time.Duration(timeout) * time.Nanosecond
 }
 
+func (co CallOptions) getFinalSendTimeout(ctx context.Context) time.Duration {
+	var sendTimeoutSecondsFloat64 float64
+	streamDeadline, streamDeadlineSet := ctx.Deadline()
+	if !streamDeadlineSet {
+		sendTimeoutSecondsFloat64 = math.Max(co.StreamSendMinTimeout.Seconds(), co.StreamSendMaxTimeout.Seconds())
+	} else {
+		timeRemaining := streamDeadline.Sub(time.Now())
+		if co.StreamSendMaxTimeout == 0*time.Second {
+			sendTimeoutSecondsFloat64 = math.Max(co.StreamSendMinTimeout.Seconds(), timeRemaining.Seconds())
+		} else {
+			sendTimeoutSecondsFloat64 = math.Max(
+				co.StreamSendMinTimeout.Seconds(),
+				math.Min(
+					timeRemaining.Seconds(),
+					co.StreamSendMaxTimeout.Seconds(),
+				),
+			)
+		}
+	}
+	return time.Duration(sendTimeoutSecondsFloat64) * time.Second
+}
+
+func (co CallOptions) getFinalRecvTimeout(ctx context.Context) time.Duration {
+	var recvTimeoutSecondsFloat64 float64
+	streamDeadline, streamDeadlineSet := ctx.Deadline()
+	if !streamDeadlineSet {
+		recvTimeoutSecondsFloat64 = math.Max(co.StreamRecvMinTimeout.Seconds(), co.StreamRecvMaxTimeout.Seconds())
+	} else {
+		timeRemaining := streamDeadline.Sub(time.Now())
+		if co.StreamRecvMaxTimeout == 0*time.Second {
+			recvTimeoutSecondsFloat64 = math.Max(co.StreamRecvMinTimeout.Seconds(), timeRemaining.Seconds())
+		} else {
+			recvTimeoutSecondsFloat64 = math.Max(
+				co.StreamRecvMinTimeout.Seconds(),
+				math.Min(
+					timeRemaining.Seconds(),
+					co.StreamRecvMaxTimeout.Seconds(),
+				),
+			)
+		}
+	}
+	return time.Duration(recvTimeoutSecondsFloat64) * time.Second
+}
+
 func handleError(ctx context.Context, logger log.Logger, key string, errMsg string,
 	cancelFunc context.CancelFunc, err error) {
 	defer cancelFunc()
@@ -402,10 +522,6 @@ func shutDown(ctx context.Context, conn *grpc.ClientConn, signal chan struct{}) 
 	<-ctx.Done()
 	conn.Close()
 	close(signal)
-}
-
-func (e *UnsupportedResourceError) Error() string {
-	return fmt.Sprintf("Unsupported resource typeUrl: %s", e.TypeURL)
 }
 
 func updateConnectivityMetric(ctx context.Context, conn *grpc.ClientConn, scope tally.Scope) {

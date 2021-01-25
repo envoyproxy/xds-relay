@@ -85,25 +85,7 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 	panicOnError(ctx, logger, err, "failed to configure stats client")
 
 	// Initialize upstream client.
-	upstreamPort := strconv.FormatUint(uint64(bootstrapConfig.OriginServer.Address.PortValue), 10)
-	upstreamAddress := net.JoinHostPort(bootstrapConfig.OriginServer.Address.Address, upstreamPort)
-	upstreamStreamTimeout, err := util.StringToDuration(bootstrapConfig.OriginServer.StreamTimeout, 0*time.Second)
-	panicOnError(ctx, logger, err, "failed to parse upstream stream timeout")
-	upstreamStreamJitter, err := util.StringToDuration(bootstrapConfig.OriginServer.StreamTimeoutJitter, 0*time.Second)
-	panicOnError(ctx, logger, err, "failed to parse upstream stream jitter")
-	upstreamConnTimeout, err := util.StringToDuration(bootstrapConfig.OriginServer.KeepAliveTime, 5*time.Minute)
-	panicOnError(ctx, logger, err, "failed to parse upstream connection timeout")
-	upstreamClient, err := upstream.New(
-		ctx,
-		upstreamAddress,
-		upstream.CallOptions{
-			StreamTimeout:        upstreamStreamTimeout,
-			StreamTimeoutJitter:  upstreamStreamJitter,
-			ConnKeepaliveTimeout: upstreamConnTimeout,
-		},
-		logger,
-		scope,
-	)
+	upstreamClient, err := initializeUpstreamClient(ctx, bootstrapConfig, logger, scope)
 	panicOnError(ctx, logger, err, "failed to initialize upstream client")
 
 	// Initialize request aggregation mapper component.
@@ -178,6 +160,51 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 			return
 		}
 	}
+}
+
+func initializeUpstreamClient(
+	ctx context.Context,
+	bootstrapConfig *bootstrapv1.Bootstrap,
+	logger log.Logger,
+	scope tally.Scope,
+) (upstream.Client, error) {
+	upstreamPort := strconv.FormatUint(uint64(bootstrapConfig.OriginServer.Address.PortValue), 10)
+	upstreamAddress := net.JoinHostPort(bootstrapConfig.OriginServer.Address.Address, upstreamPort)
+	upstreamStreamTimeout, err := util.StringToDuration(bootstrapConfig.OriginServer.StreamTimeout, 0*time.Second)
+	panicOnError(ctx, logger, err, "failed to parse upstream stream timeout")
+	upstreamStreamJitter, err := util.StringToDuration(bootstrapConfig.OriginServer.StreamTimeoutJitter, 0*time.Second)
+	panicOnError(ctx, logger, err, "failed to parse upstream stream jitter")
+	upstreamStreamSendMaxTimeout, err := util.StringToDuration(bootstrapConfig.OriginServer.StreamSendMaxTimeout, 0*time.Second)
+	panicOnError(ctx, logger, err, "failed to parse upstream stream max timeout")
+	upstreamStreamSendMinTimeout, err := util.StringToDuration(bootstrapConfig.OriginServer.StreamSendMinTimeout, 0*time.Second)
+	panicOnError(ctx, logger, err, "failed to parse upstream stream min timeout")
+	upstreamStreamRecvMaxTimeout, err := util.StringToDuration(bootstrapConfig.OriginServer.StreamRecvMaxTimeout, 0*time.Second)
+	panicOnError(ctx, logger, err, "failed to parse upstream stream recv max timeout")
+	upstreamStreamRecvMinTimeout, err := util.StringToDuration(bootstrapConfig.OriginServer.StreamRecvMinTimeout, 0*time.Second)
+	panicOnError(ctx, logger, err, "failed to parse upstream stream recv min timeout")
+	upstreamConnTimeout, err := util.StringToDuration(bootstrapConfig.OriginServer.KeepAliveTime, 5*time.Minute)
+	panicOnError(ctx, logger, err, "failed to parse upstream connection timeout")
+	if upstreamStreamSendMinTimeout.Nanoseconds > upstreamStreamSendMaxTimeout {
+		panicOnError(ctx, logger, err, "stream send min timeout cannot be larger than stream send max timeout")
+	}
+	if upstreamStreamRecvMinTimeout.Nanoseconds > upstreamStreamRecvMaxTimeout {
+		panicOnError(ctx, logger, err, "stream recv min timeout cannot be larger than stream recv max timeout")
+	}
+	return upstream.New(
+		ctx,
+		upstreamAddress,
+		upstream.CallOptions{
+			StreamTimeout:        upstreamStreamTimeout,
+			StreamTimeoutJitter:  upstreamStreamJitter,
+			StreamSendMaxTimeout: upstreamStreamSendMaxTimeout,
+			StreamSendMinTimeout: upstreamStreamSendMinTimeout,
+			StreamRecvMaxTimeout: upstreamStreamRecvMaxTimeout,
+			StreamRecvMinTimeout: upstreamStreamRecvMinTimeout,
+			ConnKeepaliveTimeout: upstreamConnTimeout,
+		},
+		logger,
+		scope,
+	)
 }
 
 func panicOnError(ctx context.Context, logger log.Logger, err error, msg string) {
