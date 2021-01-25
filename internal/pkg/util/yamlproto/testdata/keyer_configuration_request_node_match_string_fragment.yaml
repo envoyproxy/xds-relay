@@ -2,7 +2,24 @@ fragments:
   - rules:
     - match:
         request_node_match:
-          field: 0
-          exact_match: "woooow"
+          id_match:
+            exact_match: "woooow"
+      result:
+        string_fragment: "abc"
+    - match:
+        request_node_match:
+          cluster_match:
+            exact_match: "cluster-1"
+      result:
+        string_fragment: "abc"
+    - match:
+        request_node_match:
+          locality_match:
+            region:
+              exact_match: "r1"
+            zone:
+              exact_match: "z1"
+            sub_zone:
+              exact_match: "sz-1"
       result:
         string_fragment: "abc"

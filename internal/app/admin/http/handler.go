@@ -3,24 +3,16 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"net/http/pprof"
+	"net/url"
+	"path/filepath"
+	"strconv"
 	"strings"
-	"time"
 
-	envoy_api_v2_core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log/zap"
 
-	envoy_api_v2_auth "github.com/envoyproxy/go-control-plane/envoy/api/v2/auth"
-	envoy_service_discovery_v2 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v2"
-	resource2 "github.com/envoyproxy/go-control-plane/pkg/resource/v2"
-	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/any"
-
 	"github.com/envoyproxy/xds-relay/internal/pkg/util/stringify"
-
-	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	"github.com/envoyproxy/xds-relay/internal/app/cache"
-	"github.com/envoyproxy/xds-relay/internal/app/transport"
 
 	"github.com/envoyproxy/xds-relay/internal/app/orchestrator"
 
@@ -31,32 +23,98 @@ type Handler struct {
 	pattern     string
 	description string
 	handler     http.HandlerFunc
+	redirect    bool
 }
+
+const (
+	logURL   = "/log_level"
+	cacheURL = "/cache"
+	clearURL = "/cache/clear"
+)
 
 func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 	orchestrator *orchestrator.Orchestrator,
+	weboff chan bool,
 	logger log.Logger) []Handler {
 	handlers := []Handler{
 		{
 			"/",
 			"admin home page",
 			func(http.ResponseWriter, *http.Request) {},
+			true,
 		},
 		{
-			"/cache",
+			"/ready",
+			"ready endpoint. usage: GET /ready POST /ready/true or ready/false",
+			readyHandler(weboff),
+			true,
+		},
+		{
+			clearURL,
+			"clear cache entry for a given key. Omitting the key clears all cache entries. usage: `/cache/clear/<key>`",
+			clearCacheHandler(orchestrator),
+			true,
+		},
+		{
+			cacheURL,
 			"print cache entry for a given key. Omitting the key outputs all cache entries. usage: `/cache/<key>`",
 			cacheDumpHandler(orchestrator),
+			true,
 		},
 		{
-			"/log_level",
+			"/cache/version",
+			"print the version for a particular key. usage: `/cache/version/<key>`",
+			versionHandler(orchestrator),
+			true,
+		},
+		{
+			"/cache/eds",
+			"print the eds payload for a particular key. usage: `/cache/eds/<key>`",
+			edsDumpHandler(orchestrator),
+			true,
+		},
+		{
+			"/cache/keys",
+			"print all keys",
+			keyDumpHandler(orchestrator),
+			true,
+		},
+		{
+			logURL,
 			"update the log level to `debug`, `info`, `warn`, or `error`. " +
 				"Omitting the level outputs the current log level. usage: `/log_level/<level>`",
 			logLevelHandler(logger),
+			true,
 		},
 		{
 			"/server_info",
 			"print bootstrap configuration",
 			configDumpHandler(bootstrap),
+			true,
+		},
+		{
+			"/debug/pprof/goroutine",
+			"Stack traces of all current goroutines",
+			pprof.Handler("goroutine").ServeHTTP,
+			false,
+		},
+		{
+			"/debug/pprof/heap",
+			"A sampling of memory allocations of live objects.",
+			pprof.Handler("heap").ServeHTTP,
+			false,
+		},
+		{
+			"/debug/pprof/threadcreate",
+			"Stack traces that led to the creation of new OS threads",
+			pprof.Handler("threadcreate").ServeHTTP,
+			false,
+		},
+		{
+			"/debug/pprof/block",
+			"Stack traces that led to blocking on synchronization primitives",
+			pprof.Handler("block").ServeHTTP,
+			false,
 		},
 	}
 	// The default handler is defined later to avoid infinite recursion.
@@ -66,10 +124,11 @@ func getHandlers(bootstrap *bootstrapv1.Bootstrap,
 
 func RegisterHandlers(bootstrapConfig *bootstrapv1.Bootstrap,
 	orchestrator *orchestrator.Orchestrator,
+	weboff chan bool,
 	logger log.Logger) {
-	for _, handler := range getHandlers(bootstrapConfig, orchestrator, logger) {
+	for _, handler := range getHandlers(bootstrapConfig, orchestrator, weboff, logger) {
 		http.Handle(handler.pattern, handler.handler)
-		if !strings.HasSuffix(handler.pattern, "/") {
+		if !strings.HasSuffix(handler.pattern, "/") && handler.redirect {
 			http.Handle(handler.pattern+"/", handler.handler)
 		}
 	}
@@ -102,179 +161,21 @@ func configDumpHandler(bootstrapConfig *bootstrapv1.Bootstrap) http.HandlerFunc 
 	}
 }
 
-// TODO(lisalu): Support dump of matching resources when cache key regex is provided.
-func cacheDumpHandler(o *orchestrator.Orchestrator) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		cacheKey := getParam(req.URL.Path)
-		cache := orchestrator.Orchestrator.GetReadOnlyCache(*o)
-
-		// If no key is provided, output the entire cache.
-		if cacheKey == "" {
-			keys, err := orchestrator.Orchestrator.GetDownstreamAggregatedKeys(*o)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				fmt.Fprintf(w, "error in getting cache keys: %s", err.Error())
-				return
-			}
-			for key := range keys {
-				resource, err := cache.FetchReadOnly(key)
-				if err == nil {
-					resourceString, err := resourceToString(resource)
-					if err == nil {
-						fmt.Fprintf(w, "%s: %s\n", key, resourceString)
-					}
-				}
-			}
-			return
-		}
-
-		// Otherwise return the cache entry corresponding to the given key.
-		resource, err := cache.FetchReadOnly(cacheKey)
-		if err != nil {
-			fmt.Fprintf(w, "no resource for key %s found in cache.\n", cacheKey)
-			return
-		}
-		resourceString, err := resourceToString(resource)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "unable to convert resource to string.\n")
-			return
-		}
-		fmt.Fprint(w, resourceString)
-	}
+func getParam(path string, prefix string) string {
+	path = strings.TrimPrefix(path, prefix)
+	_, param := filepath.Split(path)
+	return param
 }
 
-type marshallableResource struct {
-	Resp           *marshalledDiscoveryResponse
-	Requests       []*v2.DiscoveryRequest
-	ExpirationTime time.Time
-}
-
-// In order to marshal a Resource from the cache to JSON to be printed,
-// the map of requests is converted to a slice of just the keys,
-// since the bool value is meaningless.
-func resourceToString(resource cache.Resource) (string, error) {
-	var requests []*v2.DiscoveryRequest
-	for request := range resource.Requests {
-		requests = append(requests, request.GetRaw().V2)
-	}
-
-	resourceString := &marshallableResource{
-		Resp:           marshalDiscoveryResponse(resource.Resp),
-		Requests:       requests,
-		ExpirationTime: resource.ExpirationTime,
-	}
-
-	return stringify.InterfaceToString(resourceString)
-}
-
-type marshalledDiscoveryResponse struct {
-	VersionInfo  string
-	Resources    *xDSResources
-	Canary       bool
-	TypeURL      string
-	Nonce        string
-	ControlPlane *envoy_api_v2_core.ControlPlane
-}
-
-type xDSResources struct {
-	Endpoints    []*v2.ClusterLoadAssignment
-	Clusters     []*v2.Cluster
-	Routes       []*v2.RouteConfiguration
-	Listeners    []*v2.Listener
-	Secrets      []*envoy_api_v2_auth.Secret
-	Runtimes     []*envoy_service_discovery_v2.Runtime
-	Unmarshalled []*any.Any
-}
-
-func marshalDiscoveryResponse(r transport.Response) *marshalledDiscoveryResponse {
-	if r != nil {
-		resp := r.Get().V2
-		marshalledResp := marshalledDiscoveryResponse{
-			VersionInfo:  resp.VersionInfo,
-			Canary:       resp.Canary,
-			TypeURL:      resp.TypeUrl,
-			Resources:    marshalResources(resp.Resources),
-			Nonce:        resp.Nonce,
-			ControlPlane: resp.ControlPlane,
-		}
-		return &marshalledResp
-	}
-	return nil
-}
-
-func marshalResources(Resources []*any.Any) *xDSResources {
-	var marshalledResources xDSResources
-	for _, resource := range Resources {
-		switch resource.TypeUrl {
-		case resource2.EndpointType:
-			e := &v2.ClusterLoadAssignment{}
-			err := ptypes.UnmarshalAny(resource, e)
-			if err == nil {
-				marshalledResources.Endpoints = append(marshalledResources.Endpoints, e)
-			} else {
-				marshalledResources.Unmarshalled = append(marshalledResources.Unmarshalled, resource)
-			}
-		case resource2.ClusterType:
-			c := &v2.Cluster{}
-			err := ptypes.UnmarshalAny(resource, c)
-			if err == nil {
-				marshalledResources.Clusters = append(marshalledResources.Clusters, c)
-			} else {
-				marshalledResources.Unmarshalled = append(marshalledResources.Unmarshalled, resource)
-			}
-		case resource2.RouteType:
-			r := &v2.RouteConfiguration{}
-			err := ptypes.UnmarshalAny(resource, r)
-			if err == nil {
-				marshalledResources.Routes = append(marshalledResources.Routes, r)
-			} else {
-				marshalledResources.Unmarshalled = append(marshalledResources.Unmarshalled, resource)
-			}
-		case resource2.ListenerType:
-			l := &v2.Listener{}
-			err := ptypes.UnmarshalAny(resource, l)
-			if err == nil {
-				marshalledResources.Listeners = append(marshalledResources.Listeners, l)
-			} else {
-				marshalledResources.Unmarshalled = append(marshalledResources.Unmarshalled, resource)
-			}
-		case resource2.SecretType:
-			s := &envoy_api_v2_auth.Secret{}
-			err := ptypes.UnmarshalAny(resource, s)
-			if err == nil {
-				marshalledResources.Secrets = append(marshalledResources.Secrets, s)
-			} else {
-				marshalledResources.Unmarshalled = append(marshalledResources.Unmarshalled, resource)
-			}
-		case resource2.RuntimeType:
-			r := &envoy_service_discovery_v2.Runtime{}
-			err := ptypes.UnmarshalAny(resource, r)
-			if err == nil {
-				marshalledResources.Runtimes = append(marshalledResources.Runtimes, r)
-			} else {
-				marshalledResources.Unmarshalled = append(marshalledResources.Unmarshalled, resource)
-			}
-		default:
-			marshalledResources.Unmarshalled = append(marshalledResources.Unmarshalled, resource)
-		}
-	}
-	return &marshalledResources
-}
-
-func getParam(path string) string {
-	// Assumes that the URL is of the format `address/endpoint/parameter` and returns `parameter`.
-	splitPath := strings.SplitN(path, "/", 3)
-	if len(splitPath) == 3 {
-		return splitPath[2]
-	}
-	return ""
+func getBoolQueryValue(values url.Values, key string) (bool, error) {
+	val := values.Get(key)
+	return strconv.ParseBool(val)
 }
 
 func logLevelHandler(l log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Method == "POST" {
-			logLevel := getParam(req.URL.Path)
+			logLevel := getParam(req.URL.Path, logURL)
 
 			// If no key is provided, output the current log level.
 			if logLevel == "" {
@@ -293,7 +194,6 @@ func logLevelHandler(l log.Logger) http.HandlerFunc {
 			fmt.Fprintf(w, "Current log level: %s\n", l.GetLevel())
 		} else {
 			w.WriteHeader(http.StatusMethodNotAllowed)
-			fmt.Fprintf(w, "Only POST is supported\n")
 		}
 	}
 }

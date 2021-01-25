@@ -75,7 +75,7 @@ var testDiscoveryResponse = v2.DiscoveryResponse{
 
 var testResource = Resource{
 	Resp:     transport.NewResponseV2(&v2.DiscoveryRequest{}, &testDiscoveryResponse),
-	Requests: make(map[transport.Request]bool),
+	Requests: NewRequestsStore(),
 }
 
 func TestAddRequestAndFetch(t *testing.T) {
@@ -119,9 +119,9 @@ func TestSetResponseAndFetch(t *testing.T) {
 	assert.EqualError(t, err, "no value found for key: key_A")
 	assert.Nil(t, resource)
 
-	requests, err := cache.SetResponse(testKeyA, testResource.Resp)
+	m, err := cache.SetResponse(testKeyA, testResource.Resp)
 	assert.NoError(t, err)
-	assert.Nil(t, requests)
+	assert.Equal(t, 0, getLength(m))
 
 	resource, err = cache.Fetch(testKeyA)
 	assert.NoError(t, err)
@@ -142,9 +142,11 @@ func TestAddRequestAndSetResponse(t *testing.T) {
 
 	requests, err := cache.SetResponse(testKeyA, testResource.Resp)
 	assert.NoError(t, err)
-	assert.Equal(t, 2, len(requests))
-	assert.Equal(t, true, requests[reqA])
-	assert.Equal(t, true, requests[reqB])
+	assert.Equal(t, 2, getLength(requests))
+	ok := requests.get(reqA)
+	assert.True(t, ok)
+	ok = requests.get(reqB)
+	assert.True(t, ok)
 
 	resource, err := cache.Fetch(testKeyA)
 	assert.NoError(t, err)
@@ -270,8 +272,39 @@ func TestDeleteRequest(t *testing.T) {
 
 	requests, err := cache.SetResponse(testKeyA, testResource.Resp)
 	assert.NoError(t, err)
-	assert.Equal(t, 0, len(requests))
+	assert.Equal(t, 0, getLength(requests))
 
 	err = cache.DeleteRequest(testKeyB, transport.NewRequestV2(&testRequestB))
 	assert.NoError(t, err)
+}
+
+func TestDeleteKey(t *testing.T) {
+	cache, err := NewCache(1, testOnEvict, time.Second*60, log.MockLogger, stats.NewMockScope("cache"))
+	assert.NoError(t, err)
+
+	reqA := transport.NewRequestV2(&testRequestA)
+	err = cache.AddRequest(testKeyA, reqA)
+	assert.NoError(t, err)
+
+	res, err := cache.Fetch(testKeyA)
+	assert.NoError(t, err)
+	assert.NotNil(t, res)
+
+	assert.PanicsWithValue(t, panicValues{
+		key:    testKeyA,
+		reason: "testOnEvict called",
+	}, func() {
+		err = cache.DeleteKey(testKeyA)
+		assert.NoError(t, err)
+	})
+
+	res, err = cache.Fetch(testKeyA)
+	assert.Error(t, err)
+	assert.Nil(t, res)
+}
+
+func getLength(m *RequestsStore) int {
+	count := 0
+	m.ForEach(func(transport.Request) { count++ })
+	return count
 }

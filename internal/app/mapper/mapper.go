@@ -5,8 +5,11 @@ import (
 	"regexp"
 	"strings"
 
+	v2 "github.com/envoyproxy/go-control-plane/pkg/resource/v2"
+	v3 "github.com/envoyproxy/go-control-plane/pkg/resource/v3"
 	"github.com/envoyproxy/xds-relay/internal/app/metrics"
 	"github.com/envoyproxy/xds-relay/internal/app/transport"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/uber-go/tally"
 
@@ -48,9 +51,16 @@ func New(config *aggregationv1.KeyerConfiguration, scope tally.Scope) Mapper {
 
 // GetKey converts a request into an aggregated key
 func (mapper *mapper) GetKey(request transport.Request) (string, error) {
-	if request.GetTypeURL() == "" {
+	typeURL := request.GetTypeURL()
+	if typeURL == "" {
 		mapper.scope.Counter(metrics.MapperError).Inc(1)
 		return "", fmt.Errorf("typeURL is empty")
+	}
+
+	// A known issue (https://github.com/envoyproxy/envoy/issues/7529) causes envoy to generate
+	// EDS requests without resource_names, which could affect certain fragment rules.
+	if isEDS(typeURL) && len(request.GetResourceNames()) == 0 {
+		return "", fmt.Errorf("resource names is empty")
 	}
 
 	var resultFragments []string
@@ -81,6 +91,10 @@ func (mapper *mapper) GetKey(request transport.Request) (string, error) {
 
 	mapper.scope.Counter(metrics.MapperSuccess).Inc(1)
 	return strings.Join(resultFragments, separator), nil
+}
+
+func isEDS(typeURL string) bool {
+	return v2.EndpointType == typeURL || v3.EndpointType == typeURL
 }
 
 func isMatch(matchPredicate *matchPredicate, typeURL string, req transport.Request) (bool, error) {
@@ -124,20 +138,30 @@ func isNodeMatch(matchPredicate *matchPredicate, req transport.Request) (bool, e
 	if predicate == nil {
 		return false, nil
 	}
-	switch predicate.GetField() {
-	case aggregationv1.NodeFieldType_NODE_CLUSTER:
-		return compare(predicate, req.GetCluster())
-	case aggregationv1.NodeFieldType_NODE_ID:
-		return compare(predicate, req.GetNodeID())
-	case aggregationv1.NodeFieldType_NODE_LOCALITY_REGION:
-		return compare(predicate, req.GetRegion())
-	case aggregationv1.NodeFieldType_NODE_LOCALITY_ZONE:
-		return compare(predicate, req.GetZone())
-	case aggregationv1.NodeFieldType_NODE_LOCALITY_SUBZONE:
-		return compare(predicate, req.GetSubZone())
-	default:
-		return false, fmt.Errorf("RequestNodeMatch does not have a valid NodeFieldType")
+
+	// By construction only one of these is set at any point in time, so checking one by one
+	// sequentially is ok.
+	idMatch := predicate.GetIdMatch()
+	if idMatch != nil {
+		return compareString(idMatch, req.GetNodeID())
 	}
+
+	clusterMatch := predicate.GetClusterMatch()
+	if clusterMatch != nil {
+		return compareString(clusterMatch, req.GetCluster())
+	}
+
+	localityMatch := predicate.GetLocalityMatch()
+	if localityMatch != nil {
+		return compareLocality(localityMatch, req.GetLocality())
+	}
+
+	nodeMetadataMatch := predicate.GetNodeMetadataMatch()
+	if nodeMetadataMatch != nil {
+		return compareNodeMetadata(nodeMetadataMatch, req.GetNodeMetadata())
+	}
+
+	return false, fmt.Errorf("RequestNodeMatch is invalid")
 }
 
 func isRequestTypeMatch(matchPredicate *matchPredicate, typeURL string) bool {
@@ -261,11 +285,19 @@ func getResultFromRequestNodePredicate(predicate *resultPredicate, req transport
 		return false, "", nil
 	}
 
-	nodeValue, err := getNodeValue(requestNodeFragment.GetField(), req)
-	if err != nil {
-		return false, "", err
+	var resultFragment string
+	var err error
+	if requestNodeFragment.GetIdAction() != nil {
+		resultFragment, err = getResultFragmentFromAction(req.GetNodeID(), requestNodeFragment.GetIdAction())
+	} else if requestNodeFragment.GetClusterAction() != nil {
+		resultFragment, err = getResultFragmentFromAction(req.GetCluster(), requestNodeFragment.GetClusterAction())
+	} else if requestNodeFragment.GetLocalityAction() != nil {
+		resultFragment, err = getFragmentFromLocalityAction(req.GetLocality(), requestNodeFragment.GetLocalityAction())
+	} else if requestNodeFragment.GetNodeMetadataAction() != nil {
+		resultFragment, err = getFragmentFromNodeMetadataAction(req.GetNodeMetadata(),
+			requestNodeFragment.GetNodeMetadataAction())
 	}
-	resultFragment, err := getResultFragmentFromAction(nodeValue, requestNodeFragment.GetAction())
+
 	if err != nil {
 		return false, "", err
 	}
@@ -355,26 +387,6 @@ func getResultFromResourceNamesPredicate(
 	return true, result, nil
 }
 
-func getNodeValue(nodeField aggregationv1.NodeFieldType, req transport.Request) (string, error) {
-	var nodeValue string
-	switch nodeField {
-	case aggregationv1.NodeFieldType_NODE_CLUSTER:
-		nodeValue = req.GetCluster()
-	case aggregationv1.NodeFieldType_NODE_ID:
-		nodeValue = req.GetNodeID()
-	case aggregationv1.NodeFieldType_NODE_LOCALITY_REGION:
-		nodeValue = req.GetRegion()
-	case aggregationv1.NodeFieldType_NODE_LOCALITY_ZONE:
-		nodeValue = req.GetZone()
-	case aggregationv1.NodeFieldType_NODE_LOCALITY_SUBZONE:
-		nodeValue = req.GetSubZone()
-	default:
-		return "", fmt.Errorf("RequestNodeFragment Invalid NodeFieldType")
-	}
-
-	return nodeValue, nil
-}
-
 func getResultFragmentFromAction(
 	nodeValue string,
 	action *aggregationv1.ResultPredicate_ResultAction) (string, error) {
@@ -402,16 +414,68 @@ func getResultFragmentFromAction(
 	return replacedFragment, nil
 }
 
-func compare(requestNodeMatch *aggregationv1.MatchPredicate_RequestNodeMatch, nodeValue string) (bool, error) {
-	if nodeValue == "" {
-		return false, fmt.Errorf("MatchPredicate Node field cannot be empty")
+func getFragmentFromLocalityAction(
+	locality *transport.Locality,
+	action *aggregationv1.ResultPredicate_LocalityResultAction) (string, error) {
+	var matches []string
+	if action.RegionAction != nil {
+		fragment, err := getResultFragmentFromAction(locality.Region, action.RegionAction)
+		if err != nil {
+			return "", err
+		}
+		matches = append(matches, fragment)
 	}
-	exactMatch := requestNodeMatch.GetExactMatch()
+	if action.ZoneAction != nil {
+		fragment, err := getResultFragmentFromAction(locality.Zone, action.ZoneAction)
+		if err != nil {
+			return "", err
+		}
+		matches = append(matches, fragment)
+	}
+	if action.SubzoneAction != nil {
+		fragment, err := getResultFragmentFromAction(locality.SubZone, action.SubzoneAction)
+		if err != nil {
+			return "", err
+		}
+		matches = append(matches, fragment)
+	}
+
+	if len(matches) == 0 {
+		return "", fmt.Errorf("RequestNodeFragment match resulted in an empty fragment")
+	}
+
+	// N.B.: join matches using "|" to indicate they all came from the locality object.
+	return strings.Join(matches, "|"), nil
+}
+
+func getFragmentFromNodeMetadataAction(
+	nodeMetadata *structpb.Struct,
+	action *aggregationv1.ResultPredicate_NodeMetadataAction) (string, error) {
+	// Traverse to the right node
+	var value *structpb.Value = nil
+	var ok bool
+	for _, segment := range action.GetPath() {
+		fields := nodeMetadata.GetFields()
+		value, ok = fields[segment.Key]
+		if !ok {
+			// TODO what to do if the key doesn't map to a valid struct field?
+			return "", fmt.Errorf("Path to key is inexistent")
+		}
+		nodeMetadata = value.GetStructValue()
+	}
+
+	// TODO: We need to stringify values other than strings (bool, integers, etc) before
+	// extracting the fragment via a call to getResultFragmentFromAction.
+	return getResultFragmentFromAction(value.GetStringValue(), action.GetAction())
+}
+
+func compareString(stringMatch *aggregationv1.StringMatch, nodeValue string) (bool, error) {
+	exactMatch := stringMatch.GetExactMatch()
 	if exactMatch != "" {
 		return nodeValue == exactMatch, nil
 	}
 
-	regexMatch := requestNodeMatch.GetRegexMatch()
+	regexMatch := stringMatch.GetRegexMatch()
 	if regexMatch != "" {
 		match, err := regexp.MatchString(regexMatch, nodeValue)
 		if err != nil {
@@ -421,4 +485,77 @@ func compare(requestNodeMatch *aggregationv1.MatchPredicate_RequestNodeMatch, no
 	}
 
 	return false, nil
+}
+
+func compareBool(boolMatch *aggregationv1.BoolMatch, boolValue bool) bool {
+	return boolMatch.ValueMatch == boolValue
+}
+
+func compareLocality(localityMatch *aggregationv1.LocalityMatch,
+	reqNodeLocality *transport.Locality) (bool, error) {
+	if reqNodeLocality == nil {
+		return false, fmt.Errorf("Locality Node field cannot be empty")
+	}
+
+	regionMatch := true
+	var err error
+	if localityMatch.GetRegion() != nil {
+		regionMatch, err = compareString(localityMatch.Region, reqNodeLocality.Region)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	zoneMatch := true
+	if localityMatch.GetZone() != nil {
+		zoneMatch, err = compareString(localityMatch.Zone, reqNodeLocality.Zone)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	subZoneMatch := true
+	if localityMatch.GetSubZone() != nil {
+		subZoneMatch, err = compareString(localityMatch.SubZone, reqNodeLocality.SubZone)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	return regionMatch && zoneMatch && subZoneMatch, nil
+}
+
+func compareNodeMetadata(nodeMetadataMatch *aggregationv1.NodeMetadataMatch,
+	nodeMetadata *structpb.Struct) (bool, error) {
+	if nodeMetadata == nil {
+		return false, fmt.Errorf("Metadata Node field cannot be empty")
+	}
+
+	var value *structpb.Value = nil
+	var ok bool
+	for _, segment := range nodeMetadataMatch.GetPath() {
+		// Starting from the second iteration, make sure that we're dealing with structs
+		if value != nil {
+			if value.GetStructValue() != nil {
+				nodeMetadata = value.GetStructValue()
+			} else {
+				// TODO: signal that the field is not a struct
+				return false, nil
+			}
+		}
+		fields := nodeMetadata.GetFields()
+		value, ok = fields[segment.Key]
+		if !ok {
+			return false, nil
+		}
+	}
+
+	// TODO: implement the other structpb.Value types.
+	if nodeMetadataMatch.Match.GetStringMatch() != nil {
+		return compareString(nodeMetadataMatch.Match.GetStringMatch(), value.GetStringValue())
+	} else if nodeMetadataMatch.Match.GetBoolMatch() != nil {
+		return compareBool(nodeMetadataMatch.Match.GetBoolMatch(), value.GetBoolValue()), nil
+	} else {
+		return false, fmt.Errorf("Invalid NodeMetadata Match")
+	}
 }

@@ -8,8 +8,9 @@ package orchestrator
 
 import (
 	"context"
-	"fmt"
+	"strings"
 	"sync"
+	"time"
 
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
 	"github.com/golang/protobuf/ptypes"
@@ -25,10 +26,6 @@ import (
 
 const (
 	component = "orchestrator"
-
-	// unaggregatedPrefix is the prefix used to label discovery requests that
-	// could not be successfully mapped to an aggregation rule.
-	unaggregatedPrefix = "unaggregated_"
 )
 
 // Orchestrator has the following responsibilities:
@@ -59,6 +56,8 @@ type Orchestrator interface {
 	GetReadOnlyCache() cache.ReadOnlyCache
 
 	GetDownstreamAggregatedKeys() (map[string]bool, error)
+
+	ClearCacheEntries(keys []string) []error
 
 	CreateWatch(transport.Request) (transport.Watch, func())
 }
@@ -131,30 +130,27 @@ func New(
 func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func()) {
 	ctx := context.Background()
 
+	aggregatedKey, err := o.mapper.GetKey(req)
 	// If this is the first time we're seeing the request from the
 	// downstream client, initialize a channel to feed future responses.
-	responseChannel := o.downstreamResponseMap.createChannel(req)
-
-	aggregatedKey, err := o.mapper.GetKey(req)
+	watch := o.downstreamResponseMap.createWatch(req, metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey))
 	if err != nil {
-		// Can't map the request to an aggregated key. Log and continue to
-		// propagate the response upstream without aggregation.
+		// TODO (https://github.com/envoyproxy/xds-relay/issues/56)
+		// Support unnaggregated keys.
+		// Can't map the request to an aggregated key. Log error and return.
 		o.logger.With(
 			"error", err,
 			"request_type", req.GetTypeURL(),
-			"request", req,
-		).Warn(ctx, "failed to map to aggregated key")
-		// Mimic the aggregated key.
-		// TODO (https://github.com/envoyproxy/xds-relay/issues/56). Can we
-		// condense this key but still make it granular enough to uniquely
-		// identify a request?
-		aggregatedKey = fmt.Sprintf("%s%s", unaggregatedPrefix, req.GetRaw().V2)
+			"node_id", req.GetNodeID(),
+		).Error(ctx, "failed to map to aggregated key")
+		return o.downstreamResponseMap.delete(req), nil
 	}
 
 	o.logger.With(
 		"node_id", req.GetNodeID(),
 		"request_type", req.GetTypeURL(),
 		"request_version", req.GetVersionInfo(),
+		"resource", req.GetResourceNames(),
 		"nonce", req.GetResponseNonce(),
 		"error", req.GetError(),
 		"aggregated_key", aggregatedKey,
@@ -168,10 +164,26 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 		o.logger.With("error", err).With("aggregated_key", aggregatedKey).With(
 			"request", req.GetRaw().V2).Error(ctx, "failed to add watch")
 		metrics.OrchestratorWatchErrorsSubscope(o.scope, aggregatedKey).Counter(metrics.ErrorRegisterWatch).Inc(1)
-		w := o.downstreamResponseMap.delete(req)
-		return w, nil
+		return o.downstreamResponseMap.delete(req), nil
 	}
 	metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchCreated).Inc(1)
+
+	// Log + stat to investigate NACK behavior
+	if isNackRequest(req) {
+		resourceString := ""
+		if req.GetResourceNames() != nil {
+			resourceString = strings.Join(req.GetResourceNames()[:], ",")
+		}
+		o.logger.With(
+			"request_version", req.GetVersionInfo(),
+			"resource_names", resourceString,
+			"nonce", req.GetResponseNonce(),
+			"request_type", req.GetTypeURL(),
+			"error", req.GetError(),
+			"aggregated_key", aggregatedKey,
+		).Debug(ctx, "NACK request")
+		metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorNackWatchCreated).Inc(1)
+	}
 
 	// Check if we have a cached response first.
 	cached, err := o.cache.Fetch(aggregatedKey)
@@ -180,11 +192,13 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 		o.logger.With("error", err).With("aggregated_key", aggregatedKey).Warn(ctx, "failed to fetch aggregated key")
 	}
 
-	if cached != nil && cached.Resp != nil && cached.Resp.GetPayloadVersion() != req.GetVersionInfo() {
+	if cached != nil && cached.Resp != nil &&
+		cached.Resp.GetPayloadVersion() != req.GetVersionInfo() &&
+		req.GetError() == nil {
 		// If we have a cached response and the version is different,
 		// immediately push the result to the response channel.
 		go func() {
-			err := responseChannel.addResponse(cached.Resp)
+			err := watch.Send(cached.Resp)
 			if err != nil {
 				// Sanity check that the channel isn't blocked. This shouldn't
 				// ever happen since the channel is newly created. Regardless,
@@ -201,32 +215,23 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 	// Check if we have a upstream stream open for this aggregated key. If not,
 	// open a stream with the representative request.
 	if !o.upstreamResponseMap.exists(aggregatedKey) {
-		upstreamResponseChan, shutdown, err := o.upstreamClient.OpenStream(req)
-		if err != nil {
-			// TODO implement retry/back-off logic on error scenario.
-			// https://github.com/envoyproxy/xds-relay/issues/68
-			o.logger.With(
-				"error", err,
-				"aggregated_key", aggregatedKey,
-			).Error(ctx, "Failed to open stream to origin server")
+		upstreamResponseChan, shutdown := o.upstreamClient.OpenStream(req, aggregatedKey)
+		respChannel, upstreamOpenedPreviously := o.upstreamResponseMap.add(aggregatedKey, upstreamResponseChan)
+		if upstreamOpenedPreviously {
+			// A stream was opened previously due to a race between
+			// concurrent downstreams for the same aggregated key, between
+			// exists and add operations. In this event, simply close the
+			// slower stream and return the existing one.
+			shutdown()
 		} else {
-			respChannel, upstreamOpenedPreviously := o.upstreamResponseMap.add(aggregatedKey, upstreamResponseChan)
-			if upstreamOpenedPreviously {
-				// A stream was opened previously due to a race between
-				// concurrent downstreams for the same aggregated key, between
-				// exists and add operations. In this event, simply close the
-				// slower stream and return the existing one.
-				shutdown()
-			} else {
-				// Spin up a go routine to watch for upstream responses.
-				// One routine is opened per aggregate key.
-				o.logger.With("aggregated_key", aggregatedKey).Debug(ctx, "watching upstream")
-				go o.watchUpstream(ctx, aggregatedKey, respChannel.response, respChannel.done, shutdown)
-			}
+			// Spin up a go routine to watch for upstream responses.
+			// One routine is opened per aggregate key.
+			o.logger.With("aggregated_key", aggregatedKey).Debug(ctx, "watching upstream")
+			go o.watchUpstream(ctx, aggregatedKey, respChannel.response, respChannel.done, shutdown)
 		}
 	}
 
-	return responseChannel.watch, o.onCancelWatch(aggregatedKey, req)
+	return watch, o.onCancelWatch(aggregatedKey, req)
 }
 
 // GetReadOnlyCache returns the request/response cache with only read-only methods exposed.
@@ -241,6 +246,17 @@ func (o *orchestrator) GetDownstreamAggregatedKeys() (map[string]bool, error) {
 		o.logger.With("error", err).Error(context.Background(), "Unable to get keys")
 	}
 	return keys, err
+}
+
+func (o *orchestrator) ClearCacheEntries(keys []string) []error {
+	var errors []error
+	for _, key := range keys {
+		err := o.cache.DeleteKey(key)
+		if err != nil {
+			errors = append(errors, err)
+		}
+	}
+	return errors
 }
 
 // watchUpstream is intended to be called in a go routine, to receive incoming
@@ -276,10 +292,16 @@ func (o *orchestrator) watchUpstream(
 		case x, more := <-responseChannel:
 			if !more {
 				// A problem occurred fetching the response upstream, log retry.
-				// TODO implement retry/back-off logic on error scenario.
-				// https://github.com/envoyproxy/xds-relay/issues/68
 				o.logger.With("aggregated_key", aggregatedKey).Error(ctx, "upstream error")
 				metrics.OrchestratorWatchErrorsSubscope(o.scope, aggregatedKey).Counter(metrics.ErrorUpstreamFailure).Inc(1)
+
+				// TODO implement retry/back-off logic on error scenario.
+				// https://github.com/envoyproxy/xds-relay/issues/68
+				f, err := o.cache.Fetch(aggregatedKey)
+				if err == nil {
+					o.onCacheEvicted(aggregatedKey, *f)
+				}
+
 				return
 			}
 			// Cache the response.
@@ -288,7 +310,7 @@ func (o *orchestrator) watchUpstream(
 				// TODO if set fails, we may need to retry upstream as well.
 				// Currently the fallback is to rely on a future response, but
 				// that probably isn't ideal.
-				// https://github.com/envoyproxy/xds-relay/issues/70s
+				// https://github.com/envoyproxy/xds-relay/issues/70
 				//
 				// If we fail to cache the new response, log and return the old one.
 				o.logger.With("error", err).With("aggregated_key", aggregatedKey).
@@ -333,15 +355,16 @@ func (o *orchestrator) watchUpstream(
 
 // fanout pushes the response to the response channels of all open downstream
 // watchers in parallel.
-func (o *orchestrator) fanout(resp transport.Response, watchers map[transport.Request]bool, aggregatedKey string) {
+func (o *orchestrator) fanout(resp transport.Response, watchers *cache.RequestsStore, aggregatedKey string) {
+	start := time.Now()
 	var wg sync.WaitGroup
-	for watch := range watchers {
+	watchers.ForEach(func(key transport.Request) {
 		wg.Add(1)
 		go func(watch transport.Request) {
 			defer wg.Done()
 			// TODO https://github.com/envoyproxy/xds-relay/issues/119
 			if channel, ok := o.downstreamResponseMap.get(watch); ok {
-				if err := channel.addResponse(resp); err != nil {
+				if err := channel.Send(resp); err != nil {
 					// If the channel is blocked, we simply drop subsequent
 					// requests and error. Alternative possibilities are
 					// discussed here:
@@ -356,13 +379,21 @@ func (o *orchestrator) fanout(resp transport.Response, watchers map[transport.Re
 					"node_id", watch.GetNodeID(),
 					"response_version", resp.GetPayloadVersion(),
 					"response_type", resp.GetTypeURL(),
-				).Debug(context.Background(), "response sent")
+				).Debug(context.Background(), "response sent to downstream watcher")
 				metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchFanouts).Inc(1)
 			}
-		}(watch)
-	}
+		}(key)
+	})
+
+	o.scope.Timer(metrics.TimerFanoutTime).Record(time.Since(start))
 	// Wait for all fanouts to complete.
 	wg.Wait()
+	o.logger.With(
+		"aggregated_key", aggregatedKey,
+		"response_type", resp.GetTypeURL(),
+		"response_version", resp.GetPayloadVersion(),
+	).Debug(context.Background(), "response fanout complete")
+	o.scope.Timer(metrics.TimerSendTime).Record(time.Since(start))
 }
 
 // onCacheEvicted is called when the cache evicts a response due to TTL or
@@ -373,7 +404,7 @@ func (o *orchestrator) onCacheEvicted(key string, resource cache.Resource) {
 	// problem: https://github.com/envoyproxy/xds-relay/issues/71
 	metrics.OrchestratorCacheEvictSubscope(o.scope, key).Counter(metrics.OrcheestratorCacheEvictCount).Inc(1)
 	metrics.OrchestratorCacheEvictSubscope(o.scope, key).Counter(
-		metrics.OrchestratorOnCacheEvictedRequestCount).Inc(int64(len(resource.Requests)))
+		metrics.OrchestratorOnCacheEvictedRequestCount).Inc(int64(getLength(resource.Requests)))
 	o.logger.With("aggregated_key", key).Debug(context.Background(), "cache eviction called")
 	o.downstreamResponseMap.deleteAll(resource.Requests)
 	o.upstreamResponseMap.delete(key)
@@ -397,4 +428,14 @@ func (o *orchestrator) onCancelWatch(aggregatedKey string, req transport.Request
 func (o *orchestrator) shutdown(ctx context.Context) {
 	<-ctx.Done()
 	o.upstreamResponseMap.deleteAll()
+}
+
+func isNackRequest(req transport.Request) bool {
+	return req.GetError() != nil
+}
+
+func getLength(m *cache.RequestsStore) int {
+	count := 0
+	m.ForEach(func(key transport.Request) { count++ })
+	return count
 }

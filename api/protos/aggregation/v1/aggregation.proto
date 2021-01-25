@@ -32,12 +32,58 @@ message KeyerConfiguration {
   repeated Fragment fragments = 1 [(validate.rules).repeated.min_items = 1];
 }
 
-enum NodeFieldType {
-  NODE_ID = 0;
-  NODE_CLUSTER = 1;
-  NODE_LOCALITY_REGION = 2;
-  NODE_LOCALITY_ZONE = 3;
-  NODE_LOCALITY_SUBZONE = 4;
+// [#next-free-field: 4]
+message StringMatch {
+  oneof type {
+    option (validate.required) = true;
+
+    // Match on the extract string value.
+    string exact_match = 2;
+
+    // Match on a regex pattern.
+    // TODO potentially use "safe regex"
+    // https://github.com/envoyproxy/envoy/blob/10f756efa17e56c8d4d1033be7b4286410db4e01/api/envoy/type/matcher/v3/regex.proto
+    string regex_match = 3;
+  }
+}
+
+// [#next-free-field: 2]
+message BoolMatch {
+  bool value_match = 1;
+}
+
+// [#next-free-field: 4]
+message LocalityMatch {
+  StringMatch region = 1;
+
+  StringMatch zone = 2;
+
+  StringMatch sub_zone = 3;
+}
+
+// [#next-free-field: 2]
+message PathSegment {
+  string key = 1 [(validate.rules).string.min_len = 1];
+}
+
+// [#next-free-field: 3]
+message StructValueMatch {
+  // TODO: we have to match every single type described in
+  // https://developers.google.com/protocol-buffers/docs/reference/google.protobuf#google.protobuf.Value.
+  oneof match {
+    option (validate.required) = true;
+
+    StringMatch string_match = 1;
+
+    BoolMatch bool_match = 2;
+  }
+}
+
+// [#next-free-field: 3]
+message NodeMetadataMatch {
+  repeated PathSegment path = 1 [(validate.rules).repeated.min_items = 1];
+
+  StructValueMatch match = 2 [(validate.rules).message.required = true];
 }
 
 // This is a recursive structure which allows complex nested match
@@ -53,23 +99,19 @@ message MatchPredicate {
     repeated string types = 1 [(validate.rules).repeated.min_items = 1];
   }
 
-  // Match on a Field in Envoy's request node.
-  // [#next-free-field: 4]
+  // Match on a field in Envoy's request node.
+  // [#next-free-field: 5]
   message RequestNodeMatch {
-
-    // Specifies the Envoy Request field that should be matched on.
-    NodeFieldType field = 1 [(validate.rules).enum.defined_only = true];
-
     oneof type {
       option (validate.required) = true;
 
-      // Match on the extract string value.
-      string exact_match = 2;
+      StringMatch id_match = 1;
 
-      // Match on a regex pattern.
-      // TODO potentially use "safe regex"
-      // https://github.com/envoyproxy/envoy/blob/10f756efa17e56c8d4d1033be7b4286410db4e01/api/envoy/type/matcher/v3/regex.proto
-      string regex_match = 3;
+      StringMatch cluster_match = 2;
+
+      LocalityMatch locality_match = 3;
+
+      NodeMetadataMatch node_metadata_match = 4;
     }
   }
 
@@ -112,8 +154,8 @@ message MatchPredicate {
 // [#next-free-field: 5]
 message ResultPredicate {
 
+  // [#next-free-field: 3]
   message ResultAction {
-
     // TODO potentially use "safe regex"
     // https://github.com/envoyproxy/envoy/blob/10f756efa17e56c8d4d1033be7b4286410db4e01/api/envoy/type/matcher/v3/regex.proto
     // [#next-free-field: 3]
@@ -134,17 +176,40 @@ message ResultPredicate {
     }
   }
 
+  // Rule for how to generate a fragment from a Locality object
+  // [#next-free-field: 4]
+  message LocalityResultAction {
+    ResultAction region_action = 1;
+
+    ResultAction zone_action = 2;
+
+    ResultAction subzone_action = 3;
+  }
+
+  // [#next-free-field: 3]
+  message NodeMetadataAction {
+    repeated PathSegment path = 1 [(validate.rules).repeated.min_items = 1];
+
+    ResultAction action = 2 [(validate.rules).message.required = true];
+  }
+
+  // [#next-free-field: 2]
   message AndResult {
     repeated ResultPredicate result_predicates = 1 [(validate.rules).repeated.min_items = 2];
   }
 
   // Rules for generating the resulting fragment from a Envoy request node.
-  // [#next-free-field: 3]
+  // [#next-free-field: 5]
   message RequestNodeFragment {
 
-    NodeFieldType field = 1 [(validate.rules).enum.defined_only = true];
+    oneof action {
+      option (validate.required) = true;
 
-    ResultAction action = 2 [(validate.rules).message.required = true];
+      ResultAction id_action = 1;
+      ResultAction cluster_action = 2;
+      LocalityResultAction locality_action = 3;
+      NodeMetadataAction node_metadata_action = 4;
+    }
   }
 
   // Rules for generating the resulting fragment from Envoy request names.

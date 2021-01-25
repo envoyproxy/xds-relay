@@ -9,8 +9,7 @@ fragments:
               - "type.googleapis.com/envoy.api.v2.Endpoint"
         result:
           request_node_fragment:
-            field: 0
-            action:
+            id_action:
               regex_action: { pattern: "^(.*)-*$", replace: "$1" }
   - rules:
       - match:
@@ -21,8 +20,8 @@ fragments:
                     - "type.googleapis.com/envoy.api.v2.Listener"
                     - "type.googleapis.com/envoy.api.v2.Cluster"
               - request_node_match:
-                  field: 0 
-                  exact_match: "canary"
+                  id_match:
+                    exact_match: "canary"
         result:
           string_fragment: "canary"
       - match:
@@ -33,8 +32,7 @@ fragments:
               - "type.googleapis.com/envoy.api.v2.Endpoint"
         result:
           request_node_fragment:
-            field: 1
-            action:
+            cluster_action:
               regex_action: { pattern: "^*-(.*)-*$", replace: "$1" }
       - match:
           request_type_match:
@@ -63,8 +61,7 @@ fragments:
               - "type.googleapis.com/envoy.api.v2.Route"
         result:
           request_node_fragment:
-            field: 1
-            action:
+            cluster_action:
               regex_action: { pattern: "^*-(.*)-*$", replace: "$1" }
   - rules:
       - match:

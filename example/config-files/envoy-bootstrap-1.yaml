@@ -1,6 +1,6 @@
 node:
-  id: xds-relay
-  cluster: cluster1
+  id: envoy-client-1
+  cluster: staging
 admin:
   access_log_path: /dev/null
   address:
@@ -9,7 +9,9 @@ admin:
       port_value: 19000
 dynamic_resources:
   cds_config:
+    resource_api_version: V3
     api_config_source:
+      transport_api_version: V3
       api_type: GRPC
       grpc_services:
       - envoy_grpc:

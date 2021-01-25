@@ -5,22 +5,15 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
-	"time"
-
-	"github.com/envoyproxy/xds-relay/internal/app/transport"
-	"github.com/envoyproxy/xds-relay/internal/app/upstream"
-
-	"github.com/envoyproxy/xds-relay/internal/pkg/log"
-
-	"github.com/envoyproxy/xds-relay/internal/app/mapper"
-	"github.com/envoyproxy/xds-relay/internal/app/orchestrator"
-	"github.com/golang/protobuf/ptypes"
-	"github.com/uber-go/tally"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	gcp "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
+	"github.com/envoyproxy/xds-relay/internal/app/transport"
+	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/stretchr/testify/assert"
 )
@@ -34,6 +27,7 @@ func TestAdminServer_DefaultHandler(t *testing.T) {
 		"/foo",
 		"does nothing",
 		http.HandlerFunc(nil),
+		true,
 	}})
 
 	handler.ServeHTTP(rr, req)
@@ -50,6 +44,7 @@ func TestAdminServer_DefaultHandler_NotFound(t *testing.T) {
 		"/foo",
 		"does nothing",
 		http.HandlerFunc(nil),
+		true,
 	}})
 
 	handler.ServeHTTP(rr, req)
@@ -88,271 +83,44 @@ func TestAdminServer_ConfigDumpHandler(t *testing.T) {
 	}
 }
 
-func TestAdminServer_CacheDumpHandler(t *testing.T) {
-	ctx := context.Background()
-	mapper := mapper.NewMock(t)
-	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
-	mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
-	client := upstream.NewMock(
-		ctx,
-		upstream.CallOptions{Timeout: time.Second},
-		nil,
-		upstreamResponseChannel,
-		nil,
-		nil,
-		nil,
-		func(m interface{}) error { return nil },
-	)
-	orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
-	assert.NotNil(t, orchestrator)
-
-	gcpReq := gcp.Request{
-		TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
-	}
-	respChannel, cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq))
-	assert.NotNil(t, respChannel)
-
-	listener := &v2.Listener{
-		Name: "lds resource",
-	}
-	listenerAny, err := ptypes.MarshalAny(listener)
-	assert.NoError(t, err)
-	resp := v2.DiscoveryResponse{
-		VersionInfo: "1",
-		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
-		Resources: []*any.Any{
-			listenerAny,
-		},
-	}
-	upstreamResponseChannel <- &resp
-	gotResponse := <-respChannel.GetChannel().V2
-	gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
-	assert.NoError(t, err)
-	assert.Equal(t, resp, *gotDiscoveryResponse)
-
-	req, err := http.NewRequest("GET", "/cache/lds", nil)
-	assert.NoError(t, err)
-
-	rr := httptest.NewRecorder()
-	handler := cacheDumpHandler(&orchestrator)
-
-	handler.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), `{
-  "Resp": {
-    "VersionInfo": "1",
-    "Resources": {
-      "Endpoints": null,
-      "Clusters": null,
-      "Routes": null,
-      "Listeners": [
-        {
-          "name": "lds resource"
-        }
-      ],
-      "Secrets": null,
-      "Runtimes": null,
-      "Unmarshalled": null
-    },
-    "Canary": false,
-    "TypeURL": "type.googleapis.com/envoy.api.v2.Listener",
-    "Nonce": "",
-    "ControlPlane": null
-  },
-  "Requests": [
-    {
-      "version_info": "1",
-      "type_url": "type.googleapis.com/envoy.api.v2.Listener"
-    }
-  ],
-  "ExpirationTime": "`)
-	cancelWatch()
-}
-
-func TestAdminServer_CacheDumpHandler_NotFound(t *testing.T) {
-	ctx := context.Background()
-	mapper := mapper.NewMock(t)
-	upstreamResponseChannel := make(chan *v2.DiscoveryResponse)
-	mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
-	client := upstream.NewMock(
-		ctx,
-		upstream.CallOptions{Timeout: time.Second},
-		nil,
-		nil,
-		nil,
-		nil,
-		upstreamResponseChannel,
-		func(m interface{}) error { return nil },
-	)
-	orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
-	assert.NotNil(t, orchestrator)
-
-	req, err := http.NewRequest("GET", "/cache/cds", nil)
-	assert.NoError(t, err)
-
-	rr := httptest.NewRecorder()
-	handler := cacheDumpHandler(&orchestrator)
-
-	handler.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Equal(t, "no resource for key cds found in cache.\n", rr.Body.String())
-}
-
-func TestAdminServer_CacheDumpHandler_EntireCache(t *testing.T) {
-	for _, url := range []string{"/cache", "/cache/"} {
-		ctx := context.Background()
-		mapper := mapper.NewMock(t)
-		upstreamResponseChannelLDS := make(chan *v2.DiscoveryResponse)
-		upstreamResponseChannelCDS := make(chan *v2.DiscoveryResponse)
-		mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
-		client := upstream.NewMock(
-			ctx,
-			upstream.CallOptions{Timeout: time.Second},
-			nil,
-			upstreamResponseChannelLDS,
-			nil,
-			nil,
-			upstreamResponseChannelCDS,
-			func(m interface{}) error { return nil },
-		)
-		orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
-		assert.NotNil(t, orchestrator)
-
-		gcpReq1 := gcp.Request{
-			TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
-		}
-		ldsRespChannel, cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq1))
-		assert.NotNil(t, ldsRespChannel)
-
-		gcpReq2 := gcp.Request{
-			TypeUrl: "type.googleapis.com/envoy.api.v2.Cluster",
-		}
-		cdsRespChannel, cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq2))
-		assert.NotNil(t, cdsRespChannel)
-
-		listener := &v2.Listener{
-			Name: "lds resource",
-		}
-		listenerAny, err := ptypes.MarshalAny(listener)
-		assert.NoError(t, err)
-		resp := v2.DiscoveryResponse{
-			VersionInfo: "1",
-			TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
-			Resources: []*any.Any{
-				listenerAny,
-			},
-		}
-		upstreamResponseChannelLDS <- &resp
-		gotResponse := <-ldsRespChannel.GetChannel().V2
-		gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
-		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
-
-		cluster := &v2.Cluster{
-			Name: "cds resource",
-		}
-		clusterAny, err := ptypes.MarshalAny(cluster)
-		assert.NoError(t, err)
-		resp = v2.DiscoveryResponse{
-			VersionInfo: "2",
-			TypeUrl:     "type.googleapis.com/envoy.api.v2.Cluster",
-			Resources: []*any.Any{
-				clusterAny,
-			},
-		}
-		upstreamResponseChannelCDS <- &resp
-		gotResponse = <-cdsRespChannel.GetChannel().V2
-		gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
-		assert.NoError(t, err)
-		assert.Equal(t, resp, *gotDiscoveryResponse)
-
-		req, err := http.NewRequest("GET", url, nil)
-		assert.NoError(t, err)
-
-		rr := httptest.NewRecorder()
-		handler := cacheDumpHandler(&orchestrator)
-
-		handler.ServeHTTP(rr, req)
-		assert.Equal(t, http.StatusOK, rr.Code)
-		assert.Contains(t, rr.Body.String(), `lds: {
-  "Resp": {
-    "VersionInfo": "1",
-    "Resources": {
-      "Endpoints": null,
-      "Clusters": null,
-      "Routes": null,
-      "Listeners": [
-        {
-          "name": "lds resource"
-        }
-      ],
-      "Secrets": null,
-      "Runtimes": null,
-      "Unmarshalled": null
-    },
-    "Canary": false,
-    "TypeURL": "type.googleapis.com/envoy.api.v2.Listener",
-    "Nonce": "",
-    "ControlPlane": null
-  },
-  "Requests": [
-    {
-      "version_info": "1",
-      "type_url": "type.googleapis.com/envoy.api.v2.Listener"
-    }
-  ],
-  "ExpirationTime": "`)
-		assert.Contains(t, rr.Body.String(), `cds: {
-  "Resp": {
-    "VersionInfo": "2",
-    "Resources": {
-      "Endpoints": null,
-      "Clusters": [
-        {
-          "name": "cds resource",
-          "ClusterDiscoveryType": null,
-          "LbConfig": null
-        }
-      ],
-      "Routes": null,
-      "Listeners": null,
-      "Secrets": null,
-      "Runtimes": null,
-      "Unmarshalled": null
-    },
-    "Canary": false,
-    "TypeURL": "type.googleapis.com/envoy.api.v2.Cluster",
-    "Nonce": "",
-    "ControlPlane": null
-  },
-  "Requests": [
-    {
-      "version_info": "2",
-      "type_url": "type.googleapis.com/envoy.api.v2.Cluster"
-    }
-  ],
-  "ExpirationTime": "`)
-		cancelLDSWatch()
-		cancelCDSWatch()
-	}
-}
-
 func TestGetParam(t *testing.T) {
-	path := "127.0.0.1:6070/cache/foo_production_*"
-	cacheKey := getParam(path)
+	path := "/cache/foo_production_*"
+	cacheKey := getParam(path, "/cache")
 	assert.Equal(t, "foo_production_*", cacheKey)
 }
 
 func TestGetParam_Empty(t *testing.T) {
-	path := "127.0.0.1:6070/cache/"
-	cacheKey := getParam(path)
+	prefix := "/cache"
+	path := "/cache/"
+	cacheKey := getParam(path, prefix)
+	assert.Equal(t, "", cacheKey)
+
+	path = "/cache"
+	cacheKey = getParam(path, prefix)
 	assert.Equal(t, "", cacheKey)
 }
 
-func TestGetParam_Malformed(t *testing.T) {
-	path := "127.0.0.1:6070"
-	cacheKey := getParam(path)
-	assert.Equal(t, "", cacheKey)
+func TestGetBoolQuery(t *testing.T) {
+	isVerbose, err := getBoolQueryValue(url.Values{
+		"verbose": []string{"true"},
+	}, "verbose")
+	assert.True(t, isVerbose)
+	assert.NoError(t, err)
+}
+
+func TestGetBoolQuery_Empty(t *testing.T) {
+	queryValue, err := getBoolQueryValue(url.Values{}, "abc")
+	assert.False(t, queryValue)
+	assert.Error(t, err)
+}
+
+func TestGetBoolQuery_Malformed(t *testing.T) {
+	isVerbose, err := getBoolQueryValue(url.Values{
+		"verbose":   []string{"abc"},
+		"something": []string{"true"},
+	}, "verbose")
+	assert.False(t, isVerbose)
+	assert.Error(t, err)
 }
 
 func TestAdminServer_LogLevelHandler(t *testing.T) {
@@ -367,7 +135,7 @@ func TestAdminServer_LogLevelHandler(t *testing.T) {
 	assert.Contains(t, output, "foo")
 	assert.NotContains(t, output, "bar")
 
-	req, err := http.NewRequest("POST", "/log_level/debug", nil)
+	req, err := http.NewRequest("POST", logURL+"/debug", nil)
 	assert.NoError(t, err)
 
 	rr := httptest.NewRecorder()
@@ -380,7 +148,7 @@ func TestAdminServer_LogLevelHandler(t *testing.T) {
 	output = buf.String()
 	assert.Contains(t, output, "bar")
 
-	req, err = http.NewRequest("POST", "/log_level/info", nil)
+	req, err = http.NewRequest("POST", logURL+"/info", nil)
 	assert.NoError(t, err)
 
 	handler.ServeHTTP(rr, req)
@@ -394,7 +162,7 @@ func TestAdminServer_LogLevelHandler(t *testing.T) {
 }
 
 func TestAdminServer_LogLevelHandler_GetLevel(t *testing.T) {
-	for _, url := range []string{"/log_level", "/log_level/"} {
+	for _, url := range []string{logURL, logURL} {
 		var buf bytes.Buffer
 		logger := log.NewMock("error", &buf)
 		assert.Equal(t, 0, buf.Len())
@@ -409,7 +177,7 @@ func TestAdminServer_LogLevelHandler_GetLevel(t *testing.T) {
 		assert.Equal(t, http.StatusOK, rr.Code)
 		assert.Equal(t, rr.Body.String(), "Current log level: error\n")
 
-		req, err = http.NewRequest("POST", "/log_level/info", nil)
+		req, err = http.NewRequest("POST", logURL+"/info", nil)
 		assert.NoError(t, err)
 
 		handler.ServeHTTP(rr, req)
@@ -435,7 +203,7 @@ func TestMarshalResources(t *testing.T) {
 	})
 	assert.NotNil(t, marshalled)
 	assert.Equal(t, 1, len(marshalled.Listeners))
-	assert.Equal(t, "lds resource", marshalled.Listeners[0].Name)
+	assert.Equal(t, "lds resource", marshalled.Listeners[0].(*v2.Listener).Name)
 }
 
 func TestMarshalDiscoveryResponse(t *testing.T) {
@@ -455,5 +223,5 @@ func TestMarshalDiscoveryResponse(t *testing.T) {
 	assert.NotNil(t, marshalled)
 	assert.Equal(t, resp.VersionInfo, marshalled.VersionInfo)
 	assert.Equal(t, resp.TypeUrl, marshalled.TypeURL)
-	assert.Equal(t, listener.Name, marshalled.Resources.Listeners[0].Name)
+	assert.Equal(t, listener.Name, marshalled.Resources.Listeners[0].(*v2.Listener).Name)
 }

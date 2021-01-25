@@ -1,57 +1,26 @@
 package transport
 
 import (
-	"fmt"
-
 	gcpv2 "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
+	gcpv3 "github.com/envoyproxy/go-control-plane/pkg/cache/v3"
 )
 
+// ChannelVersion wraps v2 and v3 response channels
 type ChannelVersion struct {
 	V2 chan gcpv2.Response
+	V3 chan gcpv3.Response
 }
 
-// Watch interface abstracts v2 and v3 watches
+// Watch interface abstracts v2 and v3 watches to the downstream sidecars.
 type Watch interface {
+	// Close is idempotent with Send.
+	// When Close and Send are called from separate goroutines they are guaranteed to not panic
+	// Close waits until all Send operations drain.
 	Close()
 	GetChannel() *ChannelVersion
-	Send(Response) (bool, error)
-}
-
-var _ Watch = &watchV2{}
-
-// WatchV2 is the transport object that takes care of send responses to the xds clients
-type watchV2 struct {
-	out chan gcpv2.Response
-}
-
-// newWatchV2 creates a new watch object
-func newWatchV2() Watch {
-	return &watchV2{
-		out: make(chan gcpv2.Response, 1),
-	}
-}
-
-// Close closes the communication with the xds client
-func (w *watchV2) Close() {
-	close(w.out)
-}
-
-// GetChannelV2 gets the v2 channel used for communication with the xds client
-func (w *watchV2) GetChannel() *ChannelVersion {
-	return &ChannelVersion{V2: w.out}
-}
-
-// Send sends the xds response over wire
-func (w *watchV2) Send(s Response) (bool, error) {
-	resp, ok := s.(*ResponseV2)
-	if !ok {
-		return false, fmt.Errorf("payload %s could not be casted to DiscoveryResponse", s)
-	}
-
-	select {
-	case w.out <- gcpv2.PassthroughResponse{DiscoveryResponse: resp.resp, Request: *s.GetRequest().V2}:
-		return true, nil
-	default:
-		return false, nil
-	}
+	// Send is a mutex protected function to send responses to the downstream sidecars.
+	// It provides guarantee to never panic when called in tandem with Close from separate
+	// goroutines. This also guarantees that stale responses are dropped in the event that a
+	// newer response arrives.
+	Send(Response) error
 }

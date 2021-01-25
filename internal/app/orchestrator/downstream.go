@@ -12,52 +12,43 @@
 package orchestrator
 
 import (
-	"fmt"
 	"sync"
 
+	"github.com/envoyproxy/xds-relay/internal/app/cache"
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
 	"github.com/envoyproxy/xds-relay/internal/app/transport"
+	"github.com/uber-go/tally"
 )
-
-// responseChannel stores the responses to be sent to downstream clients. A
-// WaitGroup is used here to ensure that all writes to the channel are
-// processed before we attempt to close the channel.
-type responseChannel struct {
-	wg    sync.WaitGroup
-	watch transport.Watch
-}
 
 // downstreamResponseMap is a map of downstream xDS client requests to response
 // channels.
 type downstreamResponseMap struct {
-	mu               sync.RWMutex
-	responseChannels map[transport.Request]*responseChannel
+	mu      sync.RWMutex
+	watches map[transport.Request]transport.Watch
 }
 
 func newDownstreamResponseMap() downstreamResponseMap {
 	return downstreamResponseMap{
-		responseChannels: make(map[transport.Request]*responseChannel),
+		watches: make(map[transport.Request]transport.Watch),
 	}
 }
 
-// createChannel initializes a new channel for a request if it doesn't already
+// createWatch initializes a new channel for a request if it doesn't already
 // exist.
-func (d *downstreamResponseMap) createChannel(req transport.Request) *responseChannel {
+func (d *downstreamResponseMap) createWatch(req transport.Request, scope tally.Scope) transport.Watch {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	if _, ok := d.responseChannels[req]; !ok {
-		d.responseChannels[req] = &responseChannel{
-			watch: req.CreateWatch(),
-		}
+	if _, ok := d.watches[req]; !ok {
+		d.watches[req] = req.CreateWatch(scope)
 	}
-	return d.responseChannels[req]
+	return d.watches[req]
 }
 
 // get retrieves the channel where responses are set for the specified request.
-func (d *downstreamResponseMap) get(req transport.Request) (*responseChannel, bool) {
+func (d *downstreamResponseMap) get(req transport.Request) (transport.Watch, bool) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
-	channel, ok := d.responseChannels[req]
+	channel, ok := d.watches[req]
 	return channel, ok
 }
 
@@ -66,29 +57,27 @@ func (d *downstreamResponseMap) get(req transport.Request) (*responseChannel, bo
 func (d *downstreamResponseMap) delete(req transport.Request) transport.Watch {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	if responseChannel, ok := d.responseChannels[req]; ok {
+	if watch, ok := d.watches[req]; ok {
 		// wait for all writes to the responseChannel to complete before closing.
-		responseChannel.wg.Wait()
-		responseChannel.watch.Close()
-		delete(d.responseChannels, req)
-		return responseChannel.watch
+		watch.Close()
+		delete(d.watches, req)
+		return watch
 	}
 	return nil
 }
 
 // deleteAll removes all response channels and request entries from the map and
 // closes the corresponding channels.
-func (d *downstreamResponseMap) deleteAll(watchers map[transport.Request]bool) {
+func (d *downstreamResponseMap) deleteAll(watchers *cache.RequestsStore) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	for watch := range watchers {
-		if responseChannel, ok := d.responseChannels[watch]; ok {
+	watchers.ForEach(func(watch transport.Request) {
+		if w, ok := d.watches[watch]; ok {
 			// wait for all writes to the responseChannel to complete before closing.
-			responseChannel.wg.Wait()
-			responseChannel.watch.Close()
-			delete(d.responseChannels, watch)
+			w.Close()
+			delete(d.watches, watch)
 		}
-	}
+	})
 }
 
 // getAggregatedKeys returns a list of aggregated keys for all requests in the downstream response map.
@@ -97,7 +86,7 @@ func (d *downstreamResponseMap) getAggregatedKeys(m *mapper.Mapper) (map[string]
 	defer d.mu.RUnlock()
 	// Since multiple requests can map to the same cache key, we use a map to ensure unique entries.
 	keys := make(map[string]bool)
-	for request := range d.responseChannels {
+	for request := range d.watches {
 		key, err := mapper.Mapper.GetKey(*m, request)
 		if err != nil {
 			return nil, err
@@ -105,19 +94,4 @@ func (d *downstreamResponseMap) getAggregatedKeys(m *mapper.Mapper) (map[string]
 		keys[key] = true
 	}
 	return keys, nil
-}
-
-func (responseChannel *responseChannel) addResponse(resp transport.Response) error {
-	responseChannel.wg.Add(1)
-	defer responseChannel.wg.Done()
-	ok, err := responseChannel.watch.Send(resp)
-	if err != nil {
-		return err
-	}
-
-	if ok {
-		return nil
-	}
-
-	return fmt.Errorf("channel is blocked")
 }

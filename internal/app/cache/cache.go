@@ -21,13 +21,16 @@ type Cache interface {
 	Fetch(key string) (*Resource, error)
 
 	// SetResponse sets the cache response and returns the list of requests.
-	SetResponse(key string, resp transport.Response) (map[transport.Request]bool, error)
+	SetResponse(key string, resp transport.Response) (*RequestsStore, error)
 
 	// AddRequest adds the request to the cache.
 	AddRequest(key string, req transport.Request) error
 
 	// DeleteRequest removes the given request from any cache entries it's present in.
 	DeleteRequest(key string, req transport.Request) error
+
+	// DeleteKey removes the given key from cache.
+	DeleteKey(key string) error
 
 	// GetReadOnlyCache returns a copy of the cache that only exposes read-only methods in its interface.
 	GetReadOnlyCache() ReadOnlyCache
@@ -49,7 +52,7 @@ type cache struct {
 
 type Resource struct {
 	Resp           transport.Response
-	Requests       map[transport.Request]bool
+	Requests       *RequestsStore
 	ExpirationTime time.Time
 }
 
@@ -145,7 +148,7 @@ func (c *cache) Fetch(key string) (*Resource, error) {
 	return &resource, nil
 }
 
-func (c *cache) SetResponse(key string, response transport.Response) (map[transport.Request]bool, error) {
+func (c *cache) SetResponse(key string, response transport.Response) (*RequestsStore, error) {
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
 	metrics.CacheSetSubscope(c.scope, key).Counter(metrics.CacheSetAttempt).Inc(1)
@@ -154,15 +157,16 @@ func (c *cache) SetResponse(key string, response transport.Response) (map[transp
 		resource := Resource{
 			Resp:           response,
 			ExpirationTime: c.getExpirationTime(time.Now()),
-			Requests:       make(map[transport.Request]bool),
+			Requests:       NewRequestsStore(),
 		}
 		c.cache.Add(key, resource)
 		metrics.CacheSetSubscope(c.scope, key).Counter(metrics.CacheSetSuccess).Inc(1)
 		c.logger.With(
 			"aggregated_key", key,
 			"response_type", response.GetTypeURL(),
+			"response_version", response.GetPayloadVersion(),
 		).Debug(context.Background(), "set response")
-		return nil, nil
+		return resource.Requests, nil
 	}
 	resource, ok := value.(Resource)
 	if !ok {
@@ -173,7 +177,9 @@ func (c *cache) SetResponse(key string, response transport.Response) (map[transp
 	resource.ExpirationTime = c.getExpirationTime(time.Now())
 	c.cache.Add(key, resource)
 	c.logger.With(
-		"aggregated_key", key, "response_type", response.GetTypeURL(),
+		"aggregated_key", key,
+		"response_type", response.GetTypeURL(),
+		"response_version", response.GetPayloadVersion(),
 	).Debug(context.Background(), "set response")
 	metrics.CacheSetSubscope(c.scope, key).Counter(metrics.CacheSetSuccess).Inc(1)
 	return resource.Requests, nil
@@ -185,8 +191,8 @@ func (c *cache) AddRequest(key string, req transport.Request) error {
 	metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheAddAttempt).Inc(1)
 	value, found := c.cache.Get(key)
 	if !found {
-		requests := make(map[transport.Request]bool)
-		requests[req] = true
+		requests := NewRequestsStore()
+		requests.Set(req)
 		resource := Resource{
 			Requests:       requests,
 			ExpirationTime: c.getExpirationTime(time.Now()),
@@ -196,6 +202,7 @@ func (c *cache) AddRequest(key string, req transport.Request) error {
 			"aggregated_key", key,
 			"node_id", req.GetNodeID(),
 			"request_type", req.GetTypeURL(),
+			"request_version", req.GetVersionInfo(),
 		).Debug(context.Background(), "request added")
 		metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheAddSuccess).Inc(1)
 		return nil
@@ -205,12 +212,14 @@ func (c *cache) AddRequest(key string, req transport.Request) error {
 		metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheAddError).Inc(1)
 		return fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
-	resource.Requests[req] = true
+
+	resource.Requests.Set(req)
 	c.cache.Add(key, resource)
 	c.logger.With(
 		"aggregated_key", key,
 		"node_id", req.GetNodeID(),
 		"request_type", req.GetTypeURL(),
+		"request_version", req.GetVersionInfo(),
 	).Debug(context.Background(), "request added")
 	metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheAddSuccess).Inc(1)
 	return nil
@@ -219,24 +228,39 @@ func (c *cache) AddRequest(key string, req transport.Request) error {
 func (c *cache) DeleteRequest(key string, req transport.Request) error {
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
-	metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheDeleteAttempt).Inc(1)
+	metrics.CacheDeleteRequestSubscope(c.scope, key).Counter(metrics.CacheDeleteAttempt).Inc(1)
 	value, found := c.cache.Get(key)
 	if !found {
 		return nil
 	}
 	resource, ok := value.(Resource)
 	if !ok {
-		metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheDeleteError).Inc(1)
+		metrics.CacheDeleteRequestSubscope(c.scope, key).Counter(metrics.CacheDeleteError).Inc(1)
 		return fmt.Errorf("unable to cast cache value to type resource for key: %s", key)
 	}
-	delete(resource.Requests, req)
+	resource.Requests.Delete(req)
 	c.cache.Add(key, resource)
 	c.logger.With(
 		"aggregated_key", key,
-		"node_id", req.GetNodeID,
+		"node_id", req.GetNodeID(),
 		"request_type", req.GetTypeURL(),
+		"request_version", req.GetVersionInfo(),
 	).Debug(context.Background(), "request deleted")
-	metrics.CacheAddRequestSubscope(c.scope, key).Counter(metrics.CacheDeleteSuccess).Inc(1)
+	metrics.CacheDeleteRequestSubscope(c.scope, key).Counter(metrics.CacheDeleteSuccess).Inc(1)
+	return nil
+}
+
+func (c *cache) DeleteKey(key string) error {
+	c.cacheMu.Lock()
+	defer c.cacheMu.Unlock()
+	metrics.CacheDeleteKeySubscope(c.scope, key).Counter(metrics.CacheDeleteKeyAttempt).Inc(1)
+	_, found := c.cache.Get(key)
+	if !found {
+		metrics.CacheDeleteKeySubscope(c.scope, key).Counter(metrics.CacheDeleteKeyError).Inc(1)
+		return fmt.Errorf(fmt.Sprintf("unable to delete entry for nonexistent key: %s", key))
+	}
+	c.cache.Remove(key)
+	metrics.CacheDeleteKeySubscope(c.scope, key).Counter(metrics.CacheDeleteKeySuccess).Inc(1)
 	return nil
 }
 

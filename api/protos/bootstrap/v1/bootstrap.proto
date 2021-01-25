@@ -4,7 +4,6 @@ package bootstrap;
 option go_package = "bootstrap/v1;bootstrapv1";
 
 import "google/protobuf/duration.proto";
-import "google/protobuf/wrappers.proto";
 import "validate/validate.proto";
 
 
@@ -35,10 +34,30 @@ message Server {
     SocketAddress address = 1 [(validate.rules).message.required = true];
 }
 
-// [#next-free-field: 2]
+// [#next-free-field: 5]
 message Upstream {
     // The address for the upstream cluster.
     SocketAddress address = 1 [(validate.rules).message.required = true];
+
+    // grpc connection keep alive time backed by https://github.com/grpc/grpc-go/blob/v1.32.0/keepalive/keepalive.go#L34-L37
+    // If unset defaults to 5 minutes.
+    // Usage example: 2m to represent 2 minutes
+    // Reason for not using google.protobuf.Duration
+    // keepalive will be in minutes or possibly hours.
+    // From https://developers.google.com/protocol-buffers/docs/reference/java/com/google/protobuf/Duration
+    // Duration only lets us represent time in 's'
+    string keep_alive_time = 2;
+
+    // Timeout for upstream connection stream.
+    // If unset defaults to no timeout.
+    // Usage example: 2m to represent 2 minutes.
+    string stream_timeout = 3;
+
+    // Jitter for upstream connection stream timeouts. Used with timeout to reset streams without overloading
+    // the upstream server. Jitter is the upper tolerance for random variation in the timeout. e.g. timeout=15s,
+    // jitter=5s -> stream timeout is a random value between 15s and 20s.
+    // If unset defaults to no jitter.
+    string stream_timeout_jitter = 4;
 }
 
 // [#next-free-field: 3]
