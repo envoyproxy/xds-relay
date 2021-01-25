@@ -313,6 +313,8 @@ func (m *Upstream) Validate() error {
 
 	// no validation rules for StreamTimeoutJitter
 
+	// no validation rules for RequestNodeMetadata
+
 	return nil
 }
 
