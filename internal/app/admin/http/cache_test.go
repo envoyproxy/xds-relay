@@ -40,7 +40,10 @@ func TestAdminServer_VersionHandler(t *testing.T) {
 	mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
 	client := upstream.NewMockV3(
 		ctx,
-		upstream.CallOptions{SendTimeout: time.Second},
+		upstream.CallOptions{
+			SendTimeout:   time.Second,
+			StreamTimeout: 0 * time.Second,
+		},
 		nil,
 		nil,
 		nil,
@@ -48,7 +51,6 @@ func TestAdminServer_VersionHandler(t *testing.T) {
 		upstreamResponseChannel,
 		func(m interface{}) error { return nil },
 		stats.NewMockScope("mock"),
-		0,
 	)
 	orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
 
@@ -92,7 +94,10 @@ func TestAdminServer_VersionHandler404(t *testing.T) {
 	upstreamCdsResponseChannel := make(chan *v2.DiscoveryResponse)
 	client := upstream.NewMock(
 		ctx,
-		upstream.CallOptions{SendTimeout: time.Second},
+		upstream.CallOptions{
+			SendTimeout:   time.Second,
+			StreamTimeout: 0 * time.Second,
+		},
 		nil,
 		nil,
 		nil,
@@ -100,7 +105,6 @@ func TestAdminServer_VersionHandler404(t *testing.T) {
 		upstreamCdsResponseChannel,
 		func(m interface{}) error { return nil },
 		stats.NewMockScope("mock"),
-		0,
 	)
 	orchestrator := orchestrator.NewMock(t, mapper, client, stats.NewMockScope("mock_orchestrator"))
 
@@ -215,7 +219,10 @@ func TestAdminServer_EDSDumpHandler404(t *testing.T) {
 	upstreamEdsResponseChannel := make(chan *v2.DiscoveryResponse)
 	client := upstream.NewMock(
 		ctx,
-		upstream.CallOptions{SendTimeout: time.Second},
+		upstream.CallOptions{
+			SendTimeout:   time.Second,
+			StreamTimeout: 0 * time.Second,
+		},
 		nil,
 		nil,
 		nil,
@@ -223,7 +230,6 @@ func TestAdminServer_EDSDumpHandler404(t *testing.T) {
 		nil,
 		func(m interface{}) error { return nil },
 		stats.NewMockScope("mock"),
-		0,
 	)
 	orchestrator := orchestrator.NewMock(t, mapper, client, stats.NewMockScope("mock_orchestrator"))
 
@@ -238,7 +244,10 @@ func TestAdminServer_KeyDumpHandler(t *testing.T) {
 	upstreamCdsResponseChannel := make(chan *v2.DiscoveryResponse)
 	client := upstream.NewMock(
 		ctx,
-		upstream.CallOptions{SendTimeout: time.Second},
+		upstream.CallOptions{
+			SendTimeout:   time.Second,
+			StreamTimeout: 0 * time.Second,
+		},
 		nil,
 		upstreamLdsResponseChannel,
 		nil,
@@ -246,7 +255,6 @@ func TestAdminServer_KeyDumpHandler(t *testing.T) {
 		upstreamCdsResponseChannel,
 		func(m interface{}) error { return nil },
 		stats.NewMockScope("mock"),
-		0,
 	)
 	orchestrator := orchestrator.NewMock(t, mapper, client, stats.NewMockScope("mock_orchestrator"))
 
@@ -294,7 +302,10 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 	mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
 	client := upstream.NewMock(
 		ctx,
-		upstream.CallOptions{SendTimeout: time.Second},
+		upstream.CallOptions{
+			SendTimeout:   time.Second,
+			StreamTimeout: 0 * time.Second,
+		},
 		nil,
 		upstreamResponseChannel,
 		nil,
@@ -302,7 +313,6 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 		nil,
 		func(m interface{}) error { return nil },
 		stats.NewMockScope("mock"),
-		0,
 	)
 	orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
 	assert.NotNil(t, orchestrator)
@@ -370,7 +380,10 @@ func TestAdminServer_CacheDumpHandler_NotFound(t *testing.T) {
 	mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
 	client := upstream.NewMock(
 		ctx,
-		upstream.CallOptions{SendTimeout: time.Second},
+		upstream.CallOptions{
+			SendTimeout:   time.Second,
+			StreamTimeout: 0 * time.Second,
+		},
 		nil,
 		nil,
 		nil,
@@ -378,7 +391,6 @@ func TestAdminServer_CacheDumpHandler_NotFound(t *testing.T) {
 		upstreamResponseChannel,
 		func(m interface{}) error { return nil },
 		stats.NewMockScope("mock"),
-		0,
 	)
 	orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
 	assert.NotNil(t, orchestrator)
@@ -404,7 +416,10 @@ func testAdminServerCacheDumpHelper(t *testing.T, isVerbose bool, urls []string)
 			mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
 			client := upstream.NewMock(
 				ctx,
-				upstream.CallOptions{SendTimeout: time.Second},
+				upstream.CallOptions{
+					SendTimeout:   time.Second,
+					StreamTimeout: 0 * time.Second,
+				},
 				nil,
 				upstreamResponseChannelLDS,
 				nil,
@@ -412,7 +427,6 @@ func testAdminServerCacheDumpHelper(t *testing.T, isVerbose bool, urls []string)
 				upstreamResponseChannelCDS,
 				func(m interface{}) error { return nil },
 				stats.NewMockScope("mock"),
-				0,
 			)
 			orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
 			assert.NotNil(t, orchestrator)
@@ -511,7 +525,10 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffix_NotFound(t *testing.T) {
 			mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
 			client := upstream.NewMock(
 				ctx,
-				upstream.CallOptions{SendTimeout: time.Second},
+				upstream.CallOptions{
+					SendTimeout:   time.Second,
+					StreamTimeout: 0 * time.Second,
+				},
 				nil,
 				upstreamResponseChannelLDS,
 				nil,
@@ -519,7 +536,6 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffix_NotFound(t *testing.T) {
 				upstreamResponseChannelCDS,
 				func(m interface{}) error { return nil },
 				stats.NewMockScope("mock"),
-				0,
 			)
 			orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
 			assert.NotNil(t, orchestrator)
@@ -609,7 +625,10 @@ func testAdminServerCacheDumpHandlerV3(t *testing.T, isVerbose bool, urls []stri
 			mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
 			client := upstream.NewMockV3(
 				ctx,
-				upstream.CallOptions{SendTimeout: time.Second},
+				upstream.CallOptions{
+					SendTimeout:   time.Second,
+					StreamTimeout: 0 * time.Second,
+				},
 				nil,
 				upstreamResponseChannelLDS,
 				nil,
@@ -617,7 +636,6 @@ func testAdminServerCacheDumpHandlerV3(t *testing.T, isVerbose bool, urls []stri
 				upstreamResponseChannelCDS,
 				func(m interface{}) error { return nil },
 				stats.NewMockScope("mock"),
-				0,
 			)
 			orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
 			assert.NotNil(t, orchestrator)
@@ -720,7 +738,10 @@ func TestAdminServer_ClearCacheHandler(t *testing.T) {
 	mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
 	client := upstream.NewMock(
 		ctx,
-		upstream.CallOptions{SendTimeout: time.Second},
+		upstream.CallOptions{
+			SendTimeout:   time.Second,
+			StreamTimeout: 0 * time.Second,
+		},
 		nil,
 		upstreamResponseChannel,
 		nil,
@@ -728,7 +749,6 @@ func TestAdminServer_ClearCacheHandler(t *testing.T) {
 		nil,
 		func(m interface{}) error { return nil },
 		stats.NewMockScope("mock"),
-		0,
 	)
 	orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
 	assert.NotNil(t, orchestrator)
@@ -791,7 +811,10 @@ func TestAdminServer_ClearCacheHandler_NotFound(t *testing.T) {
 	mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
 	client := upstream.NewMock(
 		ctx,
-		upstream.CallOptions{SendTimeout: time.Second},
+		upstream.CallOptions{
+			SendTimeout:   time.Second,
+			StreamTimeout: 0 * time.Second,
+		},
 		nil,
 		nil,
 		nil,
@@ -799,7 +822,6 @@ func TestAdminServer_ClearCacheHandler_NotFound(t *testing.T) {
 		upstreamResponseChannel,
 		func(m interface{}) error { return nil },
 		stats.NewMockScope("mock"),
-		0,
 	)
 	orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
 	assert.NotNil(t, orchestrator)
@@ -827,7 +849,10 @@ func testAdminServerClearCacheHelper(t *testing.T, urls []string, expectedCacheC
 			mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
 			client := upstream.NewMock(
 				ctx,
-				upstream.CallOptions{SendTimeout: time.Second},
+				upstream.CallOptions{
+					SendTimeout:   time.Second,
+					StreamTimeout: 0 * time.Second,
+				},
 				nil,
 				upstreamResponseChannelLDS,
 				nil,
@@ -835,7 +860,6 @@ func testAdminServerClearCacheHelper(t *testing.T, urls []string, expectedCacheC
 				upstreamResponseChannelCDS,
 				func(m interface{}) error { return nil },
 				stats.NewMockScope("mock"),
-				0,
 			)
 			orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
 			assert.NotNil(t, orchestrator)
@@ -946,7 +970,10 @@ func testAdminServerClearCacheHelperV3(t *testing.T, urls []string) {
 			mockScope := tally.NewTestScope("mock_orchestrator", make(map[string]string))
 			client := upstream.NewMockV3(
 				ctx,
-				upstream.CallOptions{SendTimeout: time.Second},
+				upstream.CallOptions{
+					SendTimeout:   time.Second,
+					StreamTimeout: 0 * time.Second,
+				},
 				nil,
 				upstreamResponseChannelLDS,
 				nil,
@@ -954,7 +981,6 @@ func testAdminServerClearCacheHelperV3(t *testing.T, urls []string) {
 				upstreamResponseChannelCDS,
 				func(m interface{}) error { return nil },
 				stats.NewMockScope("mock"),
-				0,
 			)
 			orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
 			assert.NotNil(t, orchestrator)

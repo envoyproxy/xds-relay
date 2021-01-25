@@ -13,27 +13,26 @@ import (
 	"time"
 
 	api "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	gcpv2 "github.com/envoyproxy/go-control-plane/pkg/server/v2"
-	gcpv3 "github.com/envoyproxy/go-control-plane/pkg/server/v3"
-	"github.com/envoyproxy/xds-relay/internal/app/metrics"
-	"github.com/uber-go/tally"
-	"google.golang.org/grpc/channelz/service"
-
 	clusterservice "github.com/envoyproxy/go-control-plane/envoy/service/cluster/v3"
 	endpointservice "github.com/envoyproxy/go-control-plane/envoy/service/endpoint/v3"
 	listenerservice "github.com/envoyproxy/go-control-plane/envoy/service/listener/v3"
 	routeservice "github.com/envoyproxy/go-control-plane/envoy/service/route/v3"
-	handler "github.com/envoyproxy/xds-relay/internal/app/admin/http"
-	"github.com/envoyproxy/xds-relay/internal/pkg/stats"
+	gcpv2 "github.com/envoyproxy/go-control-plane/pkg/server/v2"
+	gcpv3 "github.com/envoyproxy/go-control-plane/pkg/server/v3"
+	"github.com/uber-go/tally"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/channelz/service"
 
+	handler "github.com/envoyproxy/xds-relay/internal/app/admin/http"
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
+	"github.com/envoyproxy/xds-relay/internal/app/metrics"
 	"github.com/envoyproxy/xds-relay/internal/app/orchestrator"
 	"github.com/envoyproxy/xds-relay/internal/app/upstream"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
+	"github.com/envoyproxy/xds-relay/internal/pkg/stats"
+	"github.com/envoyproxy/xds-relay/internal/pkg/util"
 	aggregationv1 "github.com/envoyproxy/xds-relay/pkg/api/aggregation/v1"
 	bootstrapv1 "github.com/envoyproxy/xds-relay/pkg/api/bootstrap/v1"
-
-	"google.golang.org/grpc"
 )
 
 // Run instantiates a running gRPC server for accepting incoming xDS-based requests.
@@ -80,33 +79,32 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 		FlushInterval: time.Duration(bootstrapConfig.MetricsSink.GetStatsd().FlushInterval.Nanos),
 	})
 	defer func() {
-		if err := scopeCloser.Close(); err != nil {
-			panic(err)
-		}
+		err := scopeCloser.Close()
+		panicOnError(ctx, logger, err, "failed to close stats scope")
 	}()
-
-	if err != nil {
-		logger.With("error", err).Panic(ctx, "failed to configure stats client")
-	}
+	panicOnError(ctx, logger, err, "failed to configure stats client")
 
 	// Initialize upstream client.
 	upstreamPort := strconv.FormatUint(uint64(bootstrapConfig.OriginServer.Address.PortValue), 10)
 	upstreamAddress := net.JoinHostPort(bootstrapConfig.OriginServer.Address.Address, upstreamPort)
+	upstreamStreamTimeout, err := util.StringToDuration(bootstrapConfig.OriginServer.StreamTimeout, 0*time.Second)
+	panicOnError(ctx, logger, err, "failed to parse upstream stream timeout")
+	upstreamStreamJitter, err := util.StringToDuration(bootstrapConfig.OriginServer.StreamTimeoutJitter, 0*time.Second)
+	panicOnError(ctx, logger, err, "failed to parse upstream stream jitter")
+	upstreamConnTimeout, err := util.StringToDuration(bootstrapConfig.OriginServer.KeepAliveTime, 5*time.Minute)
+	panicOnError(ctx, logger, err, "failed to parse upstream connection timeout")
 	upstreamClient, err := upstream.New(
 		ctx,
 		upstreamAddress,
 		upstream.CallOptions{
-			SendTimeout:              time.Minute,
-			UpstreamKeepaliveTimeout: bootstrapConfig.OriginServer.KeepAliveTime,
+			StreamTimeout:        upstreamStreamTimeout,
+			StreamTimeoutJitter:  upstreamStreamJitter,
+			ConnKeepaliveTimeout: upstreamConnTimeout,
 		},
 		logger,
 		scope,
-		bootstrapConfig.OriginServer.Timeout,
-		bootstrapConfig.OriginServer.Jitter,
 	)
-	if err != nil {
-		logger.With("error", err).Panic(ctx, "failed to initialize upstream client")
-	}
+	panicOnError(ctx, logger, err, "failed to initialize upstream client")
 
 	// Initialize request aggregation mapper component.
 	requestMapper := mapper.New(aggregationRulesConfig, scope)
@@ -179,6 +177,12 @@ func RunWithContext(ctx context.Context, cancel context.CancelFunc, bootstrapCon
 			_ = logger.Sync()
 			return
 		}
+	}
+}
+
+func panicOnError(ctx context.Context, logger log.Logger, err error, msg string) {
+	if err != nil {
+		logger.With("error", err).Panic(ctx, msg)
 	}
 }
 
