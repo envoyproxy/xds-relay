@@ -100,7 +100,6 @@ func TestNew(t *testing.T) {
 		nil,
 		func(m interface{}) error { return nil },
 		stats.NewMockScope("mock"),
-		0,
 	)
 
 	config := aggregationv1.KeyerConfiguration{
