@@ -2,10 +2,10 @@ name: e2e tests
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
     branches:
-      - master
+      - main
 env:
   PACKAGEPATH: ${{ github.workspace }}/go/src/github.com/${{ github.repository }}
   ACTIONS_ALLOW_UNSECURE_COMMANDS: true
