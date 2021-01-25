@@ -11,6 +11,8 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e
 	github.com/golang/protobuf v1.4.2
+	github.com/iancoleman/strcase v0.1.3 // indirect
+	github.com/lyft/protoc-gen-star v0.5.2 // indirect
 	github.com/onsi/ginkgo v1.12.0
 	github.com/onsi/gomega v1.9.0
 	github.com/spf13/cobra v1.0.0
