@@ -2,8 +2,9 @@ package upstream
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
-	"math/rand"
+	"math/big"
 	"sync"
 	"time"
 
@@ -190,7 +191,8 @@ func (m *client) handleStreamsWithRetry(
 	for {
 		if m.callOptions.StreamTimeout != 0*time.Second {
 			timeout := m.callOptions.getStreamTimeout()
-			m.logger.With("aggregated_key", aggregatedKey).Debug(ctx, "Connecting to upstream with timeout: %ds", timeout.Seconds())
+			m.logger.With("aggregated_key", aggregatedKey).Debug(
+				ctx, "Connecting to upstream with timeout: %ds", timeout.Seconds())
 			childCtx, cancel = context.WithTimeout(ctx, timeout)
 		} else {
 			m.logger.With("aggregated_key", aggregatedKey).Debug(ctx, "Connecting to upstream with timeout")
@@ -376,8 +378,8 @@ func (co CallOptions) getStreamTimeout() time.Duration {
 	// nanoseconds is the Time library's lowest granularity.
 	timeout := co.StreamTimeout.Nanoseconds()
 	if co.StreamTimeoutJitter != 0*time.Nanosecond {
-		jitter := rand.Int63n(co.StreamTimeoutJitter.Nanoseconds())
-		timeout = timeout + jitter
+		jitter, _ := rand.Int(rand.Reader, big.NewInt(co.StreamTimeoutJitter.Nanoseconds()))
+		timeout = timeout + jitter.Int64()
 	}
 	return time.Duration(timeout) * time.Nanosecond
 }

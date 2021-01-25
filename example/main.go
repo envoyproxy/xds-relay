@@ -2,8 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
-	"math/rand"
+	"math/big"
 	"net"
 	"os"
 	"time"
@@ -31,15 +32,12 @@ func generateTestSnapshotNewVersion(snapshotCache cache.SnapshotCache) {
 		NumHTTPListeners: 2,
 	}
 
-	// Add some randomness in the definition of the new version
-	s1 := rand.NewSource(time.Now().UnixNano())
-	r1 := rand.New(s1)
-
 	for i := 0; i < 100; i++ {
 		fmt.Println("wait 10s before generating the new version")
 		time.Sleep(10 * time.Second)
 
-		newVersion := r1.Intn(100000)
+		// Add some randomness in the definition of the new version
+		newVersion, _ := rand.Int(rand.Reader, big.NewInt(100000))
 		fmt.Printf("new version = v%d\n", newVersion)
 		snapshotConfig.Version = fmt.Sprintf("v%d", newVersion)
 		snapshot := snapshotConfig.Generate()
