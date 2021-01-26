@@ -2,13 +2,13 @@ name: api
 on:
   push:
     branches:
-      - master
+      - main
     paths:
       - 'api/**'
       - .github/workflows/api.yml
   pull_request:
     branches:
-      - master
+      - main
     paths:
       - 'api/**'
       - .github/workflows/api.yml
