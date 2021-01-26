@@ -26,6 +26,6 @@ func TestConversion(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, dur, 0*time.Second)
 
-	dur, err = util.StringToDuration("invalid", time.Second)
+	_, err = util.StringToDuration("invalid", time.Second)
 	assert.Error(t, err)
 }
