@@ -195,7 +195,7 @@ func (m *client) handleStreamsWithRetry(
 				ctx, "Connecting to upstream with timeout: %ds", timeout.Seconds())
 			childCtx, cancel = context.WithTimeout(ctx, timeout)
 		} else {
-			m.logger.With("aggregated_key", aggregatedKey).Debug(ctx, "Connecting to upstream with timeout")
+			m.logger.With("aggregated_key", aggregatedKey).Debug(ctx, "Connecting to upstream")
 			childCtx, cancel = context.WithCancel(ctx)
 		}
 		select {
@@ -313,9 +313,14 @@ func send(
 				"version", sig.version).Debug(ctx, "send(): sending version and nonce to upstream (ACK)")
 			// Ref: https://github.com/grpc/grpc-go/issues/1229#issuecomment-302755717
 			// Call SendMsg in a timeout because it can block in some cases.
+			// TODO (jyuen) remove manual defaults
+			timeout := callOptions.SendTimeout
+			if timeout == 0*time.Second {
+				timeout = 5 * time.Minute
+			}
 			err := util.DoWithTimeout(ctx, func() error {
 				return stream.SendMsg(sig.version, sig.nonce)
-			}, callOptions.SendTimeout)
+			}, timeout)
 			if err != nil {
 				handleError(ctx, logger, aggregatedKey, "send(): error", cancelFunc, err)
 				return
