@@ -2,6 +2,7 @@ package transport
 
 import (
 	"context"
+
 	v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 	"google.golang.org/grpc"

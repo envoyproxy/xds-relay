@@ -2,11 +2,11 @@ package transport
 
 import (
 	"context"
-	"google.golang.org/protobuf/types/known/structpb"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/xds-relay/internal/pkg/log"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 var _ Stream = &streamv2{}
