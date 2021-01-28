@@ -31,6 +31,14 @@ func (s *streamv3) SendMsg(version string, nonce string, metadata string) error 
 	msg.VersionInfo = version
 	msg.ErrorDetail = nil
 	msg.ResponseNonce = nonce
+	if metadata == "" {
+		s.logger.With(
+			"request_type", msg.GetTypeUrl(),
+			"request_version", msg.GetVersionInfo(),
+			"request_resource_names", msg.ResourceNames,
+		).Debug(context.Background(), "sent message")
+		return s.grpcClientStream.SendMsg(msg)
+	}
 	if s.initialRequest.GetNodeMetadata() == nil {
 		fields := make(map[string]*structpb.Value)
 		msg.Node.Metadata = &structpb.Struct{
