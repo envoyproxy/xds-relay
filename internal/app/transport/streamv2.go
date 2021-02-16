@@ -31,24 +31,18 @@ func (s *streamv2) SendMsg(version string, nonce string, metadata string) error 
 	msg.VersionInfo = version
 	msg.ResponseNonce = nonce
 	msg.ErrorDetail = nil
-	if metadata == "" {
-		s.logger.With(
-			"request_type", msg.GetTypeUrl(),
-			"request_version", msg.GetVersionInfo(),
-			"request_resource_names", msg.ResourceNames,
-		).Debug(context.Background(), "sent message")
-		return s.grpcClientStream.SendMsg(msg)
-	}
-	if s.initialRequest.GetNodeMetadata() == nil {
-		fields := make(map[string]*structpb.Value)
-		msg.Node.Metadata = &structpb.Struct{
-			Fields: fields,
+	if metadata != "" {
+		if s.initialRequest.GetNodeMetadata() == nil {
+			fields := make(map[string]*structpb.Value)
+			msg.Node.Metadata = &structpb.Struct{
+				Fields: fields,
+			}
 		}
-	}
-	msg.Node.Metadata.Fields["xdsrelay_node_metadata"] = &structpb.Value{
-		Kind: &structpb.Value_StringValue{
-			StringValue: metadata,
-		},
+		msg.Node.Metadata.Fields["xdsrelay_node_metadata"] = &structpb.Value{
+			Kind: &structpb.Value_StringValue{
+				StringValue: metadata,
+			},
+		}
 	}
 	s.logger.With(
 		"request_type", msg.GetTypeUrl(),
