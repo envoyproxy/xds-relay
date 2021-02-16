@@ -90,6 +90,10 @@ type CallOptions struct {
 	// Based on https://github.com/grpc/grpc-go/blob/v1.32.x/keepalive/keepalive.go#L27-L45
 	// If unset this defaults to 5 minutes.
 	ConnKeepaliveTimeout time.Duration
+
+	// NodeMetadata is an optional node metadata string field. This can be used to send
+	// extra information to the management server, possibly on xds-relay specific metadata.
+	NodeMetadata string
 }
 
 type version struct {
@@ -319,7 +323,7 @@ func send(
 				timeout = 5 * time.Minute
 			}
 			err := util.DoWithTimeout(ctx, func() error {
-				return stream.SendMsg(sig.version, sig.nonce)
+				return stream.SendMsg(sig.version, sig.nonce, callOptions.NodeMetadata)
 			}, timeout)
 			if err != nil {
 				handleError(ctx, logger, aggregatedKey, "send(): error", cancelFunc, err)
