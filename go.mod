@@ -3,6 +3,7 @@ module github.com/envoyproxy/xds-relay
 go 1.14
 
 replace github.com/spf13/viper => github.com/spf13/viper v1.7.1
+replace github.com/envoyproxy/go-control-plane => github.com/fxposter/go-control-plane v0.9.7-0.20210128225640-f16bfa0a3f4c
 
 require (
 	github.com/cactus/go-statsd-client/statsd v0.0.0-20200322202804-24fc78943200
@@ -11,8 +12,6 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e
 	github.com/golang/protobuf v1.4.2
-	github.com/iancoleman/strcase v0.1.3 // indirect
-	github.com/lyft/protoc-gen-star v0.5.2 // indirect
 	github.com/onsi/ginkgo v1.12.0
 	github.com/onsi/gomega v1.9.0
 	github.com/spf13/cobra v1.0.0

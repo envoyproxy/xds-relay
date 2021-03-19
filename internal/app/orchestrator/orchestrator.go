@@ -53,13 +53,15 @@ type Orchestrator interface {
 	// open channels.
 	shutdown(ctx context.Context)
 
+	GetScope() tally.Scope
+
 	GetReadOnlyCache() cache.ReadOnlyCache
 
 	GetDownstreamAggregatedKeys() (map[string]bool, error)
 
 	ClearCacheEntries(keys []string) []error
 
-	CreateWatch(transport.Request) (transport.Watch, func())
+	CreateWatch(transport.Request, transport.Watch) func()
 }
 
 type orchestrator struct {
@@ -116,6 +118,10 @@ func New(
 	return orchestrator
 }
 
+func (o *orchestrator) GetScope() tally.Scope {
+	return o.scope
+}
+
 // CreateWatch is managed by the underlying go-control-plane gRPC server.
 //
 // Orchestrator will populate the response channel with the corresponding
@@ -127,13 +133,13 @@ func New(
 //
 // Cancel is an optional function to release resources in the producer. If
 // provided, the consumer may call this function multiple times.
-func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func()) {
+func (o *orchestrator) CreateWatch(req transport.Request, w transport.Watch) func() {
 	ctx := context.Background()
 
 	aggregatedKey, err := o.mapper.GetKey(req)
 	// If this is the first time we're seeing the request from the
 	// downstream client, initialize a channel to feed future responses.
-	watch := o.downstreamResponseMap.createWatch(req, metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey))
+	watch := o.downstreamResponseMap.createWatch(req, w, metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey))
 	if err != nil {
 		// TODO (https://github.com/envoyproxy/xds-relay/issues/56)
 		// Support unnaggregated keys.
@@ -143,7 +149,8 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 			"request_type", req.GetTypeURL(),
 			"node_id", req.GetNodeID(),
 		).Error(ctx, "failed to map to aggregated key")
-		return o.downstreamResponseMap.delete(req), nil
+		o.downstreamResponseMap.delete(req)
+		return nil
 	}
 
 	o.logger.With(
@@ -164,7 +171,8 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 		o.logger.With("error", err).With("aggregated_key", aggregatedKey).With(
 			"request", req.GetRaw().V2).Error(ctx, "failed to add watch")
 		metrics.OrchestratorWatchErrorsSubscope(o.scope, aggregatedKey).Counter(metrics.ErrorRegisterWatch).Inc(1)
-		return o.downstreamResponseMap.delete(req), nil
+		o.downstreamResponseMap.delete(req)
+		return nil
 	}
 	metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey).Counter(metrics.OrchestratorWatchCreated).Inc(1)
 
@@ -231,7 +239,7 @@ func (o *orchestrator) CreateWatch(req transport.Request) (transport.Watch, func
 		}
 	}
 
-	return watch, o.onCancelWatch(aggregatedKey, req)
+	return o.onCancelWatch(aggregatedKey, req)
 }
 
 // GetReadOnlyCache returns the request/response cache with only read-only methods exposed.
