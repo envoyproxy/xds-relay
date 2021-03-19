@@ -145,7 +145,7 @@ func TestGoldenPath(t *testing.T) {
 	assert.NoError(t, err)
 
 	respChannel := make(chan gcp.Response, 1)
-	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&req), transport.NewWatchV2(respChannel, mockScope))
+	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&req), transport.NewWatchV2(respChannel))
 	countersSnapshot := mockScope.Snapshot().Counters()
 	assert.EqualValues(
 		t, 1, countersSnapshot[fmt.Sprintf("mock_orchestrator.watch.created+key=%v", aggregatedKey)].Value())
@@ -209,7 +209,7 @@ func TestUnaggregatedKey(t *testing.T) {
 	assert.Error(t, err)
 
 	respChannel := make(chan gcp.Response, 1)
-	orchestrator.CreateWatch(req, transport.NewWatchV2(respChannel, mockScope))
+	orchestrator.CreateWatch(req, transport.NewWatchV2(respChannel))
 	assert.NotNil(t, respChannel)
 	assert.Equal(t, 0, len(orchestrator.downstreamResponseMap.watches))
 	_, more := <-respChannel
@@ -253,7 +253,7 @@ func TestCachedResponse(t *testing.T) {
 	assert.Equal(t, 0, getLength(watchers))
 
 	respChannel := make(chan gcp.Response, 1)
-	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&req), transport.NewWatchV2(respChannel, mockScope))
+	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&req), transport.NewWatchV2(respChannel))
 	assert.NotNil(t, respChannel)
 	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.watches))
 	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
@@ -292,7 +292,7 @@ func TestCachedResponse(t *testing.T) {
 		TypeUrl:     "type.googleapis.com/envoy.api.v2.Listener",
 	}
 	respChannel2 := make(chan gcp.Response, 1)
-	cancelWatch2 := orchestrator.CreateWatch(transport.NewRequestV2(&req2), transport.NewWatchV2(respChannel2, mockScope))
+	cancelWatch2 := orchestrator.CreateWatch(transport.NewRequestV2(&req2), transport.NewWatchV2(respChannel2))
 	assert.NotNil(t, respChannel2)
 	assert.Equal(t, 2, len(orchestrator.downstreamResponseMap.watches))
 	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)
@@ -352,13 +352,13 @@ func TestMultipleWatchersAndUpstreams(t *testing.T) {
 	}
 
 	respChannel1 := make(chan gcp.Response, 1)
-	cancelWatch1 := orchestrator.CreateWatch(transport.NewRequestV2(&req1), transport.NewWatchV2(respChannel1, mockScope))
+	cancelWatch1 := orchestrator.CreateWatch(transport.NewRequestV2(&req1), transport.NewWatchV2(respChannel1))
 	assert.NotNil(t, respChannel1)
 	respChannel2 := make(chan gcp.Response, 1)
-	cancelWatch2 := orchestrator.CreateWatch(transport.NewRequestV2(&req2), transport.NewWatchV2(respChannel2, mockScope))
+	cancelWatch2 := orchestrator.CreateWatch(transport.NewRequestV2(&req2), transport.NewWatchV2(respChannel2))
 	assert.NotNil(t, respChannel2)
 	respChannel3 := make(chan gcp.Response, 1)
-	cancelWatch3 := orchestrator.CreateWatch(transport.NewRequestV2(&req3), transport.NewWatchV2(respChannel3, mockScope))
+	cancelWatch3 := orchestrator.CreateWatch(transport.NewRequestV2(&req3), transport.NewWatchV2(respChannel3))
 	assert.NotNil(t, respChannel3)
 
 	upstreamResponseLDS := v2.DiscoveryResponse{
@@ -430,7 +430,7 @@ func TestUpstreamFailure(t *testing.T) {
 	assert.NoError(t, err)
 
 	respChannel := make(chan gcp.Response, 1)
-	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&req), transport.NewWatchV2(respChannel, mockScope))
+	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&req), transport.NewWatchV2(respChannel))
 
 	// close upstream channel. This happens when upstream client receives an error
 	close(upstreamResponseChannel)
@@ -493,7 +493,7 @@ func TestNACKRequest(t *testing.T) {
 	assert.Equal(t, 0, getLength(watchers))
 
 	respChannel := make(chan gcp.Response, 1)
-	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&req), transport.NewWatchV2(respChannel, mockScope))
+	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&req), transport.NewWatchV2(respChannel))
 	assert.NotNil(t, respChannel)
 	assert.Equal(t, 1, len(orchestrator.downstreamResponseMap.watches))
 	testutils.AssertSyncMapLen(t, 1, orchestrator.upstreamResponseMap.internal)

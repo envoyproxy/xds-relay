@@ -62,7 +62,7 @@ func TestAdminServer_VersionHandler(t *testing.T) {
 			Cluster: "test-prod",
 		},
 		ResourceNames: []string{"res"},
-	}), transport.NewWatchV3(respChannel, stats.NewMockScope("mock")))
+	}), transport.NewWatchV3(respChannel))
 
 	clusterAny, _ := ptypes.MarshalAny(&clusterv3.Cluster{})
 
@@ -142,7 +142,7 @@ func TestAdminServer_EDSDumpHandler(t *testing.T) {
 			Cluster: "test-prod1",
 		},
 		ResourceNames: []string{"res"},
-	}), transport.NewWatchV2(respChannel, stats.NewMockScope("mock")))
+	}), transport.NewWatchV2(respChannel))
 
 	respChannelv3 := make(chan gcpv3.Response, 1)
 	cancelWatchv3 := orchestrator.CreateWatch(transport.NewRequestV3(&gcpv3.Request{
@@ -152,7 +152,7 @@ func TestAdminServer_EDSDumpHandler(t *testing.T) {
 			Cluster: "test-prod2",
 		},
 		ResourceNames: []string{"res"},
-	}), transport.NewWatchV3(respChannelv3, stats.NewMockScope("mock")))
+	}), transport.NewWatchV3(respChannelv3))
 
 	endpoint := &v2.ClusterLoadAssignment{
 		ClusterName: "test-prod1",
@@ -271,7 +271,7 @@ func TestAdminServer_KeyDumpHandler(t *testing.T) {
 			Id:      "test-1",
 			Cluster: "test-prod",
 		},
-	}), transport.NewWatchV2(respChannel, stats.NewMockScope("mock")))
+	}), transport.NewWatchV2(respChannel))
 
 	respChannel2 := make(chan gcp.Response, 1)
 	cancelWatch2 := orchestrator.CreateWatch(transport.NewRequestV2(&gcp.Request{
@@ -280,7 +280,7 @@ func TestAdminServer_KeyDumpHandler(t *testing.T) {
 			Id:      "test-1",
 			Cluster: "test-prod",
 		},
-	}), transport.NewWatchV2(respChannel2, stats.NewMockScope("mock")))
+	}), transport.NewWatchV2(respChannel2))
 
 	upstreamLdsResponseChannel <- &v2.DiscoveryResponse{
 		VersionInfo: "1",
@@ -332,7 +332,8 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 		Node:    &reqNode,
 	}
 	respChannel := make(chan gcp.Response, 1)
-	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq), transport.NewWatchV2(respChannel, stats.NewMockScope("mock")))
+	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq),
+		transport.NewWatchV2(respChannel))
 	assert.NotNil(t, respChannel)
 
 	listener := &v2.Listener{
@@ -447,7 +448,8 @@ func testAdminServerCacheDumpHelper(t *testing.T, isVerbose bool, urls []string)
 				Node:    &req1Node,
 			}
 			ldsRespChannel := make(chan gcp.Response, 1)
-			cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq1), transport.NewWatchV2(ldsRespChannel, stats.NewMockScope("mock")))
+			cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq1),
+				transport.NewWatchV2(ldsRespChannel))
 
 			req2Node := corev2.Node{
 				Id:      "test-2",
@@ -458,7 +460,8 @@ func testAdminServerCacheDumpHelper(t *testing.T, isVerbose bool, urls []string)
 				Node:    &req2Node,
 			}
 			cdsRespChannel := make(chan gcp.Response, 1)
-			cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq2), transport.NewWatchV2(cdsRespChannel, stats.NewMockScope("mock")))
+			cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq2),
+				transport.NewWatchV2(cdsRespChannel))
 
 			listener := &v2.Listener{
 				Name: "lds resource",
@@ -556,7 +559,8 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffix_NotFound(t *testing.T) {
 				Node:    &req1Node,
 			}
 			ldsRespChannel := make(chan gcp.Response, 1)
-			cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq1), transport.NewWatchV2(ldsRespChannel, stats.NewMockScope("mock")))
+			cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq1),
+				transport.NewWatchV2(ldsRespChannel))
 
 			req2Node := corev2.Node{
 				Id:      "test-2",
@@ -567,7 +571,8 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffix_NotFound(t *testing.T) {
 				Node:    &req2Node,
 			}
 			cdsRespChannel := make(chan gcp.Response, 1)
-			cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq2), transport.NewWatchV2(cdsRespChannel, stats.NewMockScope("mock")))
+			cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq2),
+				transport.NewWatchV2(cdsRespChannel))
 
 			listener := &v2.Listener{
 				Name: "lds resource",
@@ -656,7 +661,8 @@ func testAdminServerCacheDumpHandlerV3(t *testing.T, isVerbose bool, urls []stri
 				Node:    &req1Node,
 			}
 			ldsRespChannel := make(chan gcpv3.Response, 1)
-			cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV3(&gcpReq1), transport.NewWatchV3(ldsRespChannel, stats.NewMockScope("mock")))
+			cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV3(&gcpReq1),
+				transport.NewWatchV3(ldsRespChannel))
 
 			req2Node := envoy_config_core_v3.Node{
 				Id:      "test-2",
@@ -667,7 +673,8 @@ func testAdminServerCacheDumpHandlerV3(t *testing.T, isVerbose bool, urls []stri
 				Node:    &req2Node,
 			}
 			cdsRespChannel := make(chan gcpv3.Response, 1)
-			cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV3(&gcpReq2), transport.NewWatchV3(cdsRespChannel, stats.NewMockScope("mock")))
+			cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV3(&gcpReq2),
+				transport.NewWatchV3(cdsRespChannel))
 
 			listener := &v2.Listener{
 				Name: "lds resource",
@@ -769,7 +776,8 @@ func TestAdminServer_ClearCacheHandler(t *testing.T) {
 		Node:    &reqNode,
 	}
 	ldsRespChannel := make(chan gcp.Response, 1)
-	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq), transport.NewWatchV2(ldsRespChannel, stats.NewMockScope("mock")))
+	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq),
+		transport.NewWatchV2(ldsRespChannel))
 
 	listener := &v2.Listener{
 		Name: "lds resource",
@@ -880,7 +888,8 @@ func testAdminServerClearCacheHelper(t *testing.T, urls []string, expectedCacheC
 				Node:    &req1Node,
 			}
 			ldsRespChannel := make(chan gcp.Response, 1)
-			cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq1), transport.NewWatchV2(ldsRespChannel, stats.NewMockScope("mock")))
+			cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq1),
+				transport.NewWatchV2(ldsRespChannel))
 
 			req2Node := corev2.Node{
 				Id:      "test-2",
@@ -891,7 +900,8 @@ func testAdminServerClearCacheHelper(t *testing.T, urls []string, expectedCacheC
 				Node:    &req2Node,
 			}
 			cdsRespChannel := make(chan gcp.Response, 1)
-			cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq2), transport.NewWatchV2(cdsRespChannel, stats.NewMockScope("mock")))
+			cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq2),
+				transport.NewWatchV2(cdsRespChannel))
 
 			listener := &v2.Listener{
 				Name: "lds resource",
@@ -1001,7 +1011,8 @@ func testAdminServerClearCacheHelperV3(t *testing.T, urls []string) {
 				Node:    &req1Node,
 			}
 			ldsRespChannel := make(chan gcpv3.Response, 1)
-			cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV3(&gcpReq1), transport.NewWatchV3(ldsRespChannel, stats.NewMockScope("mock")))
+			cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV3(&gcpReq1),
+				transport.NewWatchV3(ldsRespChannel))
 
 			req2Node := envoy_config_core_v3.Node{
 				Id:      "test-2",
@@ -1012,7 +1023,8 @@ func testAdminServerClearCacheHelperV3(t *testing.T, urls []string) {
 				Node:    &req2Node,
 			}
 			cdsRespChannel := make(chan gcpv3.Response, 1)
-			cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV3(&gcpReq2), transport.NewWatchV3(cdsRespChannel, stats.NewMockScope("mock")))
+			cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV3(&gcpReq2),
+				transport.NewWatchV3(cdsRespChannel))
 
 			listener := &v2.Listener{
 				Name: "lds resource",

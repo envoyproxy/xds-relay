@@ -137,9 +137,10 @@ func (o *orchestrator) CreateWatch(req transport.Request, w transport.Watch) fun
 	ctx := context.Background()
 
 	aggregatedKey, err := o.mapper.GetKey(req)
+	w.SetScope(metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey))
 	// If this is the first time we're seeing the request from the
 	// downstream client, initialize a channel to feed future responses.
-	watch := o.downstreamResponseMap.createWatch(req, w, metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey))
+	watch := o.downstreamResponseMap.createWatch(req, w)
 	if err != nil {
 		// TODO (https://github.com/envoyproxy/xds-relay/issues/56)
 		// Support unnaggregated keys.
