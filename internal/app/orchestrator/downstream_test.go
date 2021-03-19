@@ -31,14 +31,16 @@ var (
 func Test_downstreamResponseMap_createWatch(t *testing.T) {
 	responseMap := newDownstreamResponseMap()
 	assert.Equal(t, 0, len(responseMap.watches))
-	responseMap.createWatch(transport.NewRequestV2(&mockRequest), mockScope)
+	respChannel := make(chan gcp.Response, 1)
+	responseMap.createWatch(transport.NewRequestV2(&mockRequest), transport.NewWatchV2(respChannel, mockScope), mockScope)
 	assert.Equal(t, 1, len(responseMap.watches))
 }
 
 func Test_downstreamResponseMap_get(t *testing.T) {
 	responseMap := newDownstreamResponseMap()
 	request := transport.NewRequestV2(&mockRequest)
-	responseMap.createWatch(request, mockScope)
+	respChannel := make(chan gcp.Response, 1)
+	responseMap.createWatch(request, transport.NewWatchV2(respChannel, mockScope), mockScope)
 	assert.Equal(t, 1, len(responseMap.watches))
 	if _, ok := responseMap.get(request); !ok {
 		t.Error("request not found")
@@ -51,8 +53,10 @@ func Test_downstreamResponseMap_delete(t *testing.T) {
 	request2 := transport.NewRequestV2(&gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Cluster",
 	})
-	responseMap.createWatch(request, mockScope)
-	responseMap.createWatch(request2, mockScope)
+	respChannel := make(chan gcp.Response, 1)
+	respChannel2 := make(chan gcp.Response, 1)
+	responseMap.createWatch(request, transport.NewWatchV2(respChannel, mockScope), mockScope)
+	responseMap.createWatch(request2, transport.NewWatchV2(respChannel2, mockScope), mockScope)
 	assert.Equal(t, 2, len(responseMap.watches))
 	if _, ok := responseMap.get(request); !ok {
 		t.Error("request not found")
@@ -78,9 +82,12 @@ func Test_downstreamResponseMap_deleteAll(t *testing.T) {
 	request3 := transport.NewRequestV2(&gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.RouteConfiguration",
 	})
-	responseMap.createWatch(request, mockScope)
-	responseMap.createWatch(request2, mockScope)
-	responseMap.createWatch(request3, mockScope)
+	respChannel := make(chan gcp.Response, 1)
+	respChannel2 := make(chan gcp.Response, 1)
+	respChannel3 := make(chan gcp.Response, 1)
+	responseMap.createWatch(request, transport.NewWatchV2(respChannel, mockScope), mockScope)
+	responseMap.createWatch(request2, transport.NewWatchV2(respChannel2, mockScope), mockScope)
+	responseMap.createWatch(request3, transport.NewWatchV2(respChannel3, mockScope), mockScope)
 	assert.Equal(t, 3, len(responseMap.watches))
 	m := cache.NewRequestsStore()
 	m.Set(request)

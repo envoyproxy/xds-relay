@@ -54,14 +54,15 @@ func TestAdminServer_VersionHandler(t *testing.T) {
 	)
 	orchestrator := orchestrator.NewMock(t, mapper, client, mockScope)
 
-	respChannel, cancelWatch := orchestrator.CreateWatch(transport.NewRequestV3(&gcpv3.Request{
+	respChannel := make(chan gcpv3.Response, 1)
+	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV3(&gcpv3.Request{
 		TypeUrl: resourcev3.ClusterType,
 		Node: &envoy_config_core_v3.Node{
 			Id:      "test-1",
 			Cluster: "test-prod",
 		},
 		ResourceNames: []string{"res"},
-	}))
+	}), transport.NewWatchV3(respChannel, stats.NewMockScope("mock")))
 
 	clusterAny, _ := ptypes.MarshalAny(&clusterv3.Cluster{})
 
@@ -72,7 +73,7 @@ func TestAdminServer_VersionHandler(t *testing.T) {
 			clusterAny,
 		},
 	}
-	<-respChannel.GetChannel().V3
+	<-respChannel
 
 	req, err := http.NewRequest("GET", "/cache/version/test_cdsv3", nil)
 	assert.NoError(t, err)
@@ -133,22 +134,25 @@ func TestAdminServer_EDSDumpHandler(t *testing.T) {
 	)
 	orchestrator := orchestrator.NewMock(t, mapper, client, stats.NewMockScope("mock_orchestrator"))
 
-	respChannel, cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcp.Request{
+	respChannel := make(chan gcp.Response, 1)
+	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcp.Request{
 		TypeUrl: resourcev2.EndpointType,
 		Node: &corev2.Node{
 			Id:      "test-1",
 			Cluster: "test-prod1",
 		},
 		ResourceNames: []string{"res"},
-	}))
-	respChannelv3, cancelWatchv3 := orchestrator.CreateWatch(transport.NewRequestV3(&gcpv3.Request{
+	}), transport.NewWatchV2(respChannel, stats.NewMockScope("mock")))
+
+	respChannelv3 := make(chan gcpv3.Response, 1)
+	cancelWatchv3 := orchestrator.CreateWatch(transport.NewRequestV3(&gcpv3.Request{
 		TypeUrl: resourcev3.EndpointType,
 		Node: &corev3.Node{
 			Id:      "test-2",
 			Cluster: "test-prod2",
 		},
 		ResourceNames: []string{"res"},
-	}))
+	}), transport.NewWatchV3(respChannelv3, stats.NewMockScope("mock")))
 
 	endpoint := &v2.ClusterLoadAssignment{
 		ClusterName: "test-prod1",
@@ -198,8 +202,8 @@ func TestAdminServer_EDSDumpHandler(t *testing.T) {
 		},
 	}
 
-	<-respChannel.GetChannel().V2
-	<-respChannelv3.GetChannel().V3
+	<-respChannel
+	<-respChannelv3
 
 	rr := getResponse(t, "eds", &orchestrator)
 	assert.Equal(t, http.StatusOK, rr.Code)
@@ -260,21 +264,23 @@ func TestAdminServer_KeyDumpHandler(t *testing.T) {
 
 	verifyKeyLen(t, 0, &orchestrator)
 
-	respChannel, cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcp.Request{
+	respChannel := make(chan gcp.Response, 1)
+	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
 		Node: &corev2.Node{
 			Id:      "test-1",
 			Cluster: "test-prod",
 		},
-	}))
+	}), transport.NewWatchV2(respChannel, stats.NewMockScope("mock")))
 
-	respChannel2, cancelWatch2 := orchestrator.CreateWatch(transport.NewRequestV2(&gcp.Request{
+	respChannel2 := make(chan gcp.Response, 1)
+	cancelWatch2 := orchestrator.CreateWatch(transport.NewRequestV2(&gcp.Request{
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Cluster",
 		Node: &corev2.Node{
 			Id:      "test-1",
 			Cluster: "test-prod",
 		},
-	}))
+	}), transport.NewWatchV2(respChannel2, stats.NewMockScope("mock")))
 
 	upstreamLdsResponseChannel <- &v2.DiscoveryResponse{
 		VersionInfo: "1",
@@ -286,8 +292,8 @@ func TestAdminServer_KeyDumpHandler(t *testing.T) {
 		TypeUrl:     "type.googleapis.com/envoy.api.v2.Cluster",
 		Resources:   []*any.Any{},
 	}
-	<-respChannel.GetChannel().V2
-	<-respChannel2.GetChannel().V2
+	<-respChannel
+	<-respChannel2
 
 	verifyKeyLen(t, 2, &orchestrator)
 	cancelWatch()
@@ -325,7 +331,8 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
 		Node:    &reqNode,
 	}
-	respChannel, cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq))
+	respChannel := make(chan gcp.Response, 1)
+	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq), transport.NewWatchV2(respChannel, stats.NewMockScope("mock")))
 	assert.NotNil(t, respChannel)
 
 	listener := &v2.Listener{
@@ -341,7 +348,7 @@ func TestAdminServer_CacheDumpHandler(t *testing.T) {
 		},
 	}
 	upstreamResponseChannel <- &resp
-	gotResponse := <-respChannel.GetChannel().V2
+	gotResponse := <-respChannel
 	gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
 	assert.NoError(t, err)
 	assert.Equal(t, &resp, gotDiscoveryResponse)
@@ -439,8 +446,8 @@ func testAdminServerCacheDumpHelper(t *testing.T, isVerbose bool, urls []string)
 				TypeUrl: resourcev2.ListenerType,
 				Node:    &req1Node,
 			}
-			ldsRespChannel, cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq1))
-			assert.NotNil(t, ldsRespChannel)
+			ldsRespChannel := make(chan gcp.Response, 1)
+			cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq1), transport.NewWatchV2(ldsRespChannel, stats.NewMockScope("mock")))
 
 			req2Node := corev2.Node{
 				Id:      "test-2",
@@ -450,8 +457,8 @@ func testAdminServerCacheDumpHelper(t *testing.T, isVerbose bool, urls []string)
 				TypeUrl: resourcev2.ClusterType,
 				Node:    &req2Node,
 			}
-			cdsRespChannel, cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq2))
-			assert.NotNil(t, cdsRespChannel)
+			cdsRespChannel := make(chan gcp.Response, 1)
+			cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq2), transport.NewWatchV2(cdsRespChannel, stats.NewMockScope("mock")))
 
 			listener := &v2.Listener{
 				Name: "lds resource",
@@ -466,7 +473,7 @@ func testAdminServerCacheDumpHelper(t *testing.T, isVerbose bool, urls []string)
 				},
 			}
 			upstreamResponseChannelLDS <- &resp
-			gotResponse := <-ldsRespChannel.GetChannel().V2
+			gotResponse := <-ldsRespChannel
 			gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
 			assert.NoError(t, err)
 			assert.Equal(t, &resp, gotDiscoveryResponse)
@@ -484,7 +491,7 @@ func testAdminServerCacheDumpHelper(t *testing.T, isVerbose bool, urls []string)
 				},
 			}
 			upstreamResponseChannelCDS <- &resp
-			gotResponse = <-cdsRespChannel.GetChannel().V2
+			gotResponse = <-cdsRespChannel
 			gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
 			assert.NoError(t, err)
 			assert.Equal(t, &resp, gotDiscoveryResponse)
@@ -548,8 +555,8 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffix_NotFound(t *testing.T) {
 				TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
 				Node:    &req1Node,
 			}
-			ldsRespChannel, cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq1))
-			assert.NotNil(t, ldsRespChannel)
+			ldsRespChannel := make(chan gcp.Response, 1)
+			cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq1), transport.NewWatchV2(ldsRespChannel, stats.NewMockScope("mock")))
 
 			req2Node := corev2.Node{
 				Id:      "test-2",
@@ -559,8 +566,8 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffix_NotFound(t *testing.T) {
 				TypeUrl: "type.googleapis.com/envoy.api.v2.Cluster",
 				Node:    &req2Node,
 			}
-			cdsRespChannel, cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq2))
-			assert.NotNil(t, cdsRespChannel)
+			cdsRespChannel := make(chan gcp.Response, 1)
+			cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq2), transport.NewWatchV2(cdsRespChannel, stats.NewMockScope("mock")))
 
 			listener := &v2.Listener{
 				Name: "lds resource",
@@ -575,7 +582,7 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffix_NotFound(t *testing.T) {
 				},
 			}
 			upstreamResponseChannelLDS <- &resp
-			gotResponse := <-ldsRespChannel.GetChannel().V2
+			gotResponse := <-ldsRespChannel
 			gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
 			assert.NoError(t, err)
 			assert.Equal(t, &resp, gotDiscoveryResponse)
@@ -593,7 +600,7 @@ func TestAdminServer_CacheDumpHandler_WildcardSuffix_NotFound(t *testing.T) {
 				},
 			}
 			upstreamResponseChannelCDS <- &resp
-			gotResponse = <-cdsRespChannel.GetChannel().V2
+			gotResponse = <-cdsRespChannel
 			gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
 			assert.NoError(t, err)
 			assert.Equal(t, &resp, gotDiscoveryResponse)
@@ -648,8 +655,8 @@ func testAdminServerCacheDumpHandlerV3(t *testing.T, isVerbose bool, urls []stri
 				TypeUrl: resourcev3.ListenerType,
 				Node:    &req1Node,
 			}
-			ldsRespChannel, cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV3(&gcpReq1))
-			assert.NotNil(t, ldsRespChannel)
+			ldsRespChannel := make(chan gcpv3.Response, 1)
+			cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV3(&gcpReq1), transport.NewWatchV3(ldsRespChannel, stats.NewMockScope("mock")))
 
 			req2Node := envoy_config_core_v3.Node{
 				Id:      "test-2",
@@ -659,8 +666,8 @@ func testAdminServerCacheDumpHandlerV3(t *testing.T, isVerbose bool, urls []stri
 				TypeUrl: resourcev3.ClusterType,
 				Node:    &req2Node,
 			}
-			cdsRespChannel, cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV3(&gcpReq2))
-			assert.NotNil(t, cdsRespChannel)
+			cdsRespChannel := make(chan gcpv3.Response, 1)
+			cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV3(&gcpReq2), transport.NewWatchV3(cdsRespChannel, stats.NewMockScope("mock")))
 
 			listener := &v2.Listener{
 				Name: "lds resource",
@@ -675,7 +682,7 @@ func testAdminServerCacheDumpHandlerV3(t *testing.T, isVerbose bool, urls []stri
 				},
 			}
 			upstreamResponseChannelLDS <- &resp
-			gotResponse := <-ldsRespChannel.GetChannel().V3
+			gotResponse := <-ldsRespChannel
 			gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
 			assert.NoError(t, err)
 			assert.Equal(t, &resp, gotDiscoveryResponse)
@@ -693,7 +700,7 @@ func testAdminServerCacheDumpHandlerV3(t *testing.T, isVerbose bool, urls []stri
 				},
 			}
 			upstreamResponseChannelCDS <- &resp
-			gotResponse = <-cdsRespChannel.GetChannel().V3
+			gotResponse = <-cdsRespChannel
 			gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
 			assert.NoError(t, err)
 			assert.Equal(t, &resp, gotDiscoveryResponse)
@@ -761,8 +768,8 @@ func TestAdminServer_ClearCacheHandler(t *testing.T) {
 		TypeUrl: "type.googleapis.com/envoy.api.v2.Listener",
 		Node:    &reqNode,
 	}
-	ldsRespChannel, cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq))
-	assert.NotNil(t, ldsRespChannel)
+	ldsRespChannel := make(chan gcp.Response, 1)
+	cancelWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq), transport.NewWatchV2(ldsRespChannel, stats.NewMockScope("mock")))
 
 	listener := &v2.Listener{
 		Name: "lds resource",
@@ -777,7 +784,7 @@ func TestAdminServer_ClearCacheHandler(t *testing.T) {
 		},
 	}
 	upstreamResponseChannel <- &resp
-	gotResponse := <-ldsRespChannel.GetChannel().V2
+	gotResponse := <-ldsRespChannel
 	gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
 	assert.NoError(t, err)
 	assert.Equal(t, &resp, gotDiscoveryResponse)
@@ -872,8 +879,8 @@ func testAdminServerClearCacheHelper(t *testing.T, urls []string, expectedCacheC
 				TypeUrl: resourcev2.ListenerType,
 				Node:    &req1Node,
 			}
-			ldsRespChannel, cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq1))
-			assert.NotNil(t, ldsRespChannel)
+			ldsRespChannel := make(chan gcp.Response, 1)
+			cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq1), transport.NewWatchV2(ldsRespChannel, stats.NewMockScope("mock")))
 
 			req2Node := corev2.Node{
 				Id:      "test-2",
@@ -883,8 +890,8 @@ func testAdminServerClearCacheHelper(t *testing.T, urls []string, expectedCacheC
 				TypeUrl: resourcev2.ClusterType,
 				Node:    &req2Node,
 			}
-			cdsRespChannel, cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq2))
-			assert.NotNil(t, cdsRespChannel)
+			cdsRespChannel := make(chan gcp.Response, 1)
+			cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV2(&gcpReq2), transport.NewWatchV2(cdsRespChannel, stats.NewMockScope("mock")))
 
 			listener := &v2.Listener{
 				Name: "lds resource",
@@ -899,7 +906,7 @@ func testAdminServerClearCacheHelper(t *testing.T, urls []string, expectedCacheC
 				},
 			}
 			upstreamResponseChannelLDS <- &resp
-			gotResponse := <-ldsRespChannel.GetChannel().V2
+			gotResponse := <-ldsRespChannel
 			gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
 			assert.NoError(t, err)
 			assert.Equal(t, &resp, gotDiscoveryResponse)
@@ -917,7 +924,7 @@ func testAdminServerClearCacheHelper(t *testing.T, urls []string, expectedCacheC
 				},
 			}
 			upstreamResponseChannelCDS <- &resp
-			gotResponse = <-cdsRespChannel.GetChannel().V2
+			gotResponse = <-cdsRespChannel
 			gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
 			assert.NoError(t, err)
 			assert.Equal(t, &resp, gotDiscoveryResponse)
@@ -993,8 +1000,8 @@ func testAdminServerClearCacheHelperV3(t *testing.T, urls []string) {
 				TypeUrl: resourcev3.ListenerType,
 				Node:    &req1Node,
 			}
-			ldsRespChannel, cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV3(&gcpReq1))
-			assert.NotNil(t, ldsRespChannel)
+			ldsRespChannel := make(chan gcpv3.Response, 1)
+			cancelLDSWatch := orchestrator.CreateWatch(transport.NewRequestV3(&gcpReq1), transport.NewWatchV3(ldsRespChannel, stats.NewMockScope("mock")))
 
 			req2Node := envoy_config_core_v3.Node{
 				Id:      "test-2",
@@ -1004,8 +1011,8 @@ func testAdminServerClearCacheHelperV3(t *testing.T, urls []string) {
 				TypeUrl: resourcev3.ClusterType,
 				Node:    &req2Node,
 			}
-			cdsRespChannel, cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV3(&gcpReq2))
-			assert.NotNil(t, cdsRespChannel)
+			cdsRespChannel := make(chan gcpv3.Response, 1)
+			cancelCDSWatch := orchestrator.CreateWatch(transport.NewRequestV3(&gcpReq2), transport.NewWatchV3(cdsRespChannel, stats.NewMockScope("mock")))
 
 			listener := &v2.Listener{
 				Name: "lds resource",
@@ -1020,7 +1027,7 @@ func testAdminServerClearCacheHelperV3(t *testing.T, urls []string) {
 				},
 			}
 			upstreamResponseChannelLDS <- &resp
-			gotResponse := <-ldsRespChannel.GetChannel().V3
+			gotResponse := <-ldsRespChannel
 			gotDiscoveryResponse, err := gotResponse.GetDiscoveryResponse()
 			assert.NoError(t, err)
 			assert.Equal(t, &resp, gotDiscoveryResponse)
@@ -1038,7 +1045,7 @@ func testAdminServerClearCacheHelperV3(t *testing.T, urls []string) {
 				},
 			}
 			upstreamResponseChannelCDS <- &resp
-			gotResponse = <-cdsRespChannel.GetChannel().V3
+			gotResponse = <-cdsRespChannel
 			gotDiscoveryResponse, err = gotResponse.GetDiscoveryResponse()
 			assert.NoError(t, err)
 			assert.Equal(t, &resp, gotDiscoveryResponse)
