@@ -28,7 +28,8 @@ func NewWatchV2(out chan gcpv2.Response) Watch {
 	}
 }
 
-// SetScope sets the scope field of the watch for metric purposes
+// SetScope sets scope name for metrics/observability. Used in CreateWatch to scope watch with
+// the aggregated key.
 func (w *watchV2) SetScope(scope tally.Scope) {
 	w.mu.Lock()
 	defer w.mu.Unlock()

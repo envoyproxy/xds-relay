@@ -13,6 +13,7 @@ type Watch interface {
 	// goroutines. This also guarantees that stale responses are dropped in the event that a
 	// newer response arrives.
 	Send(Response) error
-	// SetScope sets scope name for metrics/observability.
+	// SetScope sets scope name for metrics/observability. Used in CreateWatch to scope watch with
+	// the aggregated key.
 	SetScope(scope tally.Scope)
 }

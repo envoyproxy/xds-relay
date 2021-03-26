@@ -53,8 +53,6 @@ type Orchestrator interface {
 	// open channels.
 	shutdown(ctx context.Context)
 
-	GetScope() tally.Scope
-
 	GetReadOnlyCache() cache.ReadOnlyCache
 
 	GetDownstreamAggregatedKeys() (map[string]bool, error)
@@ -118,10 +116,6 @@ func New(
 	return orchestrator
 }
 
-func (o *orchestrator) GetScope() tally.Scope {
-	return o.scope
-}
-
 // CreateWatch is managed by the underlying go-control-plane gRPC server.
 //
 // Orchestrator will populate the response channel with the corresponding
@@ -133,14 +127,15 @@ func (o *orchestrator) GetScope() tally.Scope {
 //
 // Cancel is an optional function to release resources in the producer. If
 // provided, the consumer may call this function multiple times.
-func (o *orchestrator) CreateWatch(req transport.Request, w transport.Watch) func() {
+func (o *orchestrator) CreateWatch(req transport.Request, watch transport.Watch) func() {
 	ctx := context.Background()
 
 	aggregatedKey, err := o.mapper.GetKey(req)
-	w.SetScope(metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey))
+	watch.SetScope(metrics.OrchestratorWatchSubscope(o.scope, aggregatedKey))
+
 	// If this is the first time we're seeing the request from the
 	// downstream client, initialize a channel to feed future responses.
-	watch := o.downstreamResponseMap.createWatch(req, w)
+	o.downstreamResponseMap.add(req, watch)
 	if err != nil {
 		// TODO (https://github.com/envoyproxy/xds-relay/issues/56)
 		// Support unnaggregated keys.
