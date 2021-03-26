@@ -21,11 +21,17 @@ type watchV3 struct {
 }
 
 // newWatchV2 creates a new watch object
-func newWatchV3(scope tally.Scope) Watch {
+func NewWatchV3(out chan gcpv3.Response) Watch {
 	return &watchV3{
-		out:   make(chan gcpv3.Response, 1),
-		scope: scope,
+		out: out,
 	}
+}
+
+// SetScope sets the scope field of the watch for metric purposes
+func (w *watchV3) SetScope(scope tally.Scope) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.scope = scope
 }
 
 // Close closes the communication with the xds client
@@ -34,11 +40,6 @@ func (w *watchV3) Close() {
 	defer w.mu.Unlock()
 	w.closed = true
 	close(w.out)
-}
-
-// GetChannelV2 gets the v2 channel used for communication with the xds client
-func (w *watchV3) GetChannel() *ChannelVersion {
-	return &ChannelVersion{V3: w.out}
 }
 
 // Send sends the xds response over wire

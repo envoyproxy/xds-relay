@@ -3,7 +3,6 @@ package transport
 import (
 	discoveryv3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	structpb "github.com/golang/protobuf/ptypes/struct"
-	"github.com/uber-go/tally"
 	status "google.golang.org/genproto/googleapis/rpc/status"
 )
 
@@ -77,9 +76,4 @@ func (r *RequestV3) GetRaw() *RequestVersion {
 // GetResponseNonce gets the error details
 func (r *RequestV3) GetResponseNonce() string {
 	return r.r.GetResponseNonce()
-}
-
-// CreateWatch creates a versioned Watch
-func (r *RequestV3) CreateWatch(scope tally.Scope) Watch {
-	return newWatchV3(scope)
 }

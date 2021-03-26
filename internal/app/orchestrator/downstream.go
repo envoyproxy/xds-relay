@@ -17,7 +17,6 @@ import (
 	"github.com/envoyproxy/xds-relay/internal/app/cache"
 	"github.com/envoyproxy/xds-relay/internal/app/mapper"
 	"github.com/envoyproxy/xds-relay/internal/app/transport"
-	"github.com/uber-go/tally"
 )
 
 // downstreamResponseMap is a map of downstream xDS client requests to response
@@ -33,15 +32,13 @@ func newDownstreamResponseMap() downstreamResponseMap {
 	}
 }
 
-// createWatch initializes a new channel for a request if it doesn't already
-// exist.
-func (d *downstreamResponseMap) createWatch(req transport.Request, scope tally.Scope) transport.Watch {
+// add stores watch channel in the downstream map under request key
+func (d *downstreamResponseMap) add(req transport.Request, w transport.Watch) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if _, ok := d.watches[req]; !ok {
-		d.watches[req] = req.CreateWatch(scope)
+		d.watches[req] = w
 	}
-	return d.watches[req]
 }
 
 // get retrieves the channel where responses are set for the specified request.
@@ -54,16 +51,14 @@ func (d *downstreamResponseMap) get(req transport.Request) (transport.Watch, boo
 
 // delete removes the response channel and request entry from the map and
 // closes the corresponding channel.
-func (d *downstreamResponseMap) delete(req transport.Request) transport.Watch {
+func (d *downstreamResponseMap) delete(req transport.Request) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if watch, ok := d.watches[req]; ok {
 		// wait for all writes to the responseChannel to complete before closing.
 		watch.Close()
 		delete(d.watches, req)
-		return watch
 	}
-	return nil
 }
 
 // deleteAll removes all response channels and request entries from the map and
