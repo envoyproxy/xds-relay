@@ -23,7 +23,7 @@ jobs:
         with:
           path: ${{ env.PACKAGEPATH }}
       - name: Install Go
-        uses: actions/setup-go@v2-beta
+        uses: actions/setup-go@v3.5.0
         with:
           go-version: ${{ matrix.go-version }}
       - name: Install golangci-lint
