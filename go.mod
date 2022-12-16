@@ -15,7 +15,8 @@ require (
 	github.com/onsi/gomega v1.9.0
 	github.com/spf13/cobra v1.0.0
 	github.com/stretchr/testify v1.8.1
-	github.com/uber-go/tally v3.3.15+incompatible
+	github.com/twmb/murmur3 v1.1.6 // indirect
+	github.com/uber-go/tally v3.5.0+incompatible
 	go.uber.org/goleak v1.1.0
 	go.uber.org/zap v1.14.0
 	golang.org/x/tools v0.0.0-20200527150044-688b3c5d9fa5 // indirect
