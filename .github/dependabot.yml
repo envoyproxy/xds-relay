@@ -10,6 +10,7 @@ updates:
     schedule:
       interval: weekly
   - package-ecosystem: gomod
+    open-pull-requests-limit: 10
     directory: /
     schedule:
       interval: weekly
