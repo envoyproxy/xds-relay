@@ -27,7 +27,7 @@ jobs:
       - name: Build configuration validator tool
         run: make compile-validator-tool
       - name: Run integration tests
-        uses: nick-invision/retry@v1
+        uses: nick-invision/retry@v2
         with:
           timeout_minutes: 10
           max_attempts: 3
