@@ -15,6 +15,9 @@ on:
 env:
   PACKAGEPATH: ${{ github.workspace }}/go/src/github.com/${{ github.repository }}
   ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+permissions:
+  contents: read
+
 jobs:
   protobuf-generate:
     strategy:

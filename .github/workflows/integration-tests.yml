@@ -8,6 +8,9 @@ on:
       - main
 env:
   ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+permissions:
+  contents: read
+
 jobs:
   tests:
     strategy:
